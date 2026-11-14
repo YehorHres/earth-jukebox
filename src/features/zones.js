@@ -25,12 +25,20 @@ export function computeZones(ctx) {
   const gSum = new Float32Array(COLS * ROWS), gCnt = new Uint32Array(COLS * ROWS), gAct = new Float32Array(COLS * ROWS);
   const bSum = new Float32Array(BANDS.length), bCnt = new Uint32Array(BANDS.length);
   const bandOfRow = new Uint8Array(h);
-  for (let y = 0; y < h; y++) { const fy = (y + 0.5) / h; bandOfRow[y] = BANDS.findIndex(b => fy >= b.y0 && fy < b.y1); }
+  // для диска (глобус) широта — від центру: φ = asin((cy − y) / r); пояси за φ, як на плоскій карті
+  const disk = ctx.disk;
+  const fyOf = y => {
+    if (!disk) return (y + 0.5) / h;
+    const v = Math.max(-1, Math.min(1, (disk.cy - (y + 0.5)) / disk.r));
+    return 0.5 - Math.asin(v) / Math.PI;
+  };
+  for (let y = 0; y < h; y++) { const fy = fyOf(y); bandOfRow[y] = Math.max(0, BANDS.findIndex(b => fy >= b.y0 && fy < b.y1)); }
   let wS = 0, wC = 0, eS = 0, eC = 0;
   for (let y = 0; y < h; y++) {
     const gy = Math.min(ROWS - 1, Math.floor(y * ROWS / h)), band = bandOfRow[y];
     for (let x = 0; x < w; x++) {
       const i = y * w + x, gx = Math.min(COLS - 1, Math.floor(x * COLS / w)), c = gy * COLS + gx;
+      if (ctx.inside && !ctx.inside[i]) continue;
       if (ctx.prevLuma) gAct[c] += Math.abs(ctx.luma[i] - ctx.prevLuma[i]);
       const v = pixelValue(ctx, i);
       if (v < 0) continue;

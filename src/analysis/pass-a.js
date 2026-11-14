@@ -6,6 +6,7 @@ import { grab, analysisSize } from "../media/frames.js";
 import { buildContext, hueRampValue, DATA_MIN_SAT } from "./frame-context.js";
 import { computeFrame, MAIN_FEATURE, listFeatures } from "../features/index.js";
 import { describeRange, median, percentile, autocorr, clamp } from "../util/stats.js";
+import { detectRegion, detectScale } from "./region.js";
 
 const N_SAMPLES = 32, N_NOISE_PAIRS = 4, MASK_W = 160;
 
@@ -85,16 +86,29 @@ export async function passA(source, { onProgress = () => {}, sceneOverride = nul
     }
   }
 
-  // ---- 5. тип сцени
-  const scene = classifyScene(frames, n, staticMask);
+  // ---- 4б. область даних і службові елементи (етап 10): рамки, космос, чорні смуги, шкала кольорів
+  const meanRGB = new Float32Array(3 * n);
+  for (let i = 0; i < n; i++) { meanRGB[3 * i] = sR[i] / F; meanRGB[3 * i + 1] = sG[i] / F; meanRGB[3 * i + 2] = sB[i] / F; }
+  const scale = detectScale({ w, h, meanRGB, mSat, mVal, pxStd, still: isStill, staticThr });
+  const region = detectRegion({ w, h, meanRGB, mVal, pxStd, still: isStill, staticThr });
+  const regionMask = region.mask;
+  if (scale.found) for (let i = 0; i < n; i++) if (scale.mask[i]) regionMask[i] = 0;
+  const inRegion = i => regionMask[i] === 1;
+  const regionArea = Math.max(1, regionMask.reduce((s, v) => s + v, 0));
+  // поза областю — не суша, не фон даних (це рамка/космос), щоб не плутати частки
+  for (let i = 0; i < n; i++) if (!inRegion(i)) { landMask[i] = 0; bgMask[i] = 0; }
+
+  // ---- 5. тип сцени (лише в області даних: чорний космос навколо глобуса — не «нічна карта»)
+  const scene = classifyScene(frames, n, staticMask, regionMask);
   const sceneType = sceneOverride || scene.type;
   // статичні накладки: підписи, легенда, логотипи. Для нічних карт статичні кольорові вогні — це дані.
   for (let i = 0; i < n; i++) {
-    if (!staticMask[i] || landMask[i] || bgMask[i]) continue;
+    if (!staticMask[i] || landMask[i] || bgMask[i] || !inRegion(i)) continue;
     if (sceneType === "nightlights" && mSat[i] >= 0.25) continue;
     overlayMask[i] = 1;
   }
-  const masks = { staticMask, landMask, bgMask, overlayMask };
+  const scaleRefs = scale.found ? Float32Array.from(scale.refs.flat()) : null;
+  const masks = { staticMask, landMask, bgMask, overlayMask, regionMask, scaleRefs, disk: region.disk };
 
   // ---- 6. ознаки на кадрах огляду → діапазони
   const series = {};
@@ -122,7 +136,7 @@ export async function passA(source, { onProgress = () => {}, sceneOverride = nul
   // ---- 7. масштаб змін по зонах 16×8: значущість (відношення до шуму) + амплітуда
   // Середнє по всьому кадру «топить» локальні зміни (місто, що росте) у шумі, тому міряємо по зонах.
   const mainFeature = MAIN_FEATURE[sceneType] || "brightness";
-  const cellVal = d => cellMeans(d, w, h, sceneType, masks);
+  const cellVal = d => cellMeans(d, w, h, sceneType, masks, region.bbox);
   const cellSeries = frames.map(cellVal);                 // [кадр][клітинка]
   const nCells = GRID_C * GRID_R;
   const cellNoise = [];
@@ -165,10 +179,12 @@ export async function passA(source, { onProgress = () => {}, sceneOverride = nul
     if (best > 0.6 && bestLag * 2 <= F) period = { seconds: bestLag * dur / F, strength: best, coarse: true };
   }
 
-  const share = m => m.reduce((s, v) => s + v, 0) / n;
+  const share = m => { let c = 0; for (let i = 0; i < n; i++) if (m[i] && inRegion(i)) c++; return c / regionArea; };
   return {
     sceneType, sceneDetected: scene.type, confidence: sceneOverride ? 1 : scene.confidence, sceneScores: scene.scores, sceneStats: scene.stats,
-    maskW: w, maskH: h, staticMask, landMask, bgMask, overlayMask,
+    maskW: w, maskH: h, staticMask, landMask, bgMask, overlayMask, regionMask,
+    region: { shape: region.shape, area: region.area, full: region.full, bbox: region.bbox, disk: region.disk, norm: region.norm },
+    scale: scale.found ? { found: true, orientation: scale.orientation, refs: scale.refs, norm: scale.norm } : { found: false },
     shares: { static: share(staticMask), land: share(landMask), bg: share(bgMask), overlay: share(overlayMask) },
     ranges, featureNoise, noiseFloor, noiseCell, mainFeature, changeRatio, changeScale, changeAmp, changeArea,
     mainSpread: spread, cuts: [], serviceTimes, period,
@@ -182,13 +198,14 @@ const GRID_C = 16, GRID_R = 8, SIGNIFICANT = 4;
  * Середня «головна величина» в кожній клітинці 16×8:
  * heatmap — значення за шкалою кольору; інші — яскравість (перцептивна амплітуда, без лог-підсилення).
  */
-function cellMeans(d, w, h, sceneType, masks) {
+function cellMeans(d, w, h, sceneType, masks, bb) {
   const sum = new Float64Array(GRID_C * GRID_R), cnt = new Uint32Array(GRID_C * GRID_R);
-  for (let y = 0; y < h; y++) {
-    const gy = Math.min(GRID_R - 1, Math.floor(y * GRID_R / h));
-    for (let x = 0; x < w; x++) {
+  const bw = bb.x1 - bb.x0 + 1, bh = bb.y1 - bb.y0 + 1;
+  for (let y = bb.y0; y <= bb.y1; y++) {
+    const gy = Math.min(GRID_R - 1, Math.floor((y - bb.y0) * GRID_R / bh));
+    for (let x = bb.x0; x <= bb.x1; x++) {
       const i = y * w + x;
-      if (masks.landMask[i] || masks.overlayMask[i]) continue;
+      if (masks.landMask[i] || masks.overlayMask[i] || !masks.regionMask[i]) continue;
       const p = i * 4, r = d[p], g = d[p + 1], b = d[p + 2];
       let v;
       if (sceneType === "heatmap") {
@@ -199,11 +216,11 @@ function cellMeans(d, w, h, sceneType, masks) {
         v = hueRampValue(hh);
         if (v < 0) continue;
       } else v = (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255;
-      const c = gy * GRID_C + Math.min(GRID_C - 1, Math.floor(x * GRID_C / w));
+      const c = gy * GRID_C + Math.min(GRID_C - 1, Math.floor((x - bb.x0) * GRID_C / bw));
       sum[c] += v; cnt[c]++;
     }
   }
-  const cellArea = (w / GRID_C) * (h / GRID_R);
+  const cellArea = (bw / GRID_C) * (bh / GRID_R);
   return Array.from(sum, (s, c) => (cnt[c] > cellArea * 0.05 ? s / cnt[c] : null));
 }
 
@@ -222,11 +239,12 @@ function majority(mask, w, h) {
 }
 
 /** Класифікатор типу сцени на простих правилах (з упевненістю). */
-function classifyScene(frames, n, staticMask) {
+function classifyScene(frames, n, staticMask, regionMask) {
   let sat = 0, warm = 0, cold = 0, bright = 0, lit = 0, white = 0, earth = 0, total = 0;
   const vals = [], hist = new Map();
   for (const d of frames) {
     for (let i = 0, p = 0; i < n; i += 3, p += 12) {      // кожен 3-й піксель — досить
+      if (regionMask && !regionMask[i]) continue;
       const r = d[p], g = d[p + 1], b = d[p + 2];
       const max = Math.max(r, g, b), min = Math.min(r, g, b), v = max / 255, s = max ? (max - min) / max : 0;
       let hh = 0; const dd = max - min;

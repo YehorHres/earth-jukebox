@@ -21,16 +21,17 @@ registerFeature({ id: "coldShare", label: "Частка холодних зон"
 /* ---------- nightlights ---------- */
 function lightStats(ctx, sh) {
   if (sh.lights) return sh.lights;
-  const { w, h, n, luma } = ctx, st = ctx.masks?.staticMask;
+  const { w, h, n, luma } = ctx, st = ctx.masks?.staticMask, ins = ctx.inside, N = ctx.insideCount;
   // поріг світла відносно фону: медіана luma + 0.08
   const hist = new Uint32Array(256);
-  for (let i = 0; i < n; i++) hist[Math.min(255, Math.floor(luma[i] * 255))]++;
+  for (let i = 0; i < n; i++) if (!ins || ins[i]) hist[Math.min(255, Math.floor(luma[i] * 255))]++;
   let acc = 0, med = 0;
-  for (let b = 0; b < 256; b++) { acc += hist[b]; if (acc >= n / 2) { med = b / 255; break; } }
+  for (let b = 0; b < 256; b++) { acc += hist[b]; if (acc >= N / 2) { med = b / 255; break; } }
   const thr = med + 0.08;
   const lit = new Uint8Array(n);
   let litCount = 0, dark = 0, logSum = 0;
   for (let i = 0; i < n; i++) {
+    if (ins && !ins[i]) continue;          // космос навколо диска — не «темрява» даних
     logSum += logLight(luma[i]);
     if (luma[i] < 0.06) dark++;
     if (luma[i] > thr && !(st && st[i] && ctx.sceneType !== "nightlights")) { lit[i] = 1; litCount++; }
@@ -52,7 +53,7 @@ function lightStats(ctx, sh) {
     }
     sizeSum += size;
   }
-  return (sh.lights = { logMean: logSum / n, litShare: litCount / n, clusters, meanSize: clusters ? sizeSum / clusters : 0, dark: dark / n });
+  return (sh.lights = { logMean: logSum / N, litShare: litCount / N, clusters, meanSize: clusters ? sizeSum / clusters : 0, dark: dark / N });
 }
 registerFeature({ id: "lightLog", label: "Світло (лог-шкала)", group: "nightlights", compute: (c, sh) => lightStats(c, sh).logMean });
 registerFeature({ id: "lightPoints", label: "Світлові точки", group: "nightlights", compute: (c, sh) => clamp(lightStats(c, sh).litShare * 10) });
@@ -65,12 +66,14 @@ function trueColorStats(ctx, sh) {
   if (sh.tc) return sh.tc;
   let white = 0, green = 0, water = 0;
   for (let i = 0; i < ctx.n; i++) {
+    if (ctx.inside && !ctx.inside[i]) continue;
     const v = ctx.val[i], s = ctx.sat[i], hh = ctx.hue[i];
     if (v > 0.75 && s < 0.15) white++;
     else if (s > 0.2 && hh >= 60 && hh <= 160 && v > 0.15) green++;
     else if (hh >= 190 && hh <= 250 && v < 0.5 && s > 0.2) water++;
   }
-  return (sh.tc = { white: white / ctx.n, green: green / ctx.n, water: water / ctx.n });
+  const N = ctx.insideCount;
+  return (sh.tc = { white: white / N, green: green / N, water: water / N });
 }
 registerFeature({ id: "whiteness", label: "Білизна (хмари/лід)", group: "truecolor", compute: (c, sh) => trueColorStats(c, sh).white });
 registerFeature({ id: "greenness", label: "Зеленість (рослинність)", group: "truecolor", compute: (c, sh) => trueColorStats(c, sh).green });

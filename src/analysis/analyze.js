@@ -13,7 +13,7 @@ import { listFeatures, getFeature, MAIN_FEATURE } from "../features/index.js";
 import { BANDS } from "../features/zones.js";
 import { median, percentile, smooth, autocorr, std, mean } from "../util/stats.js";
 
-export const ANALYSIS_VERSION = 8;
+export const ANALYSIS_VERSION = 9;
 
 export const KEY_FEATURES = {
   heatmap: ["warmth", "hotShare", "coldShare", "activeMass", "centerY"],
@@ -213,6 +213,16 @@ function findHotspots(zones, profile, times) {
     const lon = -180 + (x + 0.5) * 22.5;
     const lonText = Math.abs(lon) < 12 ? "нульовий меридіан" : `≈${Math.round(Math.abs(lon))}° ${lon < 0 ? "зх." : "сх."} д.`;
     const series = Float32Array.from(zones, z => (z.grid[c.cell] ?? NaN));
+    if (profile.region?.shape === "disk") {
+      // глобус: широта від центру диска, захід/схід — ліворуч/праворуч
+      const v = y < 3 ? "північ" : y > 4 ? "південь" : "центр";
+      const hz = x < 5 ? ", захід (ліворуч)" : x > 10 ? ", схід (праворуч)" : "";
+      let label = `${v} диска${hz}`;
+      if (picked.some(p => p.label === label)) label += ` (${x < 8 ? "лівіше" : "правіше"})`;
+      picked.push({ cell: c.cell, col: x, row: y, spread: c.spread, label, series });
+      if (picked.length === 3) break;
+      continue;
+    }
     if (profile.projection && profile.projection !== "equirect") {
       // не плоска карта (глобус, графік): географічні підписи були б неправдою — кажемо, де в кадрі
       const v = y < 3 ? "угорі" : y > 4 ? "унизу" : "посередині", hz = x < 5 ? "ліворуч" : x > 10 ? "праворуч" : "в центрі";

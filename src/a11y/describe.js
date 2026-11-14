@@ -63,6 +63,14 @@ export function describeProfile(p, source, analysis = null) {
     if (n) lines.push(`Помітних подій (сильні піки, зміни режиму): ${n} — вони стануть акцентами в музиці.`);
     else if (p.changeScale !== "none") lines.push("Різких подій немає — зміни плавні.");
   }
+  // область даних і шкала кольорів (етап 10)
+  const rg = p.region;
+  if (rg && !rg.full) {
+    const what = rg.shape === "disk" ? "диск (глобус)" : rg.shape === "rect" ? "прямокутна карта" : "область неправильної форми";
+    lines.push(`Область даних: ${what}, ${pct(rg.area)} кадру. Усе навколо (рамки, космос, чорні смуги, підписи) з аналізу виключено.`);
+  }
+  if (p.scale?.found) lines.push(`Знайдено шкалу кольорів (${p.scale.orientation === "vertical" ? "вертикальну" : "горизонтальну"}) — значення читаються за нею, сама шкала з аналізу вирізана.`);
+  else if (p.sceneType === "heatmap") lines.push("Шкали кольорів у кадрі немає — значення оцінюємо за відтінком: синій — менше, червоний — більше.");
   const excl = [];
   if (p.shares.land > 0.01) excl.push(`суша (${pct(p.shares.land)} кадру)`);
   if (p.sceneType === "nightlights") lines.push(`Темрява займає ${pct(1 - p.sceneStats.litShare)} кадру — у музиці це глибокий дрон із довгою луною.`);

@@ -9,10 +9,10 @@ const unb64 = s => Uint8Array.from(atob(s), c => c.charCodeAt(0));
 const mapObj = (o, f) => Object.fromEntries(Object.entries(o).map(([k, v]) => [k, f(v)]));
 
 export function serializeAnalysis(a) {
-  const { staticMask, landMask, bgMask, overlayMask, ...profile } = a.profile;
+  const { staticMask, landMask, bgMask, overlayMask, regionMask, ...profile } = a.profile;
   return {
     format: "earth-jukebox-analysis", version: a.version,
-    profile: { ...profile, masks: { staticMask: b64(staticMask), landMask: b64(landMask), bgMask: b64(bgMask), overlayMask: b64(overlayMask) } },
+    profile: { ...profile, masks: { staticMask: b64(staticMask), landMask: b64(landMask), bgMask: b64(bgMask), overlayMask: b64(overlayMask), ...(regionMask && { regionMask: b64(regionMask) }) } },
     rate: a.rate, count: a.count, times: arr(a.times), valid: Array.from(a.valid),
     abs: mapObj(a.abs, arr), rel: mapObj(a.rel, arr), temporal: mapObj(a.temporal, arr), rank: mapObj(a.rank, arr),
     zones: a.zones.map(z => ({ cols: z.cols.map(v => (v === null ? null : r5(v))), colsCover: z.colsCover.map(r5), bands: mapObj(z.bands, v => (v === null ? null : r5(v))), hemi: z.hemi })),

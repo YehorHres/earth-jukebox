@@ -188,7 +188,7 @@ function renderCard(speak = true) {
 
 const round = o => JSON.parse(JSON.stringify(o, (k, v) => (typeof v === "number" ? +v.toPrecision(4) : v)));
 function debugProfile(p) {
-  const { staticMask, landMask, bgMask, overlayMask, ...rest } = p;
+  const { staticMask, landMask, bgMask, overlayMask, regionMask, ...rest } = p;
   return round(rest);
 }
 
@@ -200,7 +200,7 @@ function drawMasks() {
   cv.width = p.maskW; cv.height = p.maskH;
   const img = g.createImageData(p.maskW, p.maskH);
   for (let i = 0; i < p.maskW * p.maskH; i++) {
-    const c = p.landMask[i] ? [60, 200, 90] : p.bgMask[i] ? [60, 110, 255] : p.overlayMask[i] ? [230, 60, 230] : null;
+    const c = p.regionMask && !p.regionMask[i] ? [255, 140, 0] : p.landMask[i] ? [60, 200, 90] : p.bgMask[i] ? [60, 110, 255] : p.overlayMask[i] ? [230, 60, 230] : null;
     if (!c) continue;
     img.data.set([...c, 150], i * 4);
   }

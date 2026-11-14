@@ -5,13 +5,15 @@ import { clamp } from "../util/stats.js";
 /** Спільні проміжні величини: середня luma, std, статика. */
 function lumaStats(ctx, shared) {
   if (shared.lumaStats) return shared.lumaStats;
-  const { luma, n } = ctx;
+  const { luma, inside } = ctx, n = ctx.insideCount;
   let s = 0, s2 = 0;
-  for (let i = 0; i < n; i++) { s += luma[i]; s2 += luma[i] * luma[i]; }
+  for (let i = 0; i < ctx.n; i++) { if (inside && !inside[i]) continue; s += luma[i]; s2 += luma[i] * luma[i]; }
   const m = s / n;
   return (shared.lumaStats = { mean: m, std: Math.sqrt(Math.max(0, s2 / n - m * m)) });
 }
-const isStatic = (ctx, i) => ctx.masks?.staticMask?.[i] === 1;
+// «не рахувати»: статичні пікселі (підписи, суша) і все поза областю даних (рамка, космос)
+const isStatic = (ctx, i) => ctx.masks?.staticMask?.[i] === 1 || (ctx.inside !== null && ctx.inside !== undefined && !ctx.inside[i]);
+const isIn = (ctx, i) => !ctx.inside || ctx.inside[i] === 1;
 
 registerFeature({
   id: "warmth", label: "Тепловий індекс", group: "basic",
@@ -19,7 +21,7 @@ registerFeature({
   compute(ctx) {
     let s = 0, c = 0;
     for (let i = 0; i < ctx.n; i++) if (ctx.isData[i] && ctx.ramp[i] >= 0) { s += ctx.ramp[i]; c++; }
-    return c > ctx.n * 0.002 ? s / c : NaN;
+    return c > ctx.insideCount * 0.002 ? s / c : NaN;
   },
 });
 
@@ -44,7 +46,7 @@ registerFeature({
 
 registerFeature({
   id: "activeMass", label: "Активна маса (частка даних)", group: "basic",
-  compute: ctx => ctx.dataCount / ctx.n,
+  compute: ctx => ctx.dataCount / ctx.insideCount,
 });
 
 registerFeature({
@@ -52,9 +54,9 @@ registerFeature({
   compute(ctx) {
     const land = ctx.masks?.landMask;
     let c = 0;
-    if (land) { for (let i = 0; i < ctx.n; i++) c += land[i]; }
-    else for (let i = 0; i < ctx.n; i++) if (ctx.sat[i] < 0.2 && ctx.val[i] > 0.2 && ctx.val[i] < 0.75) c++;
-    return c / ctx.n;
+    if (land) { for (let i = 0; i < ctx.n; i++) if (isIn(ctx, i)) c += land[i]; }
+    else for (let i = 0; i < ctx.n; i++) if (isIn(ctx, i) && ctx.sat[i] < 0.2 && ctx.val[i] > 0.2 && ctx.val[i] < 0.75) c++;
+    return c / ctx.insideCount;
   },
 });
 
@@ -91,7 +93,7 @@ registerFeature({
     const { mean, std } = lumaStats(ctx, sh), thr = mean + 3 * std;
     let c = 0;
     for (let i = 0; i < ctx.n; i++) if (ctx.luma[i] > thr && !isStatic(ctx, i)) c++;
-    return clamp((c / ctx.n) * 50);
+    return clamp((c / ctx.insideCount) * 50);
   },
 });
 
@@ -125,9 +127,9 @@ registerFeature({
   id: "entropy", label: "Ентропія", group: "basic",
   compute(ctx) {
     const hist = new Float32Array(32);
-    for (let i = 0; i < ctx.n; i++) hist[Math.min(31, Math.floor(ctx.luma[i] * 32))]++;
+    for (let i = 0; i < ctx.n; i++) if (isIn(ctx, i)) hist[Math.min(31, Math.floor(ctx.luma[i] * 32))]++;
     let e = 0;
-    for (const c of hist) if (c) { const p = c / ctx.n; e -= p * Math.log2(p); }
+    for (const c of hist) if (c) { const p = c / ctx.insideCount; e -= p * Math.log2(p); }
     return e / 5;
   },
 });

@@ -27,20 +27,40 @@ export function resampleMask(mask, mw, mh, w, h) {
   return out;
 }
 
+/** Значення кольору за знайденою шкалою (32 опорні кольори, 0 = «менше», 1 = «більше»); кеш за 15-бітним кольором. */
+const scaleCache = new WeakMap();
+export function scaleValue(refs, r, g, b) {
+  let cache = scaleCache.get(refs);
+  if (!cache) { cache = new Map(); scaleCache.set(refs, cache); }
+  const key = (r >> 3) << 10 | (g >> 3) << 5 | (b >> 3);
+  let v = cache.get(key);
+  if (v !== undefined) return v;
+  const R = r / 255, G = g / 255, B = b / 255, N = refs.length / 3;
+  let best = -1, bd = Infinity;
+  for (let k = 0; k < N; k++) {
+    const d = (refs[3 * k] - R) ** 2 + (refs[3 * k + 1] - G) ** 2 + (refs[3 * k + 2] - B) ** 2;
+    if (d < bd) { bd = d; best = k; }
+  }
+  v = bd < 0.02 ? best / (N - 1) : -1;          // далеко від шкали — не дані (підписи, суша)
+  cache.set(key, v);
+  return v;
+}
+
 /**
  * @param {Uint8ClampedArray} data RGBA
- * @param {object} masks { staticMask, landMask, bgMask, overlayMask } на сітці w×h (або null)
+ * @param {object} masks { staticMask, landMask, bgMask, overlayMask, regionMask, scaleRefs, disk } на сітці w×h (або null)
  * @param {Float32Array|null} prevLuma luma попереднього кадру
  */
 export function buildContext(data, w, h, masks = null, prevLuma = null, sceneType = "mixed") {
   const n = w * h;
   const hue = new Float32Array(n), sat = new Float32Array(n), val = new Float32Array(n), luma = new Float32Array(n);
-  const ramp = new Float32Array(n);          // значення за шкалою синій→червоний, -1 = немає
-  const isData = new Uint8Array(n);          // піксель несе дані (не фон, не суша, не статика)
-  // виключаємо: сушу, статичний фон, статичні накладки (підписи, легенда, логотипи)
-  // для нічних карт темрява — частина даних (тьмяні вогні можуть потрапити в «статичний фон»)
+  const ramp = new Float32Array(n);          // значення за шкалою (знайденою в кадрі або синій→червоний), -1 = немає
+  const isData = new Uint8Array(n);          // піксель несе дані (не фон, не суша, не статика, в області даних)
+  // виключаємо: сушу, статичний фон, статичні накладки (підписи, логотипи) і все поза областю даних
+  // для нічних карт темрява всередині області — частина даних
   const land = masks?.landMask, bg = sceneType === "nightlights" ? null : masks?.bgMask, st = masks?.overlayMask;
-  let dataCount = 0;
+  const inside = masks?.regionMask || null, refs = masks?.scaleRefs || null;
+  let dataCount = 0, insideCount = 0;
   for (let i = 0, p = 0; i < n; i++, p += 4) {
     const r = data[p], g = data[p + 1], b = data[p + 2];
     const max = r > g ? (r > b ? r : b) : (g > b ? g : b);
@@ -53,7 +73,10 @@ export function buildContext(data, w, h, masks = null, prevLuma = null, sceneTyp
     }
     hue[i] = hh; sat[i] = s; val[i] = v;
     luma[i] = (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255;
-    ramp[i] = s >= DATA_MIN_SAT && v >= DATA_MIN_VAL ? hueRampValue(hh) : -1;
+    if (inside && !inside[i]) { ramp[i] = -1; continue; }
+    insideCount++;
+    ramp[i] = refs ? (v >= 0.08 ? scaleValue(refs, r, g, b) : -1)
+      : s >= DATA_MIN_SAT && v >= DATA_MIN_VAL ? hueRampValue(hh) : -1;
     const masked = (st && st[i]) || (land && land[i]) || (bg && bg[i]);
     let dataPx;
     if (sceneType === "nightlights") dataPx = !masked && v >= 0.06;  // для нічних карт дані = світло
@@ -62,5 +85,6 @@ export function buildContext(data, w, h, masks = null, prevLuma = null, sceneTyp
     isData[i] = dataPx ? 1 : 0;
     dataCount += isData[i];
   }
-  return { w, h, n, hue, sat, val, luma, ramp, isData, dataCount, prevLuma, masks, sceneType };
+  return { w, h, n, hue, sat, val, luma, ramp, isData, dataCount, prevLuma, masks, sceneType,
+    inside, insideCount: insideCount || n, disk: masks?.disk || null, scaled: !!refs };
 }
