@@ -279,6 +279,67 @@ SUITES.push(async function stage9() {
   check("Кожна з тем звучить (офлайн-рендер), без перевантаження", !silent.length, silent.join("; ") || `${topics.length} тем`);
 });
 
+SUITES.push(async function stage10() {
+  const { SCENES } = await import("./media/synthetic-scenes.js");
+  const { analyzeSource, prepareImageScan } = await import("./analysis/analyze.js");
+  const { presetFor, mapAnalysis } = await import("./mapping/mapper.js");
+  const { compose } = await import("./composer/composer.js");
+  const { renderOffline } = await import("./audio/render.js");
+  const T = await import("./topics/topics.js"); await T.loadTopics();
+  const iou = (p, sc) => {
+    const { maskW: w, maskH: h, regionMask: m } = p; let inter = 0, uni = 0;
+    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+      const t = sc.truth((x + 0.5) * sc.w / w, (y + 0.5) * sc.h / h) ? 1 : 0, r = m[y * w + x];
+      if (t && r) inter++; if (t || r) uni++;
+    }
+    return inter / uni;
+  };
+  const playOk = async a => {
+    const t = T.getTopic(a.profile.sceneType === "nightlights" ? "nightlights" : "temperature");
+    const m = mapAnalysis(a, await presetFor(a.profile.sceneType, t), { topic: t });
+    const sc = compose(m, { seed: a.key });
+    const r = await renderOffline(sc, m, { from: 0, seconds: 3 });
+    return { ok: sc.notes.length > 0 && r.peak <= 1 && Number.isFinite(r.rms), m, notes: sc.notes.length };
+  };
+  const rows = [];
+  for (const id of ["globe", "globe-night", "flatmap", "map-scale", "bars", "dark", "bright", "short", "long", "vertical", "chart"]) {
+    const sc = SCENES[id];
+    const a = await analyzeSource(openSynthetic(id), { useCache: false });
+    const p = a.profile, io = iou(p, sc);
+    const shapeOk = sc.shape === "any" || (sc.shape === "full" ? p.region.full : p.region.shape === sc.shape);
+    const play = await playOk(a);
+    rows.push({ id, io, shapeOk, a, play });
+    check(`Стійкість «${id}»: область IoU ≥ 0.9, форма, трек грає`, io >= 0.9 && shapeOk && play.ok,
+      `IoU ${io.toFixed(3)}, форма ${p.region.full ? "весь кадр" : p.region.shape}, ${p.sceneType}, ${a.count} кадрів, ${play.notes} нот`);
+  }
+  const get = id => rows.find(r => r.id === id).a;
+  const ms = get("map-scale");
+  let scaleInRegion = 0;
+  if (ms.profile.scale.found) { const n = ms.profile.scale.norm, { maskW: w, maskH: h } = ms.profile; for (let y = Math.floor(n.y0 * h); y < Math.ceil(n.y1 * h); y++) for (let x = Math.floor(n.x0 * w); x < Math.ceil(n.x1 * w); x++) scaleInRegion += ms.profile.regionMask[y * w + x]; }
+  check("Шкалу кольорів знайдено й вирізано (знизу — менше)", ms.profile.scale.found && ms.profile.scale.orientation === "vertical" && scaleInRegion === 0 && ms.profile.scale.refs[0][2] > ms.profile.scale.refs[0][0],
+    ms.profile.scale.found ? `перший колір ${ms.profile.scale.refs[0].map(v => v.toFixed(2))}, у області пікселів шкали: ${scaleInRegion}` : "не знайдено");
+  check("Хибних шкал немає (глобус, плоска карта, смуги, графік)", ["globe", "flatmap", "bars", "chart", "vertical"].every(id => !get(id).profile.scale.found), "");
+  const g = get("globe"), gn = get("globe-night");
+  const am = Math.max(...g.abs.activeMass), dk = Math.max(...gn.abs.darkShare);
+  check("Космос не в ознаках: глобус — теплова карта, нічний глобус — нічна; частки рахуються в диску", g.profile.sceneType === "heatmap" && gn.profile.sceneType === "nightlights" && am > 0.5 && dk < 0.5,
+    `activeMass глобуса до ${am.toFixed(2)} (з космосом було б ≈ ${(am / 3).toFixed(2)}), темрява нічного до ${dk.toFixed(2)}`);
+  check("Зони диска: підписи «північ/центр/південь диска»", g.hotspots.every(h => /диска/.test(h.label)), g.hotspots.map(h => h.label).join("; ") || "немає гарячих точок");
+  check("Дуже довге відео (10 хв) проріджено до ≤ 800 кадрів, коротке (3 с) — кожен кадр", get("long").count <= 800 && get("short").count === 75, `10 хв → ${get("long").count} кадрів; 3 с → ${get("short").count}`);
+  // фото: режим сканування
+  const c = document.createElement("canvas"); c.width = 640; c.height = 360;
+  SCENES["map-scale"].draw(c.getContext("2d"), 0, 640, 360);
+  const still = await openImage(c.toDataURL(), { name: "scan-test.png" });
+  const prep = await prepareImageScan(still, "we");
+  const as = await analyzeSource(prep.source, { useCache: false, scaleHint: prep.scaleHint });
+  const ps = await playOk(as);
+  const b = prep.source.scan.bounds;
+  check("Фото: сканування захід→схід 45 с у межах карти, шкала з фото, трек грає", as.count === 90 && !as.profile.isStill && as.profile.scale.found && b.x0 > 0.05 && b.x1 < 0.9 && ps.ok && ps.m.meta.duration > 30 && ps.m.meta.duration <= 61,
+    `${as.count} положень, межі x ${b.x0.toFixed(2)}–${b.x1.toFixed(2)}, тривалість ${ps.m.meta.duration.toFixed(0)} с, ${ps.m.meta.nBars} тактів, подій ${as.events.length}`);
+  const prepNS = await prepareImageScan(still, "ns");
+  const L1 = prepNS.source.scan.lineAt(0), L2 = prepNS.source.scan.lineAt(45);
+  check("Фото: напрям північ→південь (лінія йде згори вниз)", L1.dir === "ns" && L2.y > L1.y, `y ${L1.y.toFixed(2)} → ${L2.y.toFixed(2)}`);
+});
+
 (async () => {
   for (const s of SUITES) {
     try { await s(); }

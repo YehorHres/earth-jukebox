@@ -40,7 +40,7 @@ export function setupPlayback(app, { timeline, mappingTable }) {
   /* ---- курсор сканування: колонка кадру, яку зараз «грає» мелодія ---- */
   function mediaRect() {
     const W = cursor.width, H = cursor.height, s = app.source;
-    const mw = s?.width, mh = s?.height;
+    const mw = s?.el?.naturalWidth || s?.width, mh = s?.el?.naturalHeight || s?.height;
     if (!mw || !mh) return { x: 0, y: 0, w: W, h: H };
     const k = Math.min(W / mw, H / mh);
     return { x: (W - mw * k) / 2, y: (H - mh * k) / 2, w: mw * k, h: mh * k };
@@ -51,6 +51,14 @@ export function setupPlayback(app, { timeline, mappingTable }) {
     if (cursor.width !== W || cursor.height !== H) { cursor.width = W; cursor.height = H; }
     cg.clearRect(0, 0, W, H);
     if (!app.score || (!player.playing && t === 0)) return;
+    if (app.source?.scan) {
+      // фото: лінія сканування рухається по всій карті
+      const r = mediaRect(), L = app.source.scan.lineAt(t);
+      cg.fillStyle = "rgba(242,201,76,0.95)";
+      if (L.dir === "we") cg.fillRect(r.x + L.x * r.w - 1.5 * dpr, r.y, 3 * dpr, r.h);
+      else cg.fillRect(r.x, r.y + L.y * r.h - 1.5 * dpr, r.w, 3 * dpr);
+      return;
+    }
     const barDur = app.score.barDur, inBar = (t % barDur) / barDur, step = Math.min(15, Math.floor(inBar * 16));
     const r = mediaRect(), cw = r.w / 16;
     cg.fillStyle = "rgba(255,255,255,0.10)";

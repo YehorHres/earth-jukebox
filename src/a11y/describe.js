@@ -30,7 +30,8 @@ export function describeProfile(p, source, analysis = null) {
   const lines = [];
   const conf = p.confidence >= 0.7 ? "" : p.confidence >= 0.4 ? " (впевненість середня)" : " (впевненість низька)";
   lines.push(`${SCENE_LABEL[p.sceneType]}${conf}.`);
-  if (p.isStill) lines.push("Одне зображення: музика сканує кадр зліва направо, часових змін немає.");
+  if (p.scan) lines.push(`Зображення: лінія сканування йде ${p.scan.dir === "we" ? "із заходу на схід (зліва направо)" : "з півночі на південь (згори вниз)"} за ${Math.round(p.durationSec)} с; зміни вздовж карти звучать як зміни в часі.`);
+  else if (p.isStill) lines.push("Одне зображення: музика сканує кадр зліва направо, часових змін немає.");
   else {
     const frames = analysis ? `${analysis.count} кадрів аналізу (${analysis.rate.toFixed(analysis.rate % 1 ? 1 : 0)} за секунду), ` : "";
     lines.push(`${frames}${p.durationSec.toFixed(1)} с, ${Math.round(p.fps)} кадрів/с у відео.`);
@@ -73,7 +74,7 @@ export function describeProfile(p, source, analysis = null) {
   else if (p.sceneType === "heatmap") lines.push("Шкали кольорів у кадрі немає — значення оцінюємо за відтінком: синій — менше, червоний — більше.");
   const excl = [];
   if (p.shares.land > 0.01) excl.push(`суша (${pct(p.shares.land)} кадру)`);
-  if (p.sceneType === "nightlights") lines.push(`Темрява займає ${pct(1 - p.sceneStats.litShare)} кадру — у музиці це глибокий дрон із довгою луною.`);
+  if (p.sceneType === "nightlights") lines.push(`Темрява займає ${pct(1 - p.sceneStats.litShare)} ${p.region && !p.region.full ? "області даних (космос не рахуємо)" : "кадру"} — у музиці це глибокий дрон із довгою луною.`);
   else if (p.shares.bg > 0.01) excl.push(`статичний фон (${pct(p.shares.bg)})`);
   if (p.shares.overlay > 0.002) excl.push(`підписи, легенда та інші статичні елементи (${pct(p.shares.overlay)})`);
   if (excl.length) lines.push(`Виключено з аналізу динаміки: ${excl.join(", ")}. Суша й фон звучать як пауза в мелодії.`);

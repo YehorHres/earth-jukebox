@@ -10,10 +10,12 @@ import { detectRegion, detectScale } from "./region.js";
 
 const N_SAMPLES = 32, N_NOISE_PAIRS = 4, MASK_W = 160;
 
-export async function passA(source, { onProgress = () => {}, sceneOverride = null } = {}) {
+export async function passA(source, { onProgress = () => {}, sceneOverride = null, scaleHint = null } = {}) {
   const { w, h } = analysisSize(source, MASK_W);
   const n = w * h, dur = source.duration;
   const isStill = source.isStatic || !dur;
+  // сканування фото: «кадри» — положення вікна, тож статики немає — маски лише за кольором
+  const colorOnly = isStill || !!source.scan;
   const times = isStill ? [0] : Array.from({ length: N_SAMPLES }, (_, k) => (k + 0.5) / N_SAMPLES * dur);
 
   // ---- 1. зчитування огляду + пар сусідніх кадрів (для шуму)
@@ -69,7 +71,7 @@ export async function passA(source, { onProgress = () => {}, sceneOverride = nul
   // ---- 4. маски
   const staticThr = Math.max(1.5 / 255, 2 * noiseFloor);
   const staticMask = new Uint8Array(n), landMask = new Uint8Array(n), bgMask = new Uint8Array(n), overlayMask = new Uint8Array(n);
-  if (!isStill) {
+  if (!colorOnly) {
     for (let i = 0; i < n; i++) {
       // суша: стабільно сіра (у жодному кадрі не насичена), трохи «мерехтить» від стиснення — це ок
       if (maxSat[i] < 0.25 && mVal[i] >= 0.12 && mVal[i] <= 0.75 && pxStd[i] < 0.05) landMask[i] = 1;
@@ -89,8 +91,10 @@ export async function passA(source, { onProgress = () => {}, sceneOverride = nul
   // ---- 4б. область даних і службові елементи (етап 10): рамки, космос, чорні смуги, шкала кольорів
   const meanRGB = new Float32Array(3 * n);
   for (let i = 0; i < n; i++) { meanRGB[3 * i] = sR[i] / F; meanRGB[3 * i + 1] = sG[i] / F; meanRGB[3 * i + 2] = sB[i] / F; }
-  const scale = detectScale({ w, h, meanRGB, mSat, mVal, pxStd, still: isStill, staticThr });
-  const region = detectRegion({ w, h, meanRGB, mVal, pxStd, still: isStill, staticThr });
+  let scale = detectScale({ w, h, meanRGB, mSat, mVal, pxStd, still: colorOnly, staticThr });
+  const region = source.scan ? fullRegion(w, h) : detectRegion({ w, h, meanRGB, mVal, pxStd, still: isStill, staticThr });
+  // сканування: шкалу шукали на всьому фото (вікно її не бачить) — беремо звідти
+  if (!scale.found && scaleHint?.found) scale = { ...scaleHint, mask: new Uint8Array(n) };
   const regionMask = region.mask;
   if (scale.found) for (let i = 0; i < n; i++) if (scale.mask[i]) regionMask[i] = 0;
   const inRegion = i => regionMask[i] === 1;
@@ -188,7 +192,7 @@ export async function passA(source, { onProgress = () => {}, sceneOverride = nul
     shares: { static: share(staticMask), land: share(landMask), bg: share(bgMask), overlay: share(overlayMask) },
     ranges, featureNoise, noiseFloor, noiseCell, mainFeature, changeRatio, changeScale, changeAmp, changeArea,
     mainSpread: spread, cuts: [], serviceTimes, period,
-    durationSec: dur, fps: source.fps, isStill, sampleCount: F,
+    durationSec: dur, fps: source.fps, isStill, scan: source.scan ? { dir: source.scan.dir, bounds: source.scan.bounds } : null, sampleCount: F,
   };
 }
 
@@ -222,6 +226,11 @@ function cellMeans(d, w, h, sceneType, masks, bb) {
   }
   const cellArea = (bw / GRID_C) * (bh / GRID_R);
   return Array.from(sum, (s, c) => (cnt[c] > cellArea * 0.05 ? s / cnt[c] : null));
+}
+
+/** Уся сітка — область даних (для вікон сканування: межі вже обрізано по області фото). */
+function fullRegion(w, h) {
+  return { mask: new Uint8Array(w * h).fill(1), shape: "rect", disk: null, area: 1, full: true, bbox: { x0: 0, y0: 0, x1: w - 1, y1: h - 1 }, norm: { bbox: { x0: 0, y0: 0, x1: 1, y1: 1 }, disk: null } };
 }
 
 /** Мажоритарний фільтр 3×3 — прибирає «пил» у масках. */
@@ -266,9 +275,12 @@ function classifyScene(frames, n, staticMask, regionMask) {
     staticShare: staticMask.reduce((s, v) => s + v, 0) / n,
   };
   const scores = {
-    heatmap: clamp(st.satShare / 0.3) * (st.warmShare > 0.05 && st.coldShare > 0.05 ? 1 : 0.55),
-    // темний кадр + рідкі яскраві точки (є хоч трохи світла) + мало насиченого кольору
-    nightlights: (st.medianV < 0.15 ? 1 : st.medianV < 0.25 ? 0.4 : 0) * (1 - clamp(st.satShare / 0.15)) *
+    // теплова карта: насичені кольори й ОБИДВА кінці шкали (холодне і тепле)
+    heatmap: clamp(st.satShare / 0.3) * (st.warmShare > 0.12 && st.coldShare > 0.12 ? 1 : st.warmShare > 0.05 && st.coldShare > 0.05 ? 0.6 : 0.3),
+    // нічна карта: темний кадр + рідкі яскраві точки; фон може бути насиченим, але одноколірним
+    // (темно-синя нічна сторона глобуса), тоді насиченість не штрафуємо
+    nightlights: (st.medianV < 0.15 ? 1 : st.medianV < 0.3 ? 0.7 : 0) *
+      (st.warmShare > 0.12 && st.coldShare > 0.12 ? 1 - clamp(st.satShare / 0.15) : 1) *
       (st.brightShare < 0.2 ? 1 : 0.3) * (st.litShare > 0.0005 && st.litShare < 0.35 ? 1 : 0.2),
     truecolor: clamp(st.whiteShare / 0.08) * clamp(st.earthShare / 0.15) * (st.satShare < 0.6 ? 1 : 0.5),
     // графік: світлий однотонний фон, багато статики, тонкі лінії

@@ -30,7 +30,7 @@ const STORY = {
   mixed: { feature: "brightness", text: "найяскравіший момент" },
 };
 
-export async function analyzeSource(source, { sceneOverride = null, projection = "equirect", onProgress = () => {}, useCache = true, precomputedUrl = null } = {}) {
+export async function analyzeSource(source, { sceneOverride = null, projection = "equirect", onProgress = () => {}, useCache = true, precomputedUrl = null, scaleHint = null } = {}) {
   const key = `v${ANALYSIS_VERSION}|${source.key}|${sceneOverride || ""}|${projection}`;
   if (useCache) {
     const hit = await cacheGet(key);
@@ -41,7 +41,7 @@ export async function analyzeSource(source, { sceneOverride = null, projection =
     if (pre) { onProgress("cache", 1, "Готовий аналіз завантажено"); return pre; }
   }
   const t0 = performance.now();
-  const profile = await passA(source, { sceneOverride, onProgress: (p, msg) => onProgress("A", p, msg) });
+  const profile = await passA(source, { sceneOverride, scaleHint, onProgress: (p, msg) => onProgress("A", p, msg) });
   // проєкція: «equirect» — плоска карта світу (колонки = довгота, рядки = широта); «globe» / «other» — ні
   profile.projection = projection;
   onProgress("A-done", 1, "Огляд завершено", profile);
@@ -53,6 +53,17 @@ export async function analyzeSource(source, { sceneOverride = null, projection =
   analysis.processor = pb.processor;
   if (useCache) await cachePut(key, analysis);
   return analysis;
+}
+
+/**
+ * Фото → режим сканування: спершу огляд усього зображення (область даних, шкала кольорів),
+ * потім «камера» їде по області даних. Повертає { source, scaleHint, stillProfile }.
+ */
+export async function prepareImageScan(still, dir = "we") {
+  const { scanImage } = await import("../media/sources.js");
+  const sp = await passA(still);
+  const b = sp.region?.norm?.bbox || { x0: 0, y0: 0, x1: 1, y1: 1 };
+  return { source: scanImage(still, { dir, bounds: b }), scaleHint: sp.scale, stillProfile: sp };
 }
 
 /** Чиста функція: сирі кадри проходу B + профіль → повний аналіз. */

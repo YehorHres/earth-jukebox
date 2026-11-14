@@ -152,12 +152,17 @@ export function detectScale({ w, h, meanRGB, mSat, mVal, pxStd, still, staticThr
       if (c) seq.push([r / c, g / c, b / c]);
     }
     if (seq.length < 8) return;
+    // краї смуги змішані з тлом (згладжування при масштабуванні) — відкидаємо по 2 відліки з кожного кінця
+    if (seq.length > 12) { seq.splice(0, 2); seq.splice(-2, 2); }
     const dist = (a, b) => Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2]);
     let path = 0, maxStep = 0;
     for (let k = 1; k < seq.length; k++) { const d = dist(seq[k], seq[k - 1]); path += d; maxStep = Math.max(maxStep, d); }
     const span = dist(seq[0], seq[seq.length - 1]);
-    // плавно (без стрибків), монотонно (шлях ненабагато довший за відстань кінців), і кінці різні
-    if (span < 0.35 || maxStep > 0.2 || path / span > 2.6) return;
+    // плавно (без стрибків), кінці різні, і шкала не «повертається» сама в себе:
+    // кольори, далекі по шкалі (≥ ¼ довжини), мають бути далекими й за кольором (райдуга/jet проходить, повтори — ні)
+    if (span < 0.35 || maxStep > 0.2 || path / span > 4) return;
+    const gap = Math.max(2, Math.floor(seq.length / 4));
+    for (let a = 0; a < seq.length; a += 2) for (let b = a + gap; b < seq.length; b += 2) if (dist(seq[a], seq[b]) < 0.2) return;
     if (!best || long > best.long) best = { id, x0, y0, x1, y1, vertical, long, seq };
   });
   if (!best) return { found: false };

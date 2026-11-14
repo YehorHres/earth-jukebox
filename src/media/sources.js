@@ -3,6 +3,7 @@
 // el — елемент, який показуємо користувачу (video / img / canvas).
 
 import { makeRng } from "../util/rng.js";
+import { SCENES } from "./synthetic-scenes.js";
 
 const STD_FPS = [12, 15, 23.976, 24, 25, 29.97, 30, 48, 50, 59.94, 60];
 const snapFps = f => STD_FPS.reduce((a, b) => (Math.abs(b - f) < Math.abs(a - f) ? b : a), 30);
@@ -148,6 +149,7 @@ const SYNTH = {
 };
 
 export function openSynthetic(id = "dark-lights", opts = {}) {
+  if (SCENES[id]) return openScene(id, opts);
   const cfg = { ...SYNTH[id], ...opts };
   const canvas = document.createElement("canvas");
   canvas.width = cfg.w; canvas.height = cfg.h;
@@ -194,5 +196,72 @@ export function openSynthetic(id = "dark-lights", opts = {}) {
     async seek(t) { return render(t); },
     frameAt: render,
     async fork() { const f = openSynthetic(id, opts); return { seek: f.seek, close() {} }; },
+  };
+}
+
+/** Сцени стійкості (етап 10): відома «справжня» область даних — для перевірки IoU. */
+function openScene(id, opts = {}) {
+  const sc = SCENES[id];
+  const canvas = document.createElement("canvas");
+  canvas.width = sc.w; canvas.height = sc.h;
+  canvas.setAttribute("aria-hidden", "true");
+  const g = canvas.getContext("2d", { willReadFrequently: true });
+  let last = -1;
+  const render = t => {
+    const fi = Math.round(t * sc.fps);
+    if (fi !== last) { last = fi; sc.draw(g, fi / sc.fps, sc.w, sc.h); }
+    return canvas;
+  };
+  render(0);
+  return {
+    kind: "synthetic", name: opts.name || id, el: canvas, duration: sc.duration, fps: sc.fps, isStatic: false,
+    width: sc.w, height: sc.h, key: `scene:${id}`, scene: sc,
+    async seek(t) { return render(t); },
+    frameAt: render,
+    async fork() { const f = openScene(id, opts); return { seek: f.seek, close() {} }; },
+  };
+}
+
+/**
+ * Режим сканування зображення (етап 10.5): «камера» — вікно навколо лінії сканування — їде по карті
+ * із заходу на схід (dir "we") або з півночі на південь ("ns"). Кожне положення — кадр аналізу,
+ * тож події, кульмінація й форма треку працюють і для фото. bounds — область даних (0..1).
+ */
+export function scanImage(still, { dir = "we", duration = 45, fps = 2, bounds = null } = {}) {
+  const img = still.el, W = still.width, H = still.height;
+  const b = bounds || { x0: 0, y0: 0, x1: 1, y1: 1 };
+  const bx = b.x0 * W, by = b.y0 * H, bw = (b.x1 - b.x0) * W, bh = (b.y1 - b.y0) * H;
+  const ww = dir === "we" ? bw / 4 : bw, wh = dir === "we" ? bh : bh / 4;
+  const k = Math.min(1, 480 / Math.max(ww, wh));
+  const canvas = document.createElement("canvas");
+  canvas.width = Math.max(8, Math.round(ww * k)); canvas.height = Math.max(8, Math.round(wh * k));
+  const g = canvas.getContext("2d", { willReadFrequently: true });
+  /** Положення вікна (0..1 ходу) для часу t. */
+  const progress = t => Math.max(0, Math.min(1, t / duration));
+  const windowAt = t => {
+    const p = progress(t);
+    return dir === "we" ? { sx: bx + p * (bw - ww), sy: by, sw: ww, sh: wh } : { sx: bx, sy: by + p * (bh - wh), sw: ww, sh: wh };
+  };
+  let last = -1;
+  const render = t => {
+    const fi = Math.round(t * fps);
+    if (fi === last) return canvas;
+    last = fi;
+    const r = windowAt(fi / fps);
+    g.clearRect(0, 0, canvas.width, canvas.height);
+    g.drawImage(img, r.sx, r.sy, r.sw, r.sh, 0, 0, canvas.width, canvas.height);
+    return canvas;
+  };
+  /** Лінія сканування в частках зображення (для курсора на екрані). */
+  const lineAt = t => {
+    const r = windowAt(t);
+    return dir === "we" ? { x: (r.sx + r.sw / 2) / W, dir } : { y: (r.sy + r.sh / 2) / H, dir };
+  };
+  return {
+    kind: "image", scan: { dir, bounds: b, lineAt }, name: still.name, el: img, duration, fps, isStatic: false,
+    width: canvas.width, height: canvas.height, key: `${still.key}|scan-${dir}`,
+    async seek(t) { return render(t); },
+    frameAt: render,
+    async fork() { const f = scanImage(still, { dir, duration, fps, bounds }); return { seek: f.seek, close() {} }; },
   };
 }

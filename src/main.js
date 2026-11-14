@@ -1,6 +1,6 @@
 // Earth Jukebox v2 — склеює шари та інтерфейс.
 import { openVideo, openImage, openSynthetic } from "./media/sources.js";
-import { analyzeSource } from "./analysis/analyze.js";
+import { analyzeSource, prepareImageScan } from "./analysis/analyze.js";
 import { describeProfile, SCALE_LABEL } from "./a11y/describe.js";
 import { initAnnouncer, announce, prefs, stopVoice } from "./a11y/announcer.js";
 import { createTimeline } from "./ui/timeline.js";
@@ -12,7 +12,7 @@ import { setupPlayback } from "./ui/playback.js";
 
 const $ = id => document.getElementById(id);
 const NO_CACHE = new URLSearchParams(location.search).has("nocache");   // ?nocache — завжди аналізувати заново
-const app = { source: null, profile: null, analysis: null, catalogItem: null, busy: false };
+const app = { scanDir: "we", source: null, profile: null, analysis: null, catalogItem: null, busy: false };
 window.jukebox = app; // для налагодження й автотестів
 
 initAnnouncer($("live"));
@@ -75,7 +75,15 @@ async function loadSource(title, open, item) {
   setProgress(0);
   try {
     setStatus(`Відкриваю «${title}»…`);
-    const src = await open();
+    let src = await open(), scaleHint = null;
+    // фото → режим сканування: лінія йде по карті (із заходу на схід або з півночі на південь)
+    if (src.kind === "image" && !src.scan) {
+      setStatus("Огляд зображення: область даних і шкала кольорів…");
+      const prep = await prepareImageScan(src, app.scanDir);
+      src = prep.source; scaleHint = prep.scaleHint;
+    }
+    $("scanDir").hidden = !src.scan;
+    $("scanDir").textContent = app.scanDir === "we" ? "↔ Сканування: захід → схід" : "↕ Сканування: північ → південь";
     app.source = src;
     showMedia(src);
     announce(`Відкрито «${title}». ${item?.desc ?? ""} Аналізую відео, зачекайте.`, { force: true });
@@ -87,6 +95,7 @@ async function loadSource(title, open, item) {
       projection: projectionOf(src, item),
       precomputedUrl: NO_CACHE ? null : item?.analysis || null,
       useCache: !NO_CACHE,
+      scaleHint,
       onProgress: (stage, p, msg, profile) => {
         if (stage === "A") { setProgress(p * 0.15); setStatus(msg); }
         if (stage === "A-done") { app.profile = profile; renderCard(false); drawMasks(); }
@@ -155,7 +164,8 @@ export function projectionOf(src, item) {
 
 function showMedia(src) {
   const viewer = $("viewer");
-  viewer.querySelectorAll("video, img, canvas:not(#overlay)").forEach(n => n.remove());
+  // прибираємо попереднє медіа, але не шари поверх нього (маски й курсор сканування)
+  viewer.querySelectorAll("video, img, canvas:not(#overlay):not(#cursor)").forEach(n => n.remove());
   $("placeholder").hidden = true;
   if (src.kind === "image") src.el.alt = app.catalogItem?.desc || `Завантажене зображення ${src.name}`;
   viewer.insertBefore(src.el, $("overlay"));
@@ -229,11 +239,16 @@ document.addEventListener("keydown", e => {
 });
 
 /* ---------------- файл / перетягування ---------------- */
-$("file").addEventListener("change", e => loadFile(e.target.files[0]));
+$("file").addEventListener("change", e => { app.lastFile = e.target.files[0]; loadFile(e.target.files[0]); });
+$("scanDir").addEventListener("click", () => {
+  app.scanDir = app.scanDir === "we" ? "ns" : "we";
+  announce(app.scanDir === "we" ? "Сканування із заходу на схід." : "Сканування з півночі на південь.", { force: true });
+  if (app.catalogItem) loadItem(app.catalogItem); else if (app.lastFile) loadFile(app.lastFile);
+});
 const drop = $("drop");
 ["dragenter", "dragover"].forEach(ev => drop.addEventListener(ev, e => { e.preventDefault(); drop.classList.add("over"); }));
 ["dragleave", "drop"].forEach(ev => drop.addEventListener(ev, e => { e.preventDefault(); drop.classList.remove("over"); }));
-drop.addEventListener("drop", e => loadFile(e.dataTransfer.files[0]));
+drop.addEventListener("drop", e => { app.lastFile = e.dataTransfer.files[0]; loadFile(app.lastFile); });
 
 app.topics = await loadTopics();
 const topicInput = setupTopicInput({ topics: app.topics, onTopic: t => app.setTopic(t) });
