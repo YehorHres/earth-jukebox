@@ -5,7 +5,7 @@ import { levelFor, dipFor } from "./engine.js";
 
 const LOOKAHEAD = 0.25, TICK_MS = 30, DRIFT = 0.08;
 // посил на реверб для кожної партії
-export const SEND = { texture: 0.5, pad: 0.45, drums: 0.15, melody: 0.35, counter: 0.4, accents: 0.55, stars: 0.6, arp: 0.3, bass: 0.15 };
+export const SEND = { dataVoice: 0.22, soloists: 0.3, reference: 0.1, ticks: 0.05, earcons: 0.25, texture: 0.5, pad: 0.45, drums: 0.15, melody: 0.35, counter: 0.4, accents: 0.55, stars: 0.6, arp: 0.3, bass: 0.15 };
 
 export class Player {
   constructor(engine, { onBar = () => {}, onTick = () => {}, onEnd = () => {} } = {}) {
@@ -28,6 +28,7 @@ export class Player {
   async play() {
     if (!this.score || this.playing) return;
     await this.eng.init();
+    this.eng.setLead(this.score.lead);
     for (const p of this.score.parts) this.eng.bus(p.id, { send: SEND[p.id] ?? 0.3 });
     if (this.pos >= this.duration - 0.05) this.pos = 0;
     this.eng.fade(0.9, 0.02);

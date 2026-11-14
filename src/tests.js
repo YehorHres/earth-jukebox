@@ -536,6 +536,85 @@ SUITES.push(async function stage15() {
     `IoU ${iou(p, sc).toFixed(3)}, частка «руху камери» ${(a.camera.movingShare * 100).toFixed(0)} %`);
 });
 
+SUITES.push(async function stageA() {
+  // v5-A: єдина граматика звуку + голос даних на першому плані
+  const G = await import("./grammar.js");
+  const { analyzeSource } = await import("./analysis/analyze.js");
+  const { presetFor, mapAnalysis } = await import("./mapping/mapper.js");
+  const T = await import("./topics/topics.js");
+  const { compose } = await import("./composer/composer.js");
+  const { Engine } = await import("./audio/engine.js");
+  const I = await import("./audio/instruments.js");
+  const { leadOverAccomp } = await import("./audio/report.js");
+  const { legendItems } = await import("./a11y/legend.js");
+  const topics = await T.loadTopics();
+  const rank = arr => { const idx = arr.map((v, i) => [v, i]).sort((a, b) => a[0] - b[0]); const r = new Array(arr.length); idx.forEach(([, i], k) => (r[i] = k)); return r; };
+  const corr = (x, y) => { const n = x.length, mx = x.reduce((a, b) => a + b) / n, my = y.reduce((a, b) => a + b) / n; let sxy = 0, sxx = 0, syy = 0; for (let i = 0; i < n; i++) { sxy += (x[i] - mx) * (y[i] - my); sxx += (x[i] - mx) ** 2; syy += (y[i] - my) ** 2; } return sxy / Math.sqrt(sxx * syy || 1); };
+
+  // 1) монотонність: синтетичне відео, головна величина рівно росте / падає; полярність — moreMeans
+  const a = await analyzeSource(openSynthetic("dark-lights")), lf = a.leadFeature, n = a.count;
+  const withRel = f => ({ ...a, rel: { ...a.rel, [lf]: Float32Array.from({ length: n }, (_, i) => f(i / (n - 1))) } });
+  const night = T.getTopic("nightlights"), preset = await presetFor(a.profile.sceneType, night);
+  const rho = (an, topic) => { const m = mapAnalysis(an, preset, { topic }), v = compose(m, { seed: "A" }).notes.filter(x => x.part === "dataVoice"); return { r: corr(rank(v.map(x => x.t)), v.map(x => x.midi)), k: v.length }; };
+  const up = rho(withRel(x => x), night), down = rho(withRel(x => 1 - x), night), inv = rho(withRel(x => x), { ...night, moreMeans: "down" });
+  check("A: голос даних монотонний — ріст → вище (ρ ≥ 0.9), падіння → нижче; полярність за moreMeans", up.r >= 0.9 && down.r <= -0.9 && inv.r <= -0.9 && up.k > 10 && topics.every(t => ["up", "down"].includes(t.moreMeans)),
+    `ріст ρ = ${up.r.toFixed(2)}, падіння ρ = ${down.r.toFixed(2)}, moreMeans: down ρ = ${inv.r.toFixed(2)}; ${up.k} нот`);
+
+  // 2) ліміт уваги: ≤ 3 потоки, солісти — не ближче ніж 3 зони, різні тембри, розведені в панорамі
+  const me = window.__mapEcco, s = compose(me, { seed: "ecco" });
+  const maxStreams = Math.max(...s.bars.map(b => b.streams));
+  const zonesOk = me.bars.every(b => b.params.soloZones.length <= 2 && (b.params.soloZones.length < 2 || Math.abs(b.params.soloZones[0].col - b.params.soloZones[1].col) >= G.SOLO_MIN_GAP));
+  const solo = s.notes.filter(x => x.part === "soloists"), s0 = solo.filter(x => x.solo === 0), s1 = solo.filter(x => x.solo === 1);
+  const timbres = !s1.length || new Set([s0[0].inst, s1[0].inst]).size === 2;
+  check("A: на першому плані ≤ 3 потоки даних; солісти зон ≥ 3 зони один від одного, різні тембри, панорама = зона", maxStreams <= G.FOREGROUND_MAX && maxStreams >= 1 && zonesOk && timbres && solo.every(x => Math.abs(x.pan - (-0.9 + 1.8 * x.zone / 15)) < 1e-6),
+    `макс. потоків ${maxStreams}, нот солістів ${solo.length} (${[...new Set(solo.map(x => x.inst))].join(", ") || "—"})`);
+
+  // 3) голос даних гучніший за супровід на ≥ 6 дБ; акорди не перекривають його регістр
+  const leadDb = await leadOverAccomp(s, me, { from: me.meta.duration * 0.4, seconds: 8 });
+  const floor = [];
+  for (const x of s.notes) if (x.part === "dataVoice") { const b = Math.floor(x.t / s.barDur + 1e-6); floor[b] = Math.min(floor[b] ?? 127, x.midi); }
+  const over = s.notes.filter(x => (x.part === "pad" || x.part === "arp") && x.midi >= 48 && floor[Math.round(x.t / s.barDur - 0.5 + 1e-3)] !== undefined && x.midi > floor[Math.floor(x.t / s.barDur + 0.02)] - 3).length;
+  check("A: голос даних гучніший за супровід на ≥ 6 дБ; педи й арпеджіо нижче за його регістр", leadDb >= 6 && over === 0, `різниця ${leadDb.toFixed(1)} дБ (уривок 8 с ECCO2); нот супроводу в регістрі голосу: ${over}`);
+
+  // 4) точка відліку й тіки шкали часу
+  const ref = s.notes.filter(x => x.part === "reference"), dv = s.notes.filter(x => x.part === "dataVoice"), tk = s.notes.filter(x => x.part === "ticks");
+  const intro = ref.find(x => x.ref === "intro");
+  const tickOk = tk.length === Math.ceil(s.duration / 10) - 1 && tk.every((x, k) => Math.abs(x.t - (k + 1) * 10) < 1e-6 && x.strong === ((k + 1) % 4 === 0));
+  check("A: референсний тон 1–2 с на початку (голос даних — після нього), далі дрон; тіки кожні 10 с, сильніший — кожен 4-й; обидві партії вимикаються",
+    intro && intro.t === 0 && intro.dur >= 1 && intro.dur <= 2 && dv[0].t >= intro.dur && new Set(ref.map(x => x.midi)).size === 1 && ref.filter(x => x.ref === "drone").length === me.bars.length && tickOk
+      && ["reference", "ticks", "dataVoice"].every(id => s.parts.some(q => q.id === id)) && s.parts[0].id === "dataVoice",
+    `референс ${intro?.dur} с, MIDI ${intro?.midi}; голос даних із ${dv[0].t.toFixed(2)} с; тіків ${tk.length}`);
+
+  // 5) ерікони: ≤ 100 мс від події, одна подія — один знак, кожен знак є в легенді
+  const pol = me.meta.polarity, evs = me.bars.flatMap(b => b.events).filter(e => G.eventClass(e, pol)), ec = s.notes.filter(x => x.part === "earcons");
+  const late = evs.filter(e => ec.filter(x => Math.abs(x.t - e.time) <= 0.1 && x.earcon === G.earconFor(me.meta.topic, e, pol).id).length < 1).length;
+  const missing = [];
+  for (const t of topics) {
+    const ids = G.earconsFor(t.id), items = legendItems("heatmap", { topic: t });
+    if (ids.length < 2 || ids.length > 4 || new Set(ids.map(x => x.id)).size !== ids.length) missing.push(`${t.id}: ${ids.length} знаків`);
+    for (const e of ids) if (!items.some(it => it.earcon === e.id && it.text.includes(e.label))) missing.push(`${t.id}/${e.id}`);
+  }
+  const octx = new OfflineAudioContext(2, 44100 * 2, 44100), oe = new Engine(); await oe.init(octx);
+  I.playNote(oe, oe.bus("earcons"), "earcon", { midi: 0, dur: 0.2, vel: 0.9, pan: 0, ec: G.earconsFor("storms")[0].spec }, 0.5);
+  const ob = (await octx.startRendering()).getChannelData(0);
+  let onset = -1, pk = 0; for (const v of ob) pk = Math.max(pk, Math.abs(v));
+  for (let i = 0; i < ob.length; i++) if (Math.abs(ob[i]) > pk * 0.1) { onset = i / 44100 - 0.5; break; }
+  check("A: ерікон ≤ 100 мс від події, одна подія — один знак, 2–4 знаки на тему, кожен є в легенді", ec.length === evs.length && late === 0 && !missing.length && onset >= 0 && onset <= 0.1 && pk > 0.01,
+    missing.join("; ") || `подій ${evs.length}, еріконів ${ec.length}, запізнілих ${late}; звук через ${(onset * 1000).toFixed(0)} мс`);
+
+  // 6) ducking під мовленням ≥ 10 дБ
+  const dctx = new OfflineAudioContext(2, 44100 * 3, 44100), de = new Engine(); await de.init(dctx);
+  I.playNote(de, de.bus("reference"), "reftone", { midi: 69, dur: 2.9, vel: 0.9, pan: 0 }, 0.01);
+  de.duck(true, 1.5);
+  const db = (await dctx.startRendering()).getChannelData(0), rms = (t0, t1) => { let q = 0; for (let i = Math.floor(t0 * 44100); i < t1 * 44100; i++) q += db[i] * db[i]; return Math.sqrt(q / ((t1 - t0) * 44100)); };
+  const duckDb = 20 * Math.log10(rms(0.5, 1.4) / rms(2.1, 2.8));
+  check("A: під час мовлення музика приглушується на ≥ 10 дБ (ducking)", duckDb >= 10, `−${duckDb.toFixed(1)} дБ`);
+
+  // 7) граматика в UI й README
+  const readme = await (await fetch("README.md")).text(), html = await (await fetch("index.html")).text();
+  check("A: таблиця граматики (8 правил) — у src/grammar.js, UI й README", G.GRAMMAR.length === 8 && /## Граматика звуку/.test(readme) && /більше → вище/.test(readme) && /id="grammar-rows"/.test(html), `${G.GRAMMAR.length} правил`);
+});
+
 (async () => {
   for (const s of SUITES) {
     try { await s(); }

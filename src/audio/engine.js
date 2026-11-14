@@ -3,6 +3,8 @@
 //   → сума → «провал» → м'який компресор → рівень від даних (±4 дБ) → нормалізація гучності треку (−16 LUFS)
 //   → баланс L/R → лімітер → стеля −1 dBFS → вихід.
 
+import { ACCOMP_DB, VOICE_CUT, DUCK_DB } from "../grammar.js";
+
 const c01 = x => Math.max(0, Math.min(1, x ?? 0.5));
 export const TARGET_LUFS = -16, CEILING = 0.88;      // 0.88 ≈ −1.1 dBFS
 /**
@@ -36,6 +38,7 @@ export class Engine {
     this.buses = new Map();
     this.partState = new Map();   // id → { mute, solo }
     this.space = 0.3;
+    this.lead = null;             // партії першого плану (граматика звуку); решта — супровід
   }
 
   /** @param {BaseAudioContext} [given] — напр. OfflineAudioContext для тестів і експорту в WAV */
@@ -72,7 +75,9 @@ export class Engine {
     this.master.connect(this.dip).connect(comp).connect(this.levelNode).connect(this.normGain).connect(split);
     split.connect(this.balL, 0); split.connect(this.balR, 1);
     this.balL.connect(merge, 0, 0); this.balR.connect(merge, 0, 1);
-    merge.connect(limiter).connect(shaper).connect(ctx.destination);
+    // ducking: музика приглушується під час мовлення (після мастера — не впливає на калібрування гучності)
+    this.duckNode = ctx.createGain();
+    merge.connect(limiter).connect(shaper).connect(this.duckNode).connect(ctx.destination);
     this.setMaster(this.masterCal || { gainDb: 0, balanceDb: 0 });
     // реверб: згенерована імпульсна характеристика (стерео, ~3.5 с)
     this.reverb = ctx.createConvolver();
@@ -100,6 +105,16 @@ export class Engine {
     set(this.balR.gain, Math.pow(10, balanceDb / 40));
   }
 
+  /** Партії першого плану (score.lead). Решта шин — супровід: тихіше (ACCOMP_DB) і виріз у частотах під голос даних. */
+  setLead(ids) { this.lead = ids ? new Set(ids) : null; this.applyMix(); }
+  isAccomp(id) { return !!this.lead && !this.lead.has(id) && id !== "legend"; }
+
+  /** Приглушити музику під мовлення (≥ 10 дБ) і повернути. */
+  duck(on, at) {
+    if (!this.ctx) return;
+    this.duckNode.gain.setTargetAtTime(on ? Math.pow(10, DUCK_DB / 20) : 1, at ?? this.ctx.currentTime, on ? 0.04 : 0.12);
+  }
+
   /** Шина партії: EQ партії → gain (mute/solo) → сухий + посил на реверб. */
   bus(id, { send = 0.3 } = {}) {
     if (this.buses.has(id)) return this.buses.get(id).input;
@@ -111,11 +126,13 @@ export class Engine {
     if (eq?.hp) add("highpass", eq.hp, 0.7);
     if (eq?.cut) add("peaking", eq.cut[0], 1, eq.cut[1]);
     if (eq?.lp) add("lowpass", eq.lp, 0.7);
+    const cut = ctx.createBiquadFilter(); cut.type = "peaking"; cut.frequency.value = VOICE_CUT.f; cut.Q.value = VOICE_CUT.q; cut.gain.value = this.isAccomp(id) ? VOICE_CUT.db : 0;
+    node.connect(cut); node = cut;
     node.connect(out);
     out.connect(this.master);
     out.connect(sendG).connect(this.reverb);
     sendG.gain.value = send * this.space * 2;
-    this.buses.set(id, { input, out, send: sendG, baseSend: send });
+    this.buses.set(id, { input, out, send: sendG, baseSend: send, cut });
     this.applyMix();
     return input;
   }
@@ -139,7 +156,9 @@ export class Engine {
     for (const [id, b] of this.buses) {
       const st = this.getPart(id);
       const on = anySolo ? st.solo : !st.mute;
-      b.out.gain.setTargetAtTime(on ? 1 : 0, this.ctx.currentTime, 0.03);
+      const acc = this.isAccomp(id);
+      b.cut.gain.value = acc ? VOICE_CUT.db : 0;
+      b.out.gain.setTargetAtTime(on ? (acc ? Math.pow(10, ACCOMP_DB / 20) : 1) : 0, this.ctx.currentTime, 0.03);
     }
   }
 

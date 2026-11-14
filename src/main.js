@@ -10,6 +10,7 @@ import { setupTopicInput } from "./ui/topic-input.js";
 import { createMappingTable } from "./ui/mapping-table.js";
 import { setupPlayback } from "./ui/playback.js";
 import { setupExplore } from "./ui/explore.js";
+import { GRAMMAR } from "./grammar.js";
 
 const $ = id => document.getElementById(id);
 const NO_CACHE = new URLSearchParams(location.search).has("nocache");   // ?nocache — завжди аналізувати заново
@@ -143,7 +144,7 @@ async function loadSource(title, open, item) {
 /** Мапінг і композиція для поточної теми (без повторного аналізу відео). */
 async function remap() {
   app.preset = await presetFor(app.profile.sceneType, app.topic);
-  app.mapping = mapAnalysis(app.analysis, app.preset, { topic: app.topic });
+  app.mapping = mapAnalysis(app.analysis, app.preset, { topic: app.topic, timeUnit: app.catalogItem?.timeUnit || null });
   timeline.setSections(app.mapping.meta.sections.map(s => ({
     label: s.label, t0: s.b0 * app.mapping.meta.barDur, t1: s.b1 * app.mapping.meta.barDur,
   })));
@@ -262,3 +263,13 @@ app.topics = await loadTopics();
 const topicInput = setupTopicInput({ topics: app.topics, onTopic: t => app.setTopic(t) });
 app.catalog = await loadCatalog();
 app.loadItem = loadItem;
+
+// граматика звуку (v5-A): одна таблиця для всіх тем
+{
+  const tb = document.getElementById("grammar-rows");
+  if (tb) for (const r of GRAMMAR) {
+    const tr = document.createElement("tr");
+    tr.append(Object.assign(document.createElement("th"), { scope: "row", textContent: r.data }), Object.assign(document.createElement("td"), { textContent: r.sound }));
+    tb.appendChild(tr);
+  }
+}

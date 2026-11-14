@@ -9,7 +9,8 @@ import { loadStyle, loadStyles } from "../styles/index.js";
 import { renderOffline, toWav } from "../audio/render.js";
 import { calibrate } from "../audio/master.js";
 import { scoreHash } from "../audio/report.js";
-import { legendItems, playItem, playLegend, playIntro, stopIntro } from "../a11y/legend.js";
+import { legendItems, playItem, playLegend, playIntro, stopIntro, setDuckEngine } from "../a11y/legend.js";
+import { speechHooks } from "../a11y/announcer.js";
 import { announce, setMinGap, stopVoice, prefs } from "../a11y/announcer.js";
 import { fmtTime } from "../a11y/describe.js";
 import { noteName } from "../composer/theory.js";
@@ -18,6 +19,8 @@ const $ = id => document.getElementById(id);
 
 export function setupPlayback(app, { timeline, mappingTable }) {
   const engine = new Engine();
+  setDuckEngine(engine);
+  speechHooks.duck = on => engine.duck(on);
   app.engine = engine;
   const cursor = $("cursor"), cg = cursor.getContext("2d");
   let lastAnnouncedBar = -99, lastSection = null;
@@ -96,7 +99,8 @@ export function setupPlayback(app, { timeline, mappingTable }) {
       ["Тональність", `${noteName(h.root)} ${h.mode.label}`],
       ["Акорд", chord],
       ["Темп", `${app.score.bpm} BPM`],
-      ["Грають", parts],
+      ["Перший план", sb.lead ? `голос даних${sb.streams > 1 ? ` + солісти зон: ${sb.streams - 1}` : ""} (потоків даних: ${sb.streams} із 3)` : "—"],
+      ["Супровід", parts],
       ["Події", bar.events.length ? bar.events.map(e => e.text).join("; ") : "—"],
     ];
     $("readout").replaceChildren(...rows.flatMap(([k, v]) => [Object.assign(document.createElement("dt"), { textContent: k }), Object.assign(document.createElement("dd"), { textContent: v })]));

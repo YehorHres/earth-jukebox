@@ -2,6 +2,9 @@
 let live = null, minGapMs = 0, lastAt = 0;
 export const prefs = { announce: true, voice: false, intro: true, introVoice: true };
 
+/** duck(on) — приглушити музику під час мовлення (ставить ui/playback.js). */
+export const speechHooks = { duck: null };
+
 export function initAnnouncer(el) { live = el; }
 
 /** force — важливе (завжди); throttle — не частіше ніж раз на minGap (для повідомлень під час музики). */
@@ -15,6 +18,8 @@ export function announce(text, { force = false, throttle = false } = {}) {
   if (prefs.voice && window.speechSynthesis) {
     const u = new SpeechSynthesisUtterance(text);
     u.lang = "uk-UA"; u.rate = 1.1;
+    u.onstart = () => speechHooks.duck?.(true);
+    u.onend = u.onerror = () => { if (!speechSynthesis.pending) speechHooks.duck?.(false); };
     speechSynthesis.speak(u);
   }
 }
