@@ -1,0 +1,66 @@
+# План Earth Jukebox v2
+
+Деталі двигуна — у `docs/PROMPT-v2-engine.md` (ТЗ). Цей файл — короткий робочий план:
+структура, формати між шарами, порядок етапів і їхній стан.
+
+## Ключові рішення
+1. **Без збірки.** Нативні ES-модулі, працює з `python -m http.server` і на GitHub Pages.
+   Tone.js — з CDN (запасний варіант — власні Web Audio синтезатори, музика ніколи не мовчить).
+2. **Спершу зрозуміти все відео, потім писати музику.** Два проходи аналізу:
+   A — огляд 32 кадрів (профіль відео), B — кожен кадр у Web Worker.
+3. **Темп сталий на трек**, такт = фіксований відрізок відео. «Прискорення» — дрібністю ритму.
+   Відео підлаштовується під музику (дрейф > 80 мс → перемотка).
+4. **Детермінованість:** seeded RNG, ключ — ім'я+розмір+тривалість файлу.
+5. **Чесність:** два канали ознак — `abs` (фізична шкала) і `rel` (у межах відео, p5..p95,
+   м'яке коліно нижче рівня шуму). Коефіцієнт підсилення показуємо в UI та explain.
+6. **Пояснюваність:** кожен параметр такту несе `explain` — внески ознак.
+7. **Джерела кадрів — один інтерфейс** (`media/sources.js`): відео, фото, синтетичне відео
+   (для тестів «темне відео з малими змінами» та «статичне відео» без ffmpeg).
+
+## Структура
+```
+index.html  test.html          ← застосунок і автотести (розділ 8 ТЗ)
+samples/catalog.json           ← галерея: src[webm,mp4], опис, sceneType/legend (необов'язково)
+samples/<id>.analysis.json     ← готовий аналіз для миттєвого демо
+src/
+  main.js  style.css
+  util/      rng.js stats.js
+  media/     sources.js (video / image / synthetic)  frames.js (зчитування в ImageData)
+  analysis/  pass-a.js (профіль відео)  pass-b.js (кожен кадр, керує worker)
+             worker.js  frame-context.js  normalize.js (abs/rel)  temporal.js  events.js  cache.js
+  features/  registry.js  basic.js  scene.js (heatmap / nightlights / truecolor)  zones.js
+  mapping/   presets/{default,heatmap,nightlights,truecolor}.json  curves.js  mapper.js
+  composer/  theory.js form.js harmony.js humanize.js composer.js
+             parts/{bass,pad,arp,drums,melody,counter,accents,stars}.js
+  audio/     instruments.js engine.js player.js
+  a11y/      announcer.js describe.js legend.js
+  ui/        timeline.js mapping-table.js readout.js
+```
+
+## Формати між шарами
+- **Профіль відео (прохід A):** `{ sceneType, confidence, staticMask, landMask, bgMask, ranges,
+  noiseFloor, changeScale, changeRatio, cuts, period, durationSec, maskW, maskH }`
+- **Шар 1 (прохід B), кадр:** `{ time, features: { name: abs }, zones: { cols, rows, bands, hemi } }`
+  + після нормалізації `rel: { name: rel }`, часові `name.d1/.speed10/.accel20/.trend40/.pos/.globalRank`,
+  та `events: [{ type, frame, time, feature, strength }]`, `norm: { name: { p5, p95, gain, scale } }`.
+- **Шар 2, такт:** `{ bar, t0, dur, params: { energy, density, tension, brightness, register, pan,
+  motion, accent, contour[16], orchestration, articulation, space, section }, explain: { param: [[source, contrib]] } }`
+- **Шар 3:** `score = { bpm, key, sections, notes: [{ part, t, midi, dur, vel, pan }] , fx: [...] }`
+
+## Етапи (розділ 9 ТЗ) і стан
+| # | Етап | Стан |
+|---|------|------|
+| 1 | Прохід A + videoProfile + картка «що зрозумів» | |
+| 2 | Прохід B у Worker + abs/rel + temporal + події + кеш | |
+| 3 | Мапінг-пресети + mapper з explain | |
+| 4 | Композитор: форма + гармонія + бас/педи/арпеджіо/ударні → звучить | |
+| 5 | Мелодія фразами + контрмелодія + акценти подій | |
+| 6 | Семпли (Sampler) із запасом на синтезатори | |
+| 7 | UI: таймлайн, таблиця мапінгу, mute/solo, a11y | |
+| 8 | `samples/*.analysis.json`, друге відео в галерею | |
+
+## Спрощення, якщо не встигаємо
+- K-Means кольорових кластерів — на сітці 32×16, k ≤ 6, 6 ітерацій.
+- `chart` — лише базові ознаки (як у ТЗ).
+- Друге реальне відео NASA — якщо немає часу знайти й конвертувати, у галереї лишається
+  синтетичне «нічне» відео як демонстрація адаптації масштабу.

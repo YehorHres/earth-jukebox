@@ -1,0 +1,743 @@
+<!doctype html>
+<html lang="uk">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Earth Jukebox — прототип</title>
+<link rel="icon" href="data:,">
+<style>
+  :root { --bg:#0d1117; --panel:#161b22; --line:#30363d; --text:#e6edf3; --muted:#8b949e; --accent:#f2c94c; }
+  * { box-sizing:border-box; }
+  body { margin:0; font-family:system-ui,-apple-system,"Segoe UI",sans-serif; background:var(--bg); color:var(--text); }
+  header { padding:16px 24px; border-bottom:1px solid var(--line); }
+  h1 { margin:0; font-size:22px; }
+  header p { margin:4px 0 0; color:var(--muted); font-size:14px; }
+  main { display:grid; grid-template-columns: minmax(0,1fr) 320px; gap:16px; padding:16px 24px; }
+  @media (max-width:900px){ main { grid-template-columns:1fr; } }
+  .panel { background:var(--panel); border:1px solid var(--line); border-radius:10px; padding:14px; }
+  .viewer { position:relative; width:100%; background:#000; border-radius:8px; overflow:hidden; aspect-ratio:2/1; }
+  .viewer video, .viewer img, .viewer canvas { position:absolute; inset:0; width:100%; height:100%; object-fit:contain; }
+  #drop { border:2px dashed var(--line); border-radius:8px; padding:14px; text-align:center; color:var(--muted); margin-bottom:12px; }
+  #drop.over { border-color:var(--accent); color:var(--text); }
+  button { background:#21262d; color:var(--text); border:1px solid var(--line); border-radius:6px; padding:8px 12px; font-size:14px; cursor:pointer; }
+  button:hover:not(:disabled) { border-color:var(--accent); }
+  button:focus-visible, input:focus-visible { outline:3px solid var(--accent); outline-offset:2px; }
+  button:disabled { opacity:.45; cursor:default; }
+  button.primary { background:#238636; border-color:#2ea043; }
+  .row { display:flex; flex-wrap:wrap; gap:8px; align-items:center; margin:10px 0; }
+  fieldset { border:1px solid var(--line); border-radius:8px; margin:12px 0; padding:8px 12px; }
+  legend { color:var(--muted); font-size:13px; padding:0 4px; }
+  label.layer { display:flex; align-items:center; gap:8px; margin:6px 0; font-size:14px; }
+  dl { display:grid; grid-template-columns:auto 1fr; gap:4px 10px; margin:0; font-size:14px; }
+  dt { color:var(--muted); } dd { margin:0; font-variant-numeric:tabular-nums; }
+  #progress { width:100%; height:6px; background:#21262d; border-radius:3px; overflow:hidden; margin-top:6px; }
+  #progress > div { height:100%; width:0; background:var(--accent); transition:width .1s; }
+  #status { font-size:13px; color:var(--muted); margin-top:6px; min-height:1.2em; }
+  #chart { width:100%; height:150px; display:block; margin-top:12px; background:#0b0f14; border-radius:8px; }
+  .keys { font-size:12px; color:var(--muted); line-height:1.6; }
+  kbd { background:#21262d; border:1px solid var(--line); border-radius:4px; padding:0 5px; font-size:12px; }
+  .sr-only { position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip:rect(0,0,0,0); border:0; }
+  .chart-legend { display:flex; gap:14px; font-size:12px; color:var(--muted); margin-top:6px; flex-wrap:wrap; }
+  .chart-legend span::before { content:""; display:inline-block; width:10px; height:3px; margin-right:5px; vertical-align:middle; background:var(--c); }
+</style>
+</head>
+<body>
+<header>
+  <h1>🌍🎵 Earth Jukebox — прототип</h1>
+  <p>Завантажте відео або зображення візуалізації NASA: застосунок зчитує кадри й перетворює дані на музику в реальному часі.</p>
+</header>
+
+<main>
+  <section class="panel" aria-labelledby="stage-title">
+    <h2 id="stage-title" class="sr-only">Візуалізація</h2>
+    <div class="row" id="gallery" role="group" aria-label="Галерея візуалізацій NASA"></div>
+    <div id="drop">
+      <label for="file">Перетягніть сюди відео / фото або виберіть файл: </label>
+      <input type="file" id="file" accept="video/*,image/*">
+    </div>
+    <div class="viewer" id="viewer">
+      <video id="video" muted playsinline loop preload="auto" aria-hidden="true"></video>
+      <img id="img" alt="" hidden>
+      <canvas id="overlay" aria-hidden="true"></canvas>
+    </div>
+    <div id="progress" aria-hidden="true"><div></div></div>
+    <div id="status" role="status">Файл не завантажено.</div>
+
+    <canvas id="chart" role="img" aria-label="Графік: тепло, швидкість змін і тренд протягом відео"></canvas>
+    <div class="chart-legend" aria-hidden="true">
+      <span style="--c:#f2994a">тепло (середнє)</span>
+      <span style="--c:#56ccf2">швидкість змін (10 кадрів)</span>
+      <span style="--c:#bb6bd9">прискорення (20)</span>
+      <span style="--c:#6fcf97">тренд (40)</span>
+    </div>
+  </section>
+
+  <aside class="panel" aria-label="Керування">
+    <div class="row">
+      <button id="play" class="primary" disabled aria-keyshortcuts="Space">▶ Грати</button>
+      <button id="legendBtn" disabled aria-keyshortcuts="L">🔊 Аудіолегенда</button>
+      <button id="export" disabled>⬇ JSON</button>
+    </div>
+
+    <fieldset>
+      <legend>Шари звуку</legend>
+      <label class="layer"><input type="checkbox" id="L1" checked> <span>1 · Мелодія — сканування кадру</span></label>
+      <label class="layer"><input type="checkbox" id="L2" checked> <span>2 · Ритм — швидкість змін (10)</span></label>
+      <label class="layer"><input type="checkbox" id="L3" checked> <span>3 · Напруга — прискорення (20)</span></label>
+      <label class="layer"><input type="checkbox" id="L4" checked> <span>4 · Бас і акорди — тренд (40)</span></label>
+    </fieldset>
+
+    <fieldset>
+      <legend>Доступність</legend>
+      <label class="layer"><input type="checkbox" id="announce" checked> <span>Повідомляти значення для скрінрідера</span></label>
+      <label class="layer"><input type="checkbox" id="voice"> <span>Озвучувати голосом</span></label>
+    </fieldset>
+
+    <fieldset>
+      <legend>Зараз звучить</legend>
+      <dl>
+        <dt>Кадр</dt><dd id="r-frame">—</dd>
+        <dt>Тепло</dt><dd id="r-warm">—</dd>
+        <dt>Тепла площа</dt><dd id="r-area">—</dd>
+        <dt>Швидкість</dt><dd id="r-speed">—</dd>
+        <dt>Тренд</dt><dd id="r-trend">—</dd>
+        <dt>Лад</dt><dd id="r-mode">—</dd>
+        <dt>Темп</dt><dd id="r-bpm">—</dd>
+      </dl>
+    </fieldset>
+
+    <p class="keys">
+      <kbd>Space</kbd> грати/пауза · <kbd>L</kbd> аудіолегенда ·
+      <kbd>1</kbd>–<kbd>4</kbd> шари · <kbd>←</kbd>/<kbd>→</kbd> ±5 с
+    </p>
+  </aside>
+</main>
+
+<div id="live" class="sr-only" aria-live="polite"></div>
+
+<script>
+"use strict";
+/* =========================================================================
+   НАЛАШТУВАННЯ
+   ========================================================================= */
+const CFG = {
+  sampleFps: 4,          // скільки кадрів на секунду відео аналізуємо
+  gridW: 270, gridH: 135, // роздільність аналізу (піксельна сітка)
+  cols: 16, rows: 8,     // сітка комірок: 16 колонок = 16 кроків такту
+  winSpeed: 10, winAccel: 20, winTrend: 40,  // вікна в аналізованих кадрах
+  minSat: 0.35, minVal: 0.18,  // нижче — сіра суша / чорний фон = «немає даних»
+  hueCold: 240, hueWarm: 0,    // синій = холодно, червоний = тепло
+  warmThreshold: 0.75,         // що вважаємо «теплою» водою (0..1)
+};
+
+/* =========================================================================
+   1. ЗЧИТУВАННЯ КАДРУ: колір пікселя → значення 0..1 (або null)
+   ========================================================================= */
+function pixelToValue(r, g, b) {
+  const max = Math.max(r, g, b), min = Math.min(r, g, b);
+  const v = max / 255, s = max === 0 ? 0 : (max - min) / max;
+  if (v < CFG.minVal || s < CFG.minSat) return null;     // фон або суша
+  const d = max - min;
+  let h;
+  if (max === r) h = ((g - b) / d) % 6;
+  else if (max === g) h = (b - r) / d + 2;
+  else h = (r - g) / d + 4;
+  h *= 60; if (h < 0) h += 360;
+  if (h > 260 && h < 330) return null;                     // фіолетових у шкалі немає
+  if (h >= 330) h = 0;                                     // червоний «загортається»
+  h = Math.min(h, CFG.hueCold);
+  return (CFG.hueCold - h) / (CFG.hueCold - CFG.hueWarm);  // 0 = синій, 1 = червоний
+}
+
+const work = document.createElement("canvas");
+work.width = CFG.gridW; work.height = CFG.gridH;
+const wctx = work.getContext("2d", { willReadFrequently: true });
+let prevLum = null;
+
+function readFrame(source) {
+  wctx.drawImage(source, 0, 0, CFG.gridW, CFG.gridH);
+  const px = wctx.getImageData(0, 0, CFG.gridW, CFG.gridH).data;
+  const { cols, rows, gridW, gridH } = CFG;
+  const sum = new Float32Array(cols * rows), cnt = new Uint32Array(cols * rows);
+  const lum = new Float32Array(gridW * gridH);
+  let total = 0, valid = 0, warm = 0, motion = 0;
+  for (let y = 0; y < gridH; y++) {
+    const ry = Math.min(rows - 1, Math.floor(y * rows / gridH));
+    for (let x = 0; x < gridW; x++) {
+      const i = (y * gridW + x) * 4;
+      const r = px[i], g = px[i + 1], b = px[i + 2];
+      const L = (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255;
+      lum[y * gridW + x] = L;
+      if (prevLum) motion += Math.abs(L - prevLum[y * gridW + x]);
+      total++;
+      const t = pixelToValue(r, g, b);
+      if (t === null) continue;
+      const c = ry * cols + Math.min(cols - 1, Math.floor(x * cols / gridW));
+      sum[c] += t; cnt[c]++; valid++;
+      if (t >= CFG.warmThreshold) warm++;
+    }
+  }
+  prevLum = lum;
+  const cellsPerCell = (gridW / cols) * (gridH / rows);
+  const cells = new Array(cols * rows), cover = new Array(cols * rows);
+  let mSum = 0;
+  for (let c = 0; c < cols * rows; c++) {
+    cells[c] = cnt[c] ? sum[c] / cnt[c] : null;
+    cover[c] = cnt[c] / cellsPerCell;
+    mSum += sum[c];
+  }
+  // колонки (для мелодії): середнє по широті, зважене на кількість «водних» пікселів
+  const colVal = [], colCover = [];
+  for (let x = 0; x < cols; x++) {
+    let s = 0, n = 0;
+    for (let y = 0; y < rows; y++) { const c = y * cols + x; s += sum[c]; n += cnt[c]; }
+    colVal.push(n ? s / n : null);
+    colCover.push(n / (cellsPerCell * rows));
+  }
+  return {
+    cells, cover, colVal, colCover,
+    mean: valid ? mSum / valid : 0,
+    warmArea: valid ? warm / valid : 0,
+    coverage: valid / total,
+    motion: motion / total,
+  };
+}
+
+/* =========================================================================
+   2. ПРОХІД ПО ВІДЕО: читаємо кадри з кроком 1/sampleFps секунди
+   ========================================================================= */
+const video = document.getElementById("video");
+const img = document.getElementById("img");
+let frames = [];        // результат зчитування
+let metrics = null;     // результат часового аналізу
+let isImage = false;
+
+function seek(t) {
+  return new Promise(res => { video.addEventListener("seeked", res, { once: true }); video.currentTime = t; });
+}
+async function ensureDuration() {
+  if (isFinite(video.duration) && video.duration > 0) return video.duration;
+  // деякі webm не мають тривалості в заголовку — «перемотуємо в кінець», щоб її дізнатися
+  await new Promise(res => {
+    video.addEventListener("durationchange", function h() {
+      if (isFinite(video.duration)) { video.removeEventListener("durationchange", h); res(); }
+    });
+    video.currentTime = 1e101;
+  });
+  return video.duration;
+}
+
+async function analyseVideo() {
+  setStatus("Зчитування кадрів…");
+  const dur = await ensureDuration();
+  const n = Math.max(1, Math.floor(dur * CFG.sampleFps));
+  frames = []; prevLum = null;
+  for (let i = 0; i < n; i++) {
+    await seek(Math.min(dur - 0.01, i / CFG.sampleFps));
+    const f = readFrame(video);
+    f.time = i / CFG.sampleFps;
+    frames.push(f);
+    if (i % 5 === 0) { setProgress((i + 1) / n); setStatus(`Зчитування кадрів… ${i + 1}/${n}`); await nextTick(); }
+  }
+  await seek(0);
+  setProgress(1);
+}
+
+function analyseImage() {
+  prevLum = null;
+  const f = readFrame(img);
+  f.time = 0;
+  frames = [f];
+  setProgress(1);
+}
+const nextTick = () => new Promise(r => setTimeout(r, 0));
+
+/* =========================================================================
+   3. ЧАСОВИЙ АНАЛІЗ: вікна 10 / 20 / 40 кадрів
+   ========================================================================= */
+function slope(arr, from, to) { // нахил лінійної регресії на [from..to]
+  const n = to - from + 1; if (n < 2) return 0;
+  let sx = 0, sy = 0, sxy = 0, sxx = 0;
+  for (let i = from; i <= to; i++) { const x = i - from; sx += x; sy += arr[i]; sxy += x * arr[i]; sxx += x * x; }
+  const den = n * sxx - sx * sx;
+  return den ? (n * sxy - sx * sy) / den : 0;
+}
+function normalize(arr) {
+  const lo = Math.min(...arr), hi = Math.max(...arr);
+  return arr.map(v => hi > lo ? (v - lo) / (hi - lo) : 0);
+}
+function normalizeSigned(arr) {
+  const m = Math.max(1e-9, ...arr.map(Math.abs));
+  return arr.map(v => v / m);
+}
+
+function computeMetrics() {
+  const raw = frames.map(f => f.mean);
+  const N = raw.length;
+  // згладжування (ковзне середнє на 5 кадрів) — прибирає «тремтіння» від шуму пікселів
+  const mean = raw.map((_, i) => {
+    let s = 0, n = 0;
+    for (let j = Math.max(0, i - 2); j <= Math.min(N - 1, i + 2); j++) { s += raw[j]; n++; }
+    return s / n;
+  });
+  const speed = [], accel = [], trend = [];
+  for (let i = 0; i < N; i++) {
+    const a = Math.max(0, i - CFG.winSpeed);
+    speed.push(i > a ? Math.abs(mean[i] - mean[a]) / (i - a) : 0);
+    const b = Math.max(0, i - CFG.winSpeed), c = Math.max(0, i - CFG.winAccel);
+    const s1 = i > b ? (mean[i] - mean[b]) / (i - b) : 0;
+    const s2 = b > c ? (mean[b] - mean[c]) / (b - c) : 0;
+    accel.push(s1 - s2);
+    trend.push(slope(mean, Math.max(0, i - CFG.winTrend + 1), i));
+  }
+  const areas = frames.map(f => f.warmArea);
+  const sortedMean = [...mean].sort((x, y) => x - y);
+  metrics = {
+    mean, speed, accel, trend, areas,
+    meanN: normalize(mean),
+    speedN: normalize(speed),
+    accelN: normalizeSigned(accel),
+    trendN: normalizeSigned(trend),
+    areaN: normalize(areas),
+    peakLevel: sortedMean[Math.floor(0.9 * (N - 1))],
+  };
+}
+
+/* =========================================================================
+   4. МУЗИКА (Web Audio API, без зовнішніх бібліотек)
+   ========================================================================= */
+let ctx = null, master, buses = {}, noiseBuf = null, padFilter, windNode = null;
+
+const MODES = {
+  "мажор (стабільно)":      [0, 2, 4, 7, 9],
+  "мінор (зростання)":      [0, 3, 5, 7, 10],
+  "темний (швидке зростання)": [0, 1, 3, 7, 8],
+};
+const ROOT = 57; // A3
+const mtof = m => 440 * Math.pow(2, (m - 69) / 12);
+function scaleNotes(intervals, base, count) {
+  const out = [];
+  for (let i = 0; out.length < count; i++) out.push(base + 12 * Math.floor(i / intervals.length) + intervals[i % intervals.length]);
+  return out;
+}
+
+function initAudio() {
+  if (ctx) return;
+  ctx = new (window.AudioContext || window.webkitAudioContext)();
+  const comp = ctx.createDynamicsCompressor();      // лімітер — щоб нічого не хрипіло
+  comp.threshold.value = -10; comp.ratio.value = 12;
+  master = ctx.createGain(); master.gain.value = 0.8;
+  master.connect(comp).connect(ctx.destination);
+  for (const k of ["L1", "L2", "L3", "L4"]) {
+    buses[k] = ctx.createGain();
+    buses[k].gain.value = document.getElementById(k).checked ? 1 : 0;
+    buses[k].connect(master);
+  }
+  padFilter = ctx.createBiquadFilter(); padFilter.type = "lowpass"; padFilter.frequency.value = 800;
+  padFilter.connect(buses.L4);
+  // шумовий буфер для хай-хету та «вітру»
+  noiseBuf = ctx.createBuffer(1, ctx.sampleRate * 2, ctx.sampleRate);
+  const d = noiseBuf.getChannelData(0);
+  for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+  startWind();
+}
+
+function envGain(t, a, peak, dur, rel) {
+  const g = ctx.createGain();
+  g.gain.setValueAtTime(0.0001, t);
+  g.gain.exponentialRampToValueAtTime(Math.max(0.0002, peak), t + a);
+  g.gain.setValueAtTime(Math.max(0.0002, peak), t + Math.max(a, dur - rel));
+  g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+  return g;
+}
+
+// Шар 1 — мелодія
+function playMelody(t, midi, vel, pan, dur) {
+  const p = ctx.createStereoPanner(); p.pan.value = pan;
+  const g = envGain(t, 0.01, 0.22 * vel, dur, dur * 0.7);
+  const o1 = ctx.createOscillator(); o1.type = "triangle"; o1.frequency.value = mtof(midi);
+  const o2 = ctx.createOscillator(); o2.type = "sine"; o2.frequency.value = mtof(midi + 12);
+  const g2 = ctx.createGain(); g2.gain.value = 0.25;
+  o1.connect(g); o2.connect(g2).connect(g); g.connect(p).connect(buses.L1);
+  o1.start(t); o2.start(t); o1.stop(t + dur + 0.05); o2.stop(t + dur + 0.05);
+}
+
+// Шар 2 — ритм
+function playHat(t, vel) {
+  const s = ctx.createBufferSource(); s.buffer = noiseBuf;
+  const f = ctx.createBiquadFilter(); f.type = "highpass"; f.frequency.value = 7000;
+  const g = envGain(t, 0.002, 0.12 * vel, 0.06, 0.05);
+  s.connect(f).connect(g).connect(buses.L2); s.start(t, Math.random()); s.stop(t + 0.08);
+}
+function playKick(t, vel) {
+  const o = ctx.createOscillator(); o.type = "sine";
+  o.frequency.setValueAtTime(140, t); o.frequency.exponentialRampToValueAtTime(45, t + 0.15);
+  const g = envGain(t, 0.003, 0.5 * vel, 0.25, 0.2);
+  o.connect(g).connect(buses.L2); o.start(t); o.stop(t + 0.3);
+}
+function euclid(k, n) { // рівномірно розставити k ударів на n кроків
+  const out = []; for (let i = 0; i < n; i++) out.push(Math.floor((i + 1) * k / n) - Math.floor(i * k / n) === 1);
+  return out;
+}
+
+// Шар 3 — напруга: «вітер», що посилюється, коли зміни прискорюються
+let windGain, windFilter;
+function startWind() {
+  const s = ctx.createBufferSource(); s.buffer = noiseBuf; s.loop = true;
+  windFilter = ctx.createBiquadFilter(); windFilter.type = "bandpass"; windFilter.Q.value = 3; windFilter.frequency.value = 500;
+  windGain = ctx.createGain(); windGain.gain.value = 0;
+  s.connect(windFilter).connect(windGain).connect(buses.L3); s.start();
+  windNode = s;
+}
+function setTension(t, accelN) {
+  const a = Math.max(0, accelN);                 // напруга росте, коли зміни пришвидшуються
+  windGain.gain.setTargetAtTime(0.02 + 0.18 * a, t, 0.3);
+  windFilter.frequency.setTargetAtTime(400 + 2600 * a, t, 0.3);
+  padFilter.frequency.setTargetAtTime(500 + 3000 * Math.abs(accelN), t, 0.4);
+}
+
+// Шар 4 — бас та акорди
+function playBass(t, midi, dur) {
+  const o = ctx.createOscillator(); o.type = "sawtooth"; o.frequency.value = mtof(midi);
+  const f = ctx.createBiquadFilter(); f.type = "lowpass"; f.frequency.value = 300;
+  const g = envGain(t, 0.02, 0.35, dur, 0.2);
+  o.connect(f).connect(g).connect(buses.L4); o.start(t); o.stop(t + dur + 0.05);
+}
+function playPad(t, notes, dur) {
+  for (const m of notes) for (const det of [-6, 6]) {
+    const o = ctx.createOscillator(); o.type = "sawtooth"; o.frequency.value = mtof(m); o.detune.value = det;
+    const g = envGain(t, 0.4, 0.05 / Math.sqrt(notes.length), dur, 0.5);
+    o.connect(g).connect(padFilter); o.start(t); o.stop(t + dur + 0.05);
+  }
+}
+
+// Події: дзвін при піку тепла
+function playBell(t) {
+  for (const [ratio, amp] of [[1, 0.25], [2.76, 0.12], [5.4, 0.06]]) {
+    const o = ctx.createOscillator(); o.type = "sine"; o.frequency.value = mtof(ROOT + 36) * ratio;
+    const g = envGain(t, 0.005, amp, 2.5, 2.4);
+    o.connect(g).connect(master); o.start(t); o.stop(t + 2.6);
+  }
+}
+
+/* =========================================================================
+   5. ПЛАНУВАЛЬНИК: 1 такт = 16 кроків = одне сканування кадру зліва направо
+   ========================================================================= */
+let playing = false, step = 0, nextTime = 0, timer = null, barCount = 0;
+let current = { mode: null, bpm: 0, idx: 0 };
+const visQueue = [];   // для синхронізації курсора з тим, що звучить
+let lastAboveLevel = false;
+
+function currentIndex() {
+  if (isImage) return 0;
+  return Math.min(frames.length - 1, Math.floor(video.currentTime * CFG.sampleFps));
+}
+function modeFor(trendN) {
+  const names = Object.keys(MODES);
+  if (trendN < 0.15) return names[0];
+  if (trendN < 0.6) return names[1];
+  return names[2];
+}
+
+function scheduleStep(t) {
+  const i = currentIndex(), f = frames[i], M = metrics;
+  if (step === 0) {                        // початок такту: оновлюємо «глобальні» параметри
+    current.idx = i;
+    current.mode = modeFor(M.trendN[i]);
+    current.bpm = Math.round(80 + 60 * M.speedN[i]);
+    const intervals = MODES[current.mode];
+    const barDur = 60 / current.bpm * 4;
+    setTension(t, M.accelN[i]);
+    // бас повзе разом із рівнем тепла
+    const bassNotes = scaleNotes(intervals, ROOT - 12, 8);
+    playBass(t, bassNotes[Math.round(M.meanN[i] * 4)], barDur * 0.95);
+    // акорд: що більша тепла площа, то більше нот і дисонансу
+    const chord = [ROOT, ROOT + intervals[2], ROOT + 7];
+    if (M.areaN[i] > 0.35) chord.push(ROOT + 12 + intervals[1]);
+    if (M.areaN[i] > 0.7) chord.push(ROOT + 6);           // тритон — тривога
+    playPad(t, chord, barDur);
+    // подія: перетин рівня «пік тепла» знизу вгору
+    const above = M.mean[i] >= M.peakLevel;
+    if (above && !lastAboveLevel && frames.length > 1) { playBell(t); announce("Пік тепла: найтепліші 10% відео.", true); }
+    lastAboveLevel = above;
+    barCount++;
+    updateReadout(i);
+    if (barCount % 4 === 1) announceValues(i);
+  }
+  const stepDur = 60 / current.bpm / 4;
+  // ритм
+  const hits = euclid(2 + Math.round(10 * metrics.speedN[current.idx]), 16);
+  if (step % 8 === 0) playKick(t, 0.6 + 0.4 * metrics.areaN[current.idx]);
+  if (hits[step]) playHat(t, step % 4 === 0 ? 1 : 0.6);
+  // мелодія: колонка step
+  const v = f.colVal[step], cov = f.colCover[step];
+  if (v !== null && cov > 0.12) {
+    const notes = scaleNotes(MODES[current.mode], ROOT + 12, 10);
+    const midi = notes[Math.round(v * (notes.length - 1))];
+    playMelody(t, midi, (0.35 + 0.65 * Math.min(1, cov * 1.5)) * (step % 4 === 0 ? 1 : 0.8),
+               -0.9 + 1.8 * step / 15, stepDur * 1.6);
+  }
+  visQueue.push({ t, step });
+  step = (step + 1) % 16;
+  return stepDur;
+}
+
+function scheduler() {
+  while (nextTime < ctx.currentTime + 0.12) nextTime += scheduleStep(nextTime);
+}
+
+async function play() {
+  initAudio();
+  await ctx.resume();
+  if (!isImage) await video.play();
+  playing = true; step = 0; nextTime = ctx.currentTime + 0.05;
+  timer = setInterval(scheduler, 25);
+  playBtn.textContent = "⏸ Пауза"; playBtn.setAttribute("aria-pressed", "true");
+  requestAnimationFrame(draw);
+}
+function pause() {
+  playing = false; clearInterval(timer);
+  if (!isImage) video.pause();
+  if (ctx) windGain.gain.setTargetAtTime(0, ctx.currentTime, 0.1);
+  playBtn.textContent = "▶ Грати"; playBtn.setAttribute("aria-pressed", "false");
+  if (window.speechSynthesis) speechSynthesis.cancel();
+}
+
+/* =========================================================================
+   6. ВІЗУАЛ: курсор сканування + графік метрик
+   ========================================================================= */
+const overlay = document.getElementById("overlay");
+const octx = overlay.getContext("2d");
+const chart = document.getElementById("chart");
+const cctx = chart.getContext("2d");
+let visStep = -1;
+
+function fitCanvas(cv) {
+  const r = cv.getBoundingClientRect(), dpr = window.devicePixelRatio || 1;
+  if (cv.width !== Math.round(r.width * dpr) || cv.height !== Math.round(r.height * dpr)) {
+    cv.width = Math.round(r.width * dpr); cv.height = Math.round(r.height * dpr);
+  }
+  return dpr;
+}
+function mediaRect() { // де саме в контейнері намальоване відео (object-fit: contain)
+  const W = overlay.width, H = overlay.height;
+  const mw = isImage ? img.naturalWidth : video.videoWidth, mh = isImage ? img.naturalHeight : video.videoHeight;
+  if (!mw || !mh) return { x: 0, y: 0, w: W, h: H };
+  const s = Math.min(W / mw, H / mh);
+  return { x: (W - mw * s) / 2, y: (H - mh * s) / 2, w: mw * s, h: mh * s };
+}
+
+function draw() {
+  if (ctx) while (visQueue.length && visQueue[0].t <= ctx.currentTime) visStep = visQueue.shift().step;
+  fitCanvas(overlay);
+  octx.clearRect(0, 0, overlay.width, overlay.height);
+  if (playing && visStep >= 0) {
+    const r = mediaRect(), cw = r.w / CFG.cols;
+    octx.fillStyle = "rgba(255,255,255,0.10)";
+    octx.fillRect(r.x + visStep * cw, r.y, cw, r.h);
+    octx.fillStyle = "rgba(242,201,76,0.95)";
+    octx.fillRect(r.x + (visStep + 0.5) * cw - 1.5, r.y, 3, r.h);
+  }
+  drawChart();
+  if (playing) requestAnimationFrame(draw);
+}
+
+function drawChart() {
+  if (!metrics) return;
+  const dpr = fitCanvas(chart), W = chart.width, H = chart.height, pad = 8 * dpr;
+  cctx.clearRect(0, 0, W, H);
+  const N = metrics.mean.length;
+  const X = i => pad + (W - 2 * pad) * (N > 1 ? i / (N - 1) : 0.5);
+  const line = (arr, color, signed) => {
+    cctx.strokeStyle = color; cctx.lineWidth = 2 * dpr; cctx.beginPath();
+    arr.forEach((v, i) => {
+      const y = signed ? H / 2 - v * (H / 2 - pad) : H - pad - v * (H - 2 * pad);
+      i ? cctx.lineTo(X(i), y) : cctx.moveTo(X(i), y);
+    });
+    cctx.stroke();
+  };
+  cctx.strokeStyle = "#30363d"; cctx.lineWidth = 1; cctx.beginPath(); cctx.moveTo(pad, H / 2); cctx.lineTo(W - pad, H / 2); cctx.stroke();
+  line(metrics.meanN, "#f2994a");
+  line(metrics.speedN, "#56ccf2");
+  line(metrics.accelN, "#bb6bd9", true);
+  line(metrics.trendN, "#6fcf97", true);
+  const x = X(currentIndex());
+  cctx.fillStyle = "#e6edf3"; cctx.fillRect(x - dpr, 0, 2 * dpr, H);
+}
+
+/* =========================================================================
+   7. ДОСТУПНІСТЬ: текст для скрінрідера, голос, аудіолегенда
+   ========================================================================= */
+const live = document.getElementById("live");
+function announce(text, force) {
+  if (!document.getElementById("announce").checked && !force) return;
+  live.textContent = ""; setTimeout(() => (live.textContent = text), 30);
+  if (document.getElementById("voice").checked && window.speechSynthesis) {
+    const u = new SpeechSynthesisUtterance(text); u.lang = "uk-UA"; u.rate = 1.1;
+    speechSynthesis.speak(u);
+  }
+}
+function describeWarm(v) { return v < 0.25 ? "холодно" : v < 0.5 ? "прохолодно" : v < 0.75 ? "тепло" : "дуже тепло"; }
+function describeTrend(v) { return v > 0.15 ? "теплішає" : v < -0.15 ? "холоднішає" : "стабільно"; }
+function announceValues(i) {
+  const M = metrics;
+  announce(`Секунда ${Math.round(frames[i].time)}. В середньому ${describeWarm(M.mean[i])}, ` +
+           `тепла вода займає ${Math.round(M.areas[i] * 100)} відсотків океану, тенденція: ${describeTrend(M.trendN[i])}.`);
+}
+function updateReadout(i) {
+  const M = metrics, set = (id, v) => (document.getElementById(id).textContent = v);
+  set("r-frame", `${i + 1} / ${frames.length} (${frames[i].time.toFixed(1)} с)`);
+  set("r-warm", `${M.mean[i].toFixed(2)} — ${describeWarm(M.mean[i])}`);
+  set("r-area", `${Math.round(M.areas[i] * 100)}%`);
+  set("r-speed", M.speedN[i].toFixed(2));
+  set("r-trend", `${M.trendN[i] >= 0 ? "+" : ""}${M.trendN[i].toFixed(2)} (${describeTrend(M.trendN[i])})`);
+  set("r-mode", current.mode);
+  set("r-bpm", `${current.bpm} BPM`);
+}
+
+async function audioLegend() {
+  initAudio(); await ctx.resume();
+  const notes = scaleNotes(MODES[Object.keys(MODES)[0]], ROOT + 12, 10);
+  announce("Аудіолегенда. Низькі ноти — холодна вода, синій колір. Високі — тепла вода, червоний колір.", true);
+  const t0 = ctx.currentTime + 0.3;
+  notes.forEach((m, k) => playMelody(t0 + k * 0.28, m, 0.9, -0.9 + 1.8 * k / 9, 0.4));
+}
+
+/* =========================================================================
+   8. ІНТЕРФЕЙС
+   ========================================================================= */
+const playBtn = document.getElementById("play");
+const legendBtn = document.getElementById("legendBtn");
+const exportBtn = document.getElementById("export");
+const setStatus = s => (document.getElementById("status").textContent = s);
+const setProgress = p => (document.querySelector("#progress > div").style.width = `${Math.round(p * 100)}%`);
+
+function tryVideoSrc(src) {
+  return new Promise((res, rej) => {
+    video.onloadeddata = () => { video.onerror = null; res(); };
+    video.onerror = () => {
+      const codes = { 1: "завантаження перервано", 2: "мережева помилка", 3: "не вдалося декодувати", 4: "формат або джерело не підтримується" };
+      const e = video.error;
+      rej(new Error(e ? `${codes[e.code] || "код " + e.code}${e.message ? " (" + e.message + ")" : ""}` : "невідома помилка"));
+    };
+    video.src = src;
+    video.load();
+  });
+}
+// Спроба 1: blob-посилання. Спроба 2: data-URL (деякі вбудовані браузери блокують blob: для відео).
+async function openVideo(file, url) {
+  try { await tryVideoSrc(url); return; }
+  catch (e1) {
+    console.warn("blob: не відкрився —", e1.message, "→ пробую data-URL");
+    setStatus("Пробую інший спосіб відкрити відео…");
+    const dataUrl = await new Promise((res, rej) => {
+      const r = new FileReader(); r.onload = () => res(r.result); r.onerror = () => rej(r.error); r.readAsDataURL(file);
+    });
+    try { await tryVideoSrc(dataUrl); }
+    catch (e2) {
+      const can = video.canPlayType(file.type || "video/webm") || "ні";
+      throw new Error(`браузер не може відкрити відео: ${e2.message}. Підтримка «${file.type || "?"}»: ${can}. ` +
+        `Відкрийте index.html у звичайному Chrome/Edge або конвертуйте відео в MP4 (H.264).`);
+    }
+  }
+}
+
+/* Галерея вбудованих візуалізацій (файли лежать у samples/ поруч з index.html).
+   Відкриваються за звичайним посиланням — працює навіть там, де вибір файлу з диска заблокований. */
+const SAMPLES = [
+  // src — список варіантів: пробуємо по черзі (вбудований браузер Claude не вміє H.264/MP4, Safari — навпаки WebM)
+  { title: "Течії та температура океану (ECCO2)", src: ["../samples/ecco2_sst_flow.webm", "../samples/ecco2_sst_flow.mp4"], image: false,
+    desc: "Течії поверхні Світового океану, колір — температура води: синій холодний, червоний теплий. Сіре — суша." },
+];
+function renderGallery() {
+  const g = document.getElementById("gallery");
+  SAMPLES.forEach(s => {
+    const b = document.createElement("button");
+    b.textContent = "🎧 " + s.title; b.title = s.desc;
+    b.setAttribute("aria-description", s.desc);
+    b.addEventListener("click", () => loadSample(s));
+    g.appendChild(b);
+  });
+}
+function loadSample(s) {
+  return loadSource(s.title, s.image, async () => {
+    const list = [].concat(s.src);
+    if (s.image) { img.src = list[0]; await img.decode(); img.alt = s.desc; return; }
+    const errors = [];
+    for (const src of list) {
+      try { await tryVideoSrc(src); return; }
+      catch (e) { errors.push(`${src}: ${e.message}`); console.warn("Не відкрився", src, "—", e.message); }
+    }
+    throw new Error(`не вдалося відкрити жоден варіант відео (${errors.join("; ")}). Перевірте, що файл лежить у папці samples/.`);
+  }, s.desc);
+}
+
+async function loadFile(file) {
+  if (!file) return;
+  const url = URL.createObjectURL(file);
+  return loadSource(file.name, file.type.startsWith("image/"), async () => {
+    if (file.type.startsWith("image/")) { img.src = url; await img.decode(); img.alt = `Завантажене зображення: ${file.name}`; }
+    else await openVideo(file, url);
+  });
+}
+
+async function loadSource(name, image, open, desc) {
+  pause(); frames = []; metrics = null;
+  [playBtn, legendBtn, exportBtn].forEach(b => (b.disabled = true));
+  setProgress(0);
+  isImage = image;
+  video.hidden = image; img.hidden = !image;
+  try {
+    setStatus(`Відкриваю «${name}»…`);
+    await open();
+    try { image ? analyseImage() : await analyseVideo(); }
+    catch (e) {
+      if (e.name === "SecurityError")
+        throw new Error("браузер не дає читати пікселі файлу, відкритого як file://. Запустіть локальний сервер у папці проєкту " +
+          "(напр. «npx serve» або «python -m http.server») і відкрийте http://localhost:…");
+      throw e;
+    }
+    computeMetrics();
+    drawChart();
+    [playBtn, legendBtn, exportBtn].forEach(b => (b.disabled = false));
+    const avgCov = frames.reduce((s, f) => s + f.coverage, 0) / frames.length;
+    setStatus(`Готово: ${frames.length} кадрів зчитано, дані знайдено на ${Math.round(avgCov * 100)}% площі кадру. Натисніть «Грати».`);
+    announce(`${desc ? desc + " " : ""}«${name}» проаналізовано. Натисніть пробіл, щоб слухати.`, true);
+  } catch (e) {
+    console.error(e); setStatus("Помилка: " + e.message);
+  }
+}
+
+document.getElementById("file").addEventListener("change", e => loadFile(e.target.files[0]));
+const drop = document.getElementById("drop");
+["dragenter", "dragover"].forEach(ev => drop.addEventListener(ev, e => { e.preventDefault(); drop.classList.add("over"); }));
+["dragleave", "drop"].forEach(ev => drop.addEventListener(ev, e => { e.preventDefault(); drop.classList.remove("over"); }));
+drop.addEventListener("drop", e => loadFile(e.dataTransfer.files[0]));
+renderGallery();
+
+playBtn.addEventListener("click", () => (playing ? pause() : play()));
+legendBtn.addEventListener("click", audioLegend);
+for (const k of ["L1", "L2", "L3", "L4"]) {
+  document.getElementById(k).addEventListener("change", e => {
+    if (buses[k]) buses[k].gain.setTargetAtTime(e.target.checked ? 1 : 0, ctx.currentTime, 0.05);
+  });
+}
+exportBtn.addEventListener("click", () => {
+  const data = { config: CFG, frames, metrics };
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(new Blob([JSON.stringify(data)], { type: "application/json" }));
+  a.download = "earth-jukebox-analysis.json"; a.click();
+});
+document.addEventListener("keydown", e => {
+  if (["INPUT", "BUTTON", "TEXTAREA"].includes(e.target.tagName) && (e.key === " " || e.key === "Enter")) return;
+  if (!metrics) return;
+  if (e.key === " ") { e.preventDefault(); playing ? pause() : play(); }
+  else if (e.key.toLowerCase() === "l" || e.key.toLowerCase() === "д") audioLegend();
+  else if (["1", "2", "3", "4"].includes(e.key)) { const cb = document.getElementById("L" + e.key); cb.checked = !cb.checked; cb.dispatchEvent(new Event("change")); }
+  else if (!isImage && e.key === "ArrowRight") video.currentTime = Math.min(video.duration - 0.1, video.currentTime + 5);
+  else if (!isImage && e.key === "ArrowLeft") video.currentTime = Math.max(0, video.currentTime - 5);
+});
+window.addEventListener("resize", () => { drawChart(); });
+</script>
+</body>
+</html>
