@@ -66,7 +66,8 @@ async function loadSource(title, open, item) {
   app.profile = app.analysis = app.mapping = app.score = null;
   $("mapping-wrap").hidden = true;
   $("parts-wrap").hidden = true;
-  ["play", "legendBtn", "exportBtn"].forEach(id => ($(id).disabled = true));
+  ["play", "legendBtn", "exportBtn", "wavBtn"].forEach(id => ($(id).disabled = true));
+  $("legend-wrap").hidden = true;
   $("card").hidden = true;
   $("timeline-wrap").hidden = true;
   setProgress(0);
@@ -113,6 +114,8 @@ async function loadSource(title, open, item) {
     await onMapped?.();
     $("exportBtn").disabled = false;
     drawMasks();
+    // фокус на «Грати»: інакше пробіл на кнопці галереї знову запустив би аналіз
+    if (document.activeElement?.closest("#gallery, #drop") || document.activeElement === document.body) $("play").focus();
   } catch (e) {
     console.error(e);
     setStatus("Помилка: " + e.message);
@@ -134,6 +137,7 @@ function showMedia(src) {
 function renderCard(speak = true) {
   const p = app.profile;
   const lines = describeProfile(p, app.source, app.analysis);
+  if (app.catalogItem?.desc) lines.unshift(`Що на відео: ${app.catalogItem.desc}`);
   if (!app.analysis) lines.push("Детальний аналіз кожного кадру триває…");
   $("card-lines").replaceChildren(...lines.map(t => Object.assign(document.createElement("li"), { textContent: t })));
   const tags = [
@@ -191,7 +195,7 @@ $("voice").addEventListener("change", e => (prefs.voice = e.target.checked));
 document.addEventListener("keydown", e => {
   if (e.target.matches("input, select, textarea") || e.ctrlKey || e.metaKey || e.altKey) return;
   const k = e.key.toLowerCase();
-  if ((k === "d" || k === "в") && app.profile) {
+  if (e.code === "KeyD" && app.profile) {
     announce("Що двигун зрозумів про відео. " + describeProfile(app.profile, app.source, app.analysis).join(" "), { force: true });
   }
 });

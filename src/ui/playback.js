@@ -5,6 +5,8 @@ import { Engine } from "../audio/engine.js";
 import { Player } from "../audio/player.js";
 import { INSTRUMENT_LABEL, hasSampler } from "../audio/instruments.js";
 import { loadSamples } from "../audio/samples.js";
+import { renderOffline, toWav } from "../audio/render.js";
+import { legendItems, playItem, playLegend } from "../a11y/legend.js";
 import { announce, setMinGap, stopVoice } from "../a11y/announcer.js";
 import { fmtTime } from "../a11y/describe.js";
 import { noteName } from "../composer/theory.js";
@@ -93,7 +95,7 @@ export function setupPlayback(app, { timeline, mappingTable }) {
     root.replaceChildren();
     app.score.parts.forEach((p, k) => {
       const st = engine.getPart(p.id);
-      const instr = `${INSTRUMENT_LABEL[p.instrument] || p.instrument}${hasSampler(p.instrument) ? "" : p.id === "drums" || p.id === "accents" ? "" : ", синтезатор"}`;
+      const instr = `${INSTRUMENT_LABEL[p.instrument] || p.instrument}${hasSampler(p.instrument) ? " · справжні семпли" : ""}`;
       const name = Object.assign(document.createElement("span"), { className: st.mute ? "off" : "on", title: p.role });
       name.append(`${k + 1}. ${p.label} `, Object.assign(document.createElement("small"), { className: "keys", textContent: `(${instr})` }));
       const mute = Object.assign(document.createElement("button"), { textContent: st.mute ? "Увімк." : "Вимк." });
@@ -123,9 +125,12 @@ export function setupPlayback(app, { timeline, mappingTable }) {
     setMinGap(Math.max(4000, app.score.barDur * 4 * 1000));
     lastSection = null; lastAnnouncedBar = -99;
     renderParts();
+    renderLegend();
+    describeTimeline();
     onBar(0, true);
     $("play").disabled = false;
     $("legendBtn").disabled = false;
+    $("wavBtn").disabled = false;
     // семпли — у фоні; грати можна одразу (поки що синтезатори)
     const insts = [...new Set(app.score.notes.map(n => n.inst))];
     const decoder = new OfflineAudioContext(1, 1, 44100);
@@ -137,12 +142,68 @@ export function setupPlayback(app, { timeline, mappingTable }) {
       });
   }
 
+  /* ---- аудіолегенда ---- */
+  function renderLegend() {
+    const items = legendItems(app.mapping.meta.preset);
+    $("legend-list").replaceChildren(...items.map((it, k) => {
+      const li = document.createElement("li");
+      const b = Object.assign(document.createElement("button"), { textContent: `▶ ${it.text}` });
+      b.addEventListener("click", async () => {
+        if (player.playing) { player.pause(); setPlayUI(false); }
+        await engine.init(); engine.fade(0.9, 0.02);
+        playItem(engine, it);
+      });
+      li.appendChild(b);
+      return li;
+    }));
+    $("legend-wrap").hidden = false;
+  }
+  async function legend() {
+    if (!app.mapping) return;
+    if (player.playing) { player.pause(); setPlayUI(false); }
+    const btns = [...$("legend-list").querySelectorAll("button")];
+    await playLegend(engine, app.mapping.meta.preset, k => btns.forEach((b, i) => b.classList.toggle("now", i === k)));
+  }
+  $("legendBtn").addEventListener("click", legend);
+
+  /* ---- експорт треку у WAV (для плейлиста / журі) ---- */
+  $("wavBtn").addEventListener("click", async () => {
+    const btn = $("wavBtn");
+    btn.disabled = true;
+    const old = btn.textContent;
+    btn.textContent = "Рендеринг…";
+    announce("Готую трек у форматі WAV, зачекайте.", { force: true });
+    try {
+      const muted = app.score.parts.filter(p => engine.getPart(p.id).mute).map(p => p.id);
+      const { buffer } = await renderOffline(app.score, app.mapping, { muted });
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(toWav(buffer));
+      a.download = `earth-jukebox-${(app.catalogItem?.id || app.source.name).replace(/[^\w.-]+/g, "_")}.wav`;
+      a.click();
+      announce("Трек збережено.", { force: true });
+    } catch (e) { announce("Не вдалося зберегти трек: " + e.message, { force: true }); }
+    btn.textContent = old; btn.disabled = false;
+  });
+
+  /* ---- таймлайн для скрінрідера: текстовий опис подій і розділів ---- */
+  function describeTimeline() {
+    const m = app.mapping, a = app.analysis;
+    const secs = m.meta.sections.map(s => `${s.label} ${fmtTime(s.b0 * m.meta.barDur)}–${fmtTime(Math.min(a.profile.durationSec || 1e9, s.b1 * m.meta.barDur))}`).join("; ");
+    const ev = m.bars.flatMap(b => b.events).slice(0, 8).map(e => `${fmtTime(e.time)} ${e.text}`).join("; ");
+    $("timeline").setAttribute("aria-label", `Таймлайн. Розділи: ${secs}. ${ev ? "Головні події: " + ev + "." : "Помітних подій немає."} Клік або стрілки — перехід у часі.`);
+  }
+
   app.seekTo = t => { if (app.score) player.seek(t); };
   $("play").addEventListener("click", toggle);
 
   document.addEventListener("keydown", e => {
     if (e.target.matches("input, select, textarea") || e.ctrlKey || e.metaKey || e.altKey || !app.score) return;
     if (e.key === " " && !e.target.matches("button")) { e.preventDefault(); toggle(); }
+    else if (e.code === "KeyL") { e.preventDefault(); legend(); }
+    else if (e.code === "KeyM") {
+      const b = Math.min(app.mapping.bars.length - 1, Math.floor(player.time / app.score.barDur));
+      announce(`${fmtTime(player.time)}, ${app.mapping.bars[b].sectionLabel}. ${mappingTable.describe(b)}.`, { force: true });
+    }
     else if (e.key === "ArrowRight") { e.preventDefault(); player.seek(player.time + 5); }
     else if (e.key === "ArrowLeft") { e.preventDefault(); player.seek(player.time - 5); }
     else if (/^Digit[1-9]$/.test(e.code)) {

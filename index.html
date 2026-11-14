@@ -55,9 +55,10 @@
   </section>
 
   <aside class="panel stack" aria-label="Керування">
-    <div class="row">
+    <div class="row" id="controls">
       <button id="play" class="primary" disabled aria-keyshortcuts="Space">▶ Грати</button>
       <button id="legendBtn" disabled aria-keyshortcuts="L">🔊 Аудіолегенда</button>
+      <button id="wavBtn" disabled>⬇ Трек у WAV</button>
     </div>
 
     <fieldset id="parts-wrap" hidden>
@@ -69,6 +70,11 @@
       <legend>Зараз звучить</legend>
       <dl class="readout" id="readout"><dt>—</dt><dd>Аналіз ще не виконано</dd></dl>
     </fieldset>
+
+    <section id="legend-wrap" hidden aria-labelledby="legend-title">
+      <h2 id="legend-title">Аудіолегенда: як звучать дані</h2>
+      <ul class="legend-list" id="legend-list"></ul>
+    </section>
 
     <section id="mapping-wrap" hidden aria-labelledby="map-title">
       <h2 id="map-title">Таблиця мапінгу: дані → музика</h2>
@@ -83,6 +89,7 @@
 
     <p class="keys">
       <kbd>Space</kbd> грати/пауза · <kbd>L</kbd> аудіолегенда · <kbd>D</kbd> прочитати картку ·
+      <kbd>M</kbd> що зараз керує музикою ·
       <kbd>1</kbd>–<kbd>9</kbd> вимкнути/увімкнути партію · <kbd>Shift</kbd>+<kbd>1</kbd>–<kbd>9</kbd> соло ·
       <kbd>←</kbd>/<kbd>→</kbd> ±5 с
     </p>

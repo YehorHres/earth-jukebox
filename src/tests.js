@@ -216,6 +216,26 @@ SUITES.push(async function stage6() {
   delete S.SAMPLE_SETS.cello;
 });
 
+SUITES.push(async function stage7() {
+  const { renderOffline, toWav } = await import("./audio/render.js");
+  const { legendItems, playItem } = await import("./a11y/legend.js");
+  const { Engine } = await import("./audio/engine.js");
+  const s = window.__score, me = window.__mapEcco;
+  const r = await renderOffline(s, me, { from: 0, seconds: 3 });
+  const wav = toWav(r.buffer);
+  check("Експорт WAV: коректний розмір файлу", wav.size === 44 + r.buffer.length * 2 * 2, `${(wav.size / 1024).toFixed(0)} КБ за 3 с`);
+  // аудіолегенда: кожен пункт звучить
+  let silent = [];
+  for (const scene of ["heatmap", "nightlights"]) for (const it of legendItems(scene)) {
+    const ctx = new OfflineAudioContext(2, 44100 * 2, 44100);
+    const e = new Engine(); await e.init(ctx);
+    playItem(e, it, 0.01);
+    const b = await ctx.startRendering(); let m = 0; for (const v of b.getChannelData(0)) m = Math.max(m, Math.abs(v));
+    if (m < 0.005) silent.push(it.text.slice(0, 30));
+  }
+  check("Аудіолегенда: усі пункти звучать (heatmap, nightlights)", !silent.length, silent.join("; ") || `${legendItems("heatmap").length + legendItems("nightlights").length} пунктів`);
+});
+
 (async () => {
   for (const s of SUITES) {
     try { await s(); }
