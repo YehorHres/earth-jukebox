@@ -8,11 +8,23 @@ import { clamp, percentile, mean, slope } from "../util/stats.js";
 import { meterOf } from "../composer/meter.js";
 import { polarity, orient, pickSoloZones, DEFAULT_TICK } from "../grammar.js";
 
-export const PARAMS = ["level", "energy", "density", "tension", "brightness", "register", "pan", "motion", "articulation", "space"];
+export const BPM_CAP = 130;
+/** Ширина події в кадрах: скільки сусідніх кадрів тримається вище половини її висоти над фоном (±10 кадрів). */
+function eventWidth(x, f) {
+  if (!x) return 99;
+  const base = (x[Math.max(0, f - 10)] + x[Math.min(x.length - 1, f + 10)]) / 2, h = x[f] - base;
+  if (Math.abs(h) < 1e-6) return 99;
+  let w = 1;
+  for (let i = f - 1; i >= 0 && (x[i] - base) / h > 0.5; i--) w++;
+  for (let i = f + 1; i < x.length && (x[i] - base) / h > 0.5; i++) w++;
+  return w;
+}
+export const PARAMS =["level", "energy", "density", "tension", "brightness", "register", "pan", "motion", "articulation", "space"];
 export const PARAM_LABEL = {
   level: "Наповненість кадру (abs; гучність треку нормована до −16 LUFS)", energy: "Енергія (гучність, к-сть інструментів)", density: "Густота ритму", tension: "Напруга (гармонія, дисонанс)",
   brightness: "Світлість ладу", register: "Регістр мелодії", pan: "Панорама (захід ↔ схід)", motion: "Рухливість",
   articulation: "Артикуляція (легато ↔ стакато)", space: "Простір (реверберація)", accent: "Акценти подій",
+  dynamics: "Крещендо / димінуендо (тренд за 20 кадрів)", tutti: "Тутті ↔ соло (частка зон, що змінюються)", staccato: "Стакато (подія коротша за 5 кадрів)",
   orchestration: "Оркестровка", contour: "Контур мелодії", value: "Значення головної величини (висота голосу даних)",
 };
 export const CHANNEL_LABEL = { abs: "абс.", rel: "відн.", rank: "ранг", d1: "зміна за кадр", speed10: "швидкість", accel20: "прискорення", trend40: "тренд" };
@@ -115,7 +127,8 @@ export function mapAnalysis(a, preset, { topic = null, timeUnit = null } = {}) {
     tempoX = clamp((mean(all) - tp.in[0]) / (tp.in[1] - tp.in[0]));
   }
   const bpmRange = sp.bpm || tp.bpm;
-  const bpm = Math.round(bpmRange[0] + (bpmRange[1] - bpmRange[0]) * tempoX);
+  // темп один на весь трек (не змінюється посеред фраз), тому стеля — BPM_CAP для всіх тем
+  const bpm = Math.min(BPM_CAP, Math.round(bpmRange[0] + (bpmRange[1] - bpmRange[0]) * tempoX));
   why.tempo = `${bpm} BPM: діапазон теми ${bpmRange[0]}–${bpmRange[1]}, позиція ${Math.round(tempoX * 100)} % — ${tp.why.toLowerCase()}`;
   const meter = meterOf(sp.meter);
   why.meter = `Розмір ${meter.label} — характер теми${topic ? ` «${topic.name.uk}»` : ""}`;
@@ -162,7 +175,7 @@ export function mapAnalysis(a, preset, { topic = null, timeUnit = null } = {}) {
   const valueFeature = a.leadFeature || a.mainFeature;
   const valueSeries = !still && !noChange && valueFeature ? a.rel[valueFeature] : null;
   const valueLabel = a.labels?.[valueFeature] || getFeature(valueFeature)?.label || valueFeature || "—";
-  let prevSolo = [];
+  let prevSolo = [], prevContour = null;
 
   // ---- параметри по тактах
   const bars = [];
@@ -209,6 +222,16 @@ export function mapAnalysis(a, preset, { topic = null, timeUnit = null } = {}) {
     // значення головної величини → висота голосу даних (більше за змістом теми → вище)
     params.value = orient(clamp(valueSeries ? aggregate(valueSeries, idx) : 0.5), pol);
     explain.value = [{ source: `${valueLabel} (відн.)${pol < 0 ? " — обернено: для теми «більше» = менше значення ознаки" : ""}`, contrib: params.value }];
+    // артикуляція з даних (етап 16): крещендо / димінуендо ← тренд головної величини за 20 кадрів
+    const iEnd = idx[idx.length - 1], tr = valueSeries ? (valueSeries[iEnd] - valueSeries[Math.max(0, iEnd - 20)]) * pol : 0;
+    params.dynamics = clamp(0.5 + 2 * tr);
+    explain.dynamics = [{ source: `${valueLabel}: тренд за 20 кадрів`, contrib: params.dynamics - 0.5 }];
+    // тутті ↔ соло ← частка зон (колонок), що змінилися проти попереднього такту
+    let moved = 0, seen = 0;
+    if (prevContour) contour.forEach((v, c) => { const q = prevContour[c]; if (v !== null && q !== null) { seen++; if (Math.abs(v - q) > 0.06) moved++; } });
+    params.tutti = seen ? moved / seen : 0.5;
+    explain.tutti = [{ source: "частка зон кадру, що змінюються", contrib: params.tutti }];
+    prevContour = contour;
     // солісти зон: до 2 колонок, що найбільше відхиляються, не ближче ніж 3 зони
     params.soloZones = pickSoloZones(contour, pol, prevSolo);
     prevSolo = params.soloZones.map(z => z.col);
@@ -224,6 +247,9 @@ export function mapAnalysis(a, preset, { topic = null, timeUnit = null } = {}) {
     if (evs.length) lastAccentBar = b;
     params.accent = evs.reduce((m, e) => Math.max(m, e.strength), 0);
     explain.accent = evs.map(e => ({ source: e.text, contrib: e.strength }));
+    // легато ↔ стакато: подія, коротша за 5 кадрів, — стакато
+    params.staccato = evs.some(e => eventWidth(a.rel[e.feature] || a.abs[e.feature], e.frame) < 5) ? 1 : 0;
+    explain.staccato = params.staccato ? [{ source: "подія коротша за 5 кадрів", contrib: 1 }] : [];
 
     bars.push({ bar: b, t0, dur: barDur, frames: idx, params, explain, events: evs, allEvents: all });
   }

@@ -16,8 +16,8 @@ import counter from "./parts/counter.js";
 import accents from "./parts/accents.js";
 import stars from "./parts/stars.js";
 import texture from "./parts/texture.js";
-import { GRAMMAR_PARTS } from "./parts/grammar-parts.js";
-import { LEAD_PARTS, FOREGROUND_MAX, earconsFor } from "../grammar.js";
+import { GRAMMAR_PARTS, soloTimbres } from "./parts/grammar-parts.js";
+import { LEAD_PARTS, FOREGROUND_MAX, earconsFor, partPriority, PARTS_MAX, SIGNAL_PARTS, partsCap } from "../grammar.js";
 
 // порядок = номери клавіш 1–9 для mute/solo
 export const PARTS = [pad, bass, arp, drums, melody, counter, accents, stars, texture];
@@ -44,7 +44,11 @@ export function compose(mapping, { seed = "earth-jukebox", style = null, grammar
   // голос даних — перша партія (клавіша 1); решта партій граматики — після супроводу
   const G = grammar ? GRAMMAR_PARTS : [];
   const parts = [...G.slice(0, 1), ...PARTS.filter(p => allowed.has(p.id)), ...G.slice(1)];
-  instr.soloists = instr.counter;
+  instr.soloists = soloTimbres(instr)[0];
+  // етап 16: порядок, у якому партії отримують місце в такті, — за розділом форми (бюджет ≤ PARTS_MAX); без граматики — як раніше, без ліміту
+  const orders = {};
+  const orderFor = section => (orders[section] ||= (() => { const pr = partPriority(section), prio = id => { const i = pr.indexOf(id); return i < 0 ? 99 : i; };
+    return [...parts].sort((x, y) => prio(x.id) - prio(y.id)); })());
   const kitId = style?.kit || sp.kit || "orchestral", kit = kitOf(kitId);
   const profile = { rhythm: sp.rhythm || "steady", fx: sp.fx || [], instruments: instr, kit };
   const notes = [];
@@ -54,13 +58,19 @@ export function compose(mapping, { seed = "earth-jukebox", style = null, grammar
 
   for (let b = 0; b < bars.length; b++) {
     const bar = bars[b], o = bar.params.orchestration;
-    const ctx = { bar, h: harmony.bars[b], nextH: harmony.bars[b + 1], prevH: harmony.bars[b - 1], beat, rng, meta, meter, profile, instr, o, bars, b };
+    const ctx = { bar, h: harmony.bars[b], nextH: harmony.bars[b + 1], prevH: harmony.bars[b - 1], beat, rng, meta, meter, profile, instr, o, bars, b, grammar };
     const active = [], lead = [];
-    for (const part of parts) {
+    const cap = grammar ? partsCap(bar, b === bars.length - 1) : Infinity;
+    let sustained = 0, signals = 0;
+    for (const part of grammar ? orderFor(bar.section) : parts) {
       if (!part.active(o, ctx)) continue;
-      (part.grammar ? lead : active).push(part.id);
+      const signal = SIGNAL_PARTS.includes(part.id);
+      if (!signal && sustained >= Math.min(cap, PARTS_MAX - signals)) continue;      // місць немає — партія чекає
       const out = [];
       part.render({ ...ctx, state: state[part.id] }, out);
+      if (!out.length) continue;                                                     // партія мовчить — місця не займає
+      if (signal) signals++; else sustained++;
+      (part.grammar ? lead : active).push(part.id);
       for (const n of out) {
         // ударні: роль (kick, snare, shaker, timpani, cymbal) → інструмент набору теми/стилю
         const inst = part.id === "drums" && kit[n.inst] ? kit[n.inst] : n.inst || instr[part.id];
@@ -69,7 +79,7 @@ export function compose(mapping, { seed = "earth-jukebox", style = null, grammar
     }
     // ліміт уваги: на першому плані ≤ 3 потоки даних (голос даних + до 2 солістів зон)
     const streams = (lead.includes("dataVoice") ? 1 : 0) + (lead.includes("soloists") ? Math.min(FOREGROUND_MAX - 1, bar.params.soloZones?.length || 0) : 0);
-    barInfo.push({ active, lead, streams, why: harmony.bars[b].why, mode: harmony.bars[b].mode.label, level: harmony.bars[b].level });
+    barInfo.push({ active, lead, streams, count: sustained + signals, cap, why: harmony.bars[b].why, mode: harmony.bars[b].mode.label, level: harmony.bars[b].level });
   }
 
   // акорди підлаштовуються під регістр голосу даних: педи й арпеджіо не піднімаються до нього (октавою нижче)

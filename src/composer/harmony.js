@@ -6,6 +6,8 @@ import { MODES, chordOn, PROGRESSIONS, tensionLevel, noteName } from "./theory.j
  * лади — лише ті, що дозволяє тема (від світлого до темного), вибір — за світлістю даних.
  * @returns {{ keyRoot, bars: [{ root, mode, chords: [{ beat, beats, chord }], why }] , modulations }}
  */
+const DARK = new Set(["aeolian", "phrygian"]);
+
 export function planHarmony(mapping, rng) {
   const { bars, meta } = mapping;
   const phrase = meta.phrase;
@@ -30,7 +32,11 @@ export function planHarmony(mapping, rng) {
       const boundary = 1 - (modeIdx + 0.5 * Math.sign(want - modeIdx)) / (n - 1);
       if (Math.abs(bright - boundary) > 0.05) modeIdx = want;
     }
-    const mode = modes[modeIdx];
+    let mode = modes[modeIdx];
+    // настрій — від даних, а не від теми: спокійні й помірні дані → врівноважений лад (не темніший за дорійський);
+    // темні лади (мінор, фригійський) — лише на аномаліях (висока напруга)
+    const level = tensionLevel(tension);
+    if (level !== "tense" && DARK.has(mode.id)) mode = [...modes].reverse().find(m => !DARK.has(m.id)) || mode;
 
     // модуляція: кульмінація з високою напругою — на тон вище (підйом), розв'язка — назад
     const sec = ph[0].section;
@@ -39,7 +45,6 @@ export function planHarmony(mapping, rng) {
     if (lift && (!out.length || out[out.length - 1].root !== root)) modulations.push({ bar: p0, to: noteName(root), why: "кульмінація з високою напругою — модуляція на тон вище" });
 
     // прогресія: мотив повертається (returnOfState / цикл) — та сама прогресія, що й у першій темі
-    const level = tensionLevel(tension);
     let prog = rng.pick(PROGRESSIONS[level]);
     if (ph[0].motifReturn && firstProg) prog = firstProg;
     if (!firstProg && sec !== "intro") firstProg = prog;
@@ -51,13 +56,20 @@ export function planHarmony(mapping, rng) {
       const slot = Math.floor(k / chordBars) % prog.length;
       let degree = prog[slot];
       const last = b.bar === bars.length - 1;
-      if (last) degree = 0;                                  // кінець треку — тоніка
+      // період 4+4: перша фраза закінчується напівкаденцією (V), друга — повною (V → I)
+      const second = Math.floor(p0 / phrase) % 2 === 1, kEnd = ph.length - 1;
+      if (sec !== "intro" && ph.length > 1) {
+        if (!second && k === kEnd) degree = 4;
+        if (second) degree = k === kEnd ? 0 : k === kEnd - 1 ? 4 : degree;
+      }
+      if (last) degree = 0;                                 // кінець треку — тоніка
       else if (b.transition) degree = 4;                     // перед новим розділом — домінанта (тяжіння)
       const tens = last ? Math.min(0.2, b.params.tension) : b.params.tension;
       const chord = chordOn(mode, degree, tens);
       if (b.transition && !last) chord.sus = true;           // затримка гармонії перед розділом
       out.push({
         root, mode, chords: [{ beat: 0, beats, chord }], level,
+        cadence: last ? "final" : k === kEnd ? (degree === 0 ? "full" : degree === 4 ? "half" : null) : null,
         why: `${mode.label} (світлість ${bright.toFixed(2)}), ${level === "calm" ? "спокійна" : level === "medium" ? "помірна" : "напружена"} прогресія (напруга ${tension.toFixed(2)}), акорд: ${chord.ext}`,
       });
     });
