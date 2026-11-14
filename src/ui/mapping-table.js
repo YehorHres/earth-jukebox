@@ -12,8 +12,15 @@ export function createMappingTable(root) {
     root.replaceChildren();
     const intro = document.createElement("p");
     intro.className = "keys";
-    intro.textContent = `Пресет: ${m.presetTitle}. Темп ${m.bpm} BPM — ${m.tempoWhy.toLowerCase()}. ${m.scaleNote}`;
+    intro.textContent = `Пресет: ${m.presetTitle}. ${m.scaleNote}`;
     root.appendChild(intro);
+    // рішення всього треку з поясненнями (тембр = тема, ноти = дані)
+    if (m.why) {
+      const ul = document.createElement("ul");
+      ul.className = "keys";
+      for (const k of ["sound", "key", "tempo", "meter", "form"]) if (m.why[k]) ul.appendChild(Object.assign(document.createElement("li"), { textContent: m.why[k] }));
+      root.appendChild(ul);
+    }
     const t = document.createElement("table");
     t.className = "mapping";
     t.innerHTML = `<caption class="sr-only">Як дані керують музикою: параметр, поточне значення, внески ознак</caption>

@@ -1,0 +1,30 @@
+{
+  "id": "precipitation",
+  "params": {
+    "density": {
+      "base": 0.1,
+      "sources": [
+        {
+          "feature": "activeMass",
+          "channel": "rel",
+          "weight": 0.4,
+          "curve": "linear"
+        },
+        {
+          "feature": "hotspot1",
+          "channel": "rel",
+          "weight": 0.3,
+          "curve": "linear"
+        },
+        {
+          "feature": "edgeDensity",
+          "channel": "rel",
+          "weight": 0.2,
+          "curve": "linear"
+        }
+      ],
+      "why": "Інтенсивність і площа дощу — густота крапель і нот"
+    }
+  },
+  "title": "тема precipitation"
+}

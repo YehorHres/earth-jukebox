@@ -1,0 +1,48 @@
+{
+  "id": "ice",
+  "params": {
+    "energy": {
+      "base": 0.05,
+      "sources": [
+        {
+          "feature": "whiteness",
+          "channel": "rel",
+          "weight": 0.35,
+          "curve": "smooth"
+        },
+        {
+          "feature": "activeMass",
+          "channel": "rel",
+          "weight": 0.25,
+          "curve": "linear"
+        },
+        {
+          "feature": "hotspot1",
+          "channel": "rel",
+          "weight": 0.2,
+          "curve": "smooth"
+        }
+      ],
+      "why": "Більше льоду (білого) — більше нот; танення — тиша"
+    },
+    "density": {
+      "base": 0.0,
+      "sources": [
+        {
+          "feature": "whiteness",
+          "channel": "rel",
+          "weight": 0.45,
+          "curve": "linear"
+        },
+        {
+          "feature": "brightness",
+          "channel": "rel",
+          "weight": 0.25,
+          "curve": "linear"
+        }
+      ],
+      "why": "Площа льоду — густота нот"
+    }
+  },
+  "title": "тема ice"
+}

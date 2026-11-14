@@ -5,6 +5,13 @@ const c01 = x => Math.max(0, Math.min(1, x ?? 0.5));
 /** Гучність такту: енергія (рух, rel) × загальний рівень (abs) → підсилення. */
 export const levelFor = params => (0.35 + 0.65 * c01(params.energy)) * (0.4 + 0.6 * c01(params.level));
 
+/** Спецефект «провал у спектрі» (озон, аерозолі): менше значення — нижча частота зрізу. */
+export const dipFor = (mapping, b) => {
+  if (!mapping?.meta?.soundProfile?.fx?.includes("dip")) return 20000;
+  const e = c01(mapping.bars[b]?.params?.energy);
+  return 500 + 14000 * e * e;
+};
+
 export class Engine {
   constructor() {
     this.ctx = null;
@@ -28,7 +35,8 @@ export class Engine {
     // рівень після компресора — щоб тиха музика лишалась тихою (компресор її не «підтягує»)
     this.levelNode = ctx.createGain();
     this.levelNode.gain.value = 0.8;
-    this.master.connect(comp).connect(this.levelNode).connect(limiter).connect(ctx.destination);
+    this.dip = ctx.createBiquadFilter(); this.dip.type = "lowpass"; this.dip.frequency.value = 20000; this.dip.Q.value = 0.7;
+    this.master.connect(this.dip).connect(comp).connect(this.levelNode).connect(limiter).connect(ctx.destination);
     // реверб: згенерована імпульсна характеристика (стерео, ~3.5 с)
     this.reverb = ctx.createConvolver();
     this.reverb.buffer = makeImpulse(ctx, 3.6, 2.4);
@@ -87,6 +95,8 @@ export class Engine {
     this.level = v;
     this.levelNode.gain.setTargetAtTime(v, at ?? this.ctx.currentTime, 0.6);
   }
+
+  setDip(freq, at) { if (this.ctx) this.dip.frequency.setTargetAtTime(freq, at ?? this.ctx.currentTime, 0.8); }
 
   /** Плавно приглушити все (пауза), повернути (продовження). */
   fade(to, time = 0.08) { if (this.ctx) this.master.gain.setTargetAtTime(to, this.ctx.currentTime, time); }

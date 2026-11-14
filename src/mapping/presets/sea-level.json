@@ -1,0 +1,46 @@
+{
+  "id": "sea-level",
+  "params": {
+    "register": {
+      "base": 0.05,
+      "sources": [
+        {
+          "feature": "hotspot1",
+          "channel": "rel",
+          "weight": 0.4,
+          "curve": "linear"
+        },
+        {
+          "feature": "warmth",
+          "channel": "rel",
+          "weight": 0.3,
+          "curve": "linear"
+        }
+      ],
+      "why": "Рівень моря — регістр мелодії"
+    },
+    "level": {
+      "base": 0.4,
+      "sources": [
+        {
+          "feature": "hotspot1",
+          "channel": "rank",
+          "weight": 0.3,
+          "curve": "linear"
+        },
+        {
+          "feature": "activeMass",
+          "channel": "abs",
+          "in": [
+            0.1,
+            0.5
+          ],
+          "weight": 0.2,
+          "curve": "linear"
+        }
+      ],
+      "why": "Вищий рівень — повніший низ («затоплення» басом)"
+    }
+  },
+  "title": "тема sea-level"
+}

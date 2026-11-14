@@ -1,12 +1,17 @@
 // Інструменти. Спершу — синтезатори з близьким тембром (працюють завжди, офлайн).
 // Етап 6: якщо семпли завантажились — грає Sampler, інакше лишається синтезатор.
 // Інтерфейс: play(engine, dest, note, t) де note = { midi, dur, vel, pan }.
+import { topicSynths } from "./synths-topic.js";
 
 export const mtof = m => 440 * Math.pow(2, (m - 69) / 12);
 
 export const INSTRUMENT_LABEL = {
   strings: "струнні (легато)", contrabass: "контрабас pizz.", cello: "віолончель", drone: "глибокий дрон", piano: "фортепіано",
   harp: "арфа", celesta: "челеста", glockenspiel: "глокеншпіль", bells: "дзвони", violin: "скрипка", flute: "флейта",
+  subbass: "саб-бас", thunder: "грім", tuba: "туба", organ: "орган", choir: "хор", warmpad: "теплий пед", glasspad: "холодний (скляний) пед",
+  tremolo: "тремоло струнних", pizz: "піцикато струнних", marimba: "маримба", kalimba: "калімба", glass: "скло", harmonics: "флажолети",
+  fmbell: "FM-дзвони", clarinet: "кларнет", bassoon: "фагот", snare: "малий барабан",
+  wind: "вітер", rain: "дощ", waves: "хвилі", crackle: "тріск вогню", air: "повітря", granular: "гранулярна текстура",
   horn: "валторна", brass: "брас-стаб", swell: "свел (як тарілка)", perc: "перкусія (шейкер, литаври)", shaker: "шейкер", kick: "м'який барабан", timpani: "литаври",
 };
 
@@ -178,6 +183,8 @@ const SYNTH = {
     o.start(t); o.stop(t + 2); o2.start(t); o2.stop(t + 2); nz.start(t, (t * 3.1) % 1.5); nz.stop(t + 0.2);
   },
 };
+
+Object.assign(SYNTH, topicSynths({ out, env, osc, vibrato, mtof, bell }));
 
 function bell(eng, dest, n, t, partials, decay, level) {
   const ctx = eng.ctx, f = mtof(n.midi), dst = out(eng, dest, t, n.pan);

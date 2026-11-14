@@ -1,0 +1,69 @@
+{
+  "id": "storms",
+  "params": {
+    "density": {
+      "base": 0.15,
+      "sources": [
+        {
+          "feature": "edgeDensity",
+          "channel": "rel",
+          "weight": 0.3,
+          "curve": "linear"
+        },
+        {
+          "feature": "activeMass",
+          "channel": "rel",
+          "weight": 0.3,
+          "curve": "linear"
+        },
+        {
+          "feature": "frameDiff",
+          "channel": "rel",
+          "weight": 0.25,
+          "curve": "linear"
+        }
+      ],
+      "why": "Щільність хмар і рух — тремоло й вітер"
+    },
+    "tension": {
+      "base": 0.25,
+      "sources": [
+        {
+          "feature": "outliers",
+          "channel": "rel",
+          "weight": 0.35,
+          "curve": "exp"
+        },
+        {
+          "feature": "contrast",
+          "channel": "rel",
+          "weight": 0.25,
+          "curve": "linear"
+        }
+      ],
+      "why": "Яскраві спалахи (викиди > 3σ) і контраст — напруга й удари грому"
+    },
+    "motion": {
+      "base": 0.1,
+      "sources": [
+        {
+          "feature": "frameDiff",
+          "channel": "rel",
+          "weight": 0.5,
+          "curve": "linear"
+        },
+        {
+          "feature": "hotspot1",
+          "channel": "speed10",
+          "weight": 0.3,
+          "curve": "linear"
+        }
+      ],
+      "why": "Обертання й рух хмар — швидкість кружляння звуку"
+    }
+  },
+  "accent": {
+    "minStrength": 0.4
+  },
+  "title": "тема storms"
+}

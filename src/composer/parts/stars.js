@@ -6,7 +6,7 @@ export default {
   id: "stars",
   label: "Зоряний дощ",
   role: "Нічні вогні: к-сть коротких нот = к-сть світлових точок; стерео — де саме світло",
-  active: (o, ctx) => ctx.scene === "nightlights" && o > 0.2,
+  active: o => o > 0.2,   // лише якщо тема вмикає цю партію (nightlights)
   render(ctx, out) {
     const { bar, h, rng } = ctx;
     const p = bar.params;

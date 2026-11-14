@@ -4,7 +4,9 @@ import { analyzeSource } from "./analysis/analyze.js";
 import { describeProfile, SCALE_LABEL } from "./a11y/describe.js";
 import { initAnnouncer, announce, prefs, stopVoice } from "./a11y/announcer.js";
 import { createTimeline } from "./ui/timeline.js";
-import { loadPreset, mapAnalysis, presetForScene } from "./mapping/mapper.js";
+import { presetFor, mapAnalysis } from "./mapping/mapper.js";
+import { loadTopics, getTopic } from "./topics/topics.js";
+import { setupTopicInput } from "./ui/topic-input.js";
 import { createMappingTable } from "./ui/mapping-table.js";
 import { setupPlayback } from "./ui/playback.js";
 
@@ -104,15 +106,13 @@ async function loadSource(title, open, item) {
     $("timeline-wrap").hidden = false;     // спершу показати — інакше canvas має ширину 0
     timeline.set(app.analysis);
 
-    // шар 2: мапінг
-    app.preset = await loadPreset(item?.preset || presetForScene(app.profile.sceneType));
-    app.mapping = mapAnalysis(app.analysis, app.preset);
-    timeline.setSections(app.mapping.meta.sections.map(s => ({
-      label: s.label, t0: s.b0 * app.mapping.meta.barDur, t1: s.b1 * app.mapping.meta.barDur,
-    })));
-    $("mapping-wrap").hidden = false;
-    mappingTable.set(app.mapping, app.preset, app.analysis);
-    await onMapped?.();
+    // тема: з галереї — підставляється сама; для свого файлу — нейтральна, доки користувач не скаже
+    app.topic = getTopic(item?.topic || "generic");
+    topicInput.set(item?.topic ? app.topic : null);
+    if (!item?.topic) announce("Що на цій карті? Напишіть або скажіть тему в полі «Що на цій карті?» — від неї залежить звучання.", { force: true });
+
+    // шари 2–3: мапінг і партитура
+    await remap();
     $("exportBtn").disabled = false;
     drawMasks();
     // фокус на «Грати»: інакше пробіл на кнопці галереї знову запустив би аналіз
@@ -125,6 +125,26 @@ async function loadSource(title, open, item) {
     app.busy = false;
   }
 }
+
+/** Мапінг і композиція для поточної теми (без повторного аналізу відео). */
+async function remap() {
+  app.preset = await presetFor(app.profile.sceneType, app.topic);
+  app.mapping = mapAnalysis(app.analysis, app.preset, { topic: app.topic });
+  timeline.setSections(app.mapping.meta.sections.map(s => ({
+    label: s.label, t0: s.b0 * app.mapping.meta.barDur, t1: s.b1 * app.mapping.meta.barDur,
+  })));
+  $("mapping-wrap").hidden = false;
+  mappingTable.set(app.mapping, app.preset, app.analysis);
+  await onMapped?.();
+}
+app.setTopic = async t => {
+  app.topic = t;
+  if (!app.analysis || app.busy) return;
+  const wasPlaying = app.player?.playing;
+  await remap();
+  setStatus(`Тема: ${t.name.uk}. ${app.score.key}, ${app.score.meter.id}, ${app.score.bpm} BPM.`);
+  if (wasPlaying) app.player.play();
+};
 
 /** Плоска карта світу має пропорцію ~2:1; глобус і графіки — ні (тоді без широт/довгот у підписах). */
 export function projectionOf(src, item) {
@@ -215,5 +235,7 @@ const drop = $("drop");
 ["dragleave", "drop"].forEach(ev => drop.addEventListener(ev, e => { e.preventDefault(); drop.classList.remove("over"); }));
 drop.addEventListener("drop", e => loadFile(e.dataTransfer.files[0]));
 
+app.topics = await loadTopics();
+const topicInput = setupTopicInput({ topics: app.topics, onTopic: t => app.setTopic(t) });
 app.catalog = await loadCatalog();
 app.loadItem = loadItem;

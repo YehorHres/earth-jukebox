@@ -1,0 +1,51 @@
+{
+  "id": "fires",
+  "params": {
+    "density": {
+      "base": 0.15,
+      "sources": [
+        {
+          "feature": "hotShare",
+          "channel": "rel",
+          "weight": 0.35,
+          "curve": "linear"
+        },
+        {
+          "feature": "outliers",
+          "channel": "rel",
+          "weight": 0.3,
+          "curve": "linear"
+        },
+        {
+          "feature": "hotspot1",
+          "channel": "rel",
+          "weight": 0.2,
+          "curve": "linear"
+        }
+      ],
+      "why": "Площа вогню й кількість яскравих спалахів — густота ударів"
+    },
+    "tension": {
+      "base": 0.2,
+      "sources": [
+        {
+          "feature": "outliers",
+          "channel": "rel",
+          "weight": 0.35,
+          "curve": "exp"
+        },
+        {
+          "feature": "hotShare",
+          "channel": "trend40",
+          "weight": 0.3,
+          "curve": "linear"
+        }
+      ],
+      "why": "Більше спалахів і ріст площі пожеж — напруга"
+    }
+  },
+  "accent": {
+    "minStrength": 0.4
+  },
+  "title": "тема fires"
+}

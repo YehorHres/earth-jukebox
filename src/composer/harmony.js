@@ -1,15 +1,18 @@
 // Гармонія всього треку: тональність, лад по фразах, прогресії, модуляції, акорди кожного такту.
-import { MODES, modeFor, chordOn, PROGRESSIONS, tensionLevel, noteName } from "./theory.js";
-
-const KEY_ROOT = { heatmap: 57, nightlights: 49, truecolor: 55, default: 50 };   // A, C♯, G, D
+import { MODES, chordOn, PROGRESSIONS, tensionLevel, noteName } from "./theory.js";
 
 /**
+ * Тональність — з мапінгу (тема: фіксована нота або квінтове коло за даними);
+ * лади — лише ті, що дозволяє тема (від світлого до темного), вибір — за світлістю даних.
  * @returns {{ keyRoot, bars: [{ root, mode, chords: [{ beat, beats, chord }], why }] , modulations }}
  */
 export function planHarmony(mapping, rng) {
   const { bars, meta } = mapping;
   const phrase = meta.phrase;
-  const keyRoot = KEY_ROOT[meta.preset] ?? KEY_ROOT.default;
+  const keyRoot = 48 + (meta.key?.pc ?? 2);                 // C3..B3
+  const allowed = (meta.soundProfile?.modes || MODES.map(m => m.id)).map(id => MODES.find(m => m.id === id)).filter(Boolean);
+  const modes = allowed.length ? allowed : MODES;
+  const beats = meta.meter?.quarters || 4;
   const out = [];
   let modeIdx = null, firstProg = null;
   const modulations = [];
@@ -20,13 +23,14 @@ export function planHarmony(mapping, rng) {
     const bright = avg("brightness"), tension = avg("tension"), motion = avg("motion"), density = avg("density");
 
     // лад: міняємо лише на межі фрази й з гістерезисом (без «смикання» на межі двох ладів)
-    const want = MODES.indexOf(modeFor(bright));
+    const n = modes.length;
+    const want = Math.round((1 - Math.max(0, Math.min(1, bright))) * (n - 1));
     if (modeIdx === null) modeIdx = want;
-    else if (want !== modeIdx) {
-      const boundary = 1 - (modeIdx + 0.5 * Math.sign(want - modeIdx)) / (MODES.length - 1);
+    else if (want !== modeIdx && n > 1) {
+      const boundary = 1 - (modeIdx + 0.5 * Math.sign(want - modeIdx)) / (n - 1);
       if (Math.abs(bright - boundary) > 0.05) modeIdx = want;
     }
-    const mode = MODES[modeIdx];
+    const mode = modes[modeIdx];
 
     // модуляція: кульмінація з високою напругою — на тон вище (підйом), розв'язка — назад
     const sec = ph[0].section;
@@ -53,7 +57,7 @@ export function planHarmony(mapping, rng) {
       const chord = chordOn(mode, degree, tens);
       if (b.transition && !last) chord.sus = true;           // затримка гармонії перед розділом
       out.push({
-        root, mode, chords: [{ beat: 0, beats: 4, chord }], level,
+        root, mode, chords: [{ beat: 0, beats, chord }], level,
         why: `${mode.label} (світлість ${bright.toFixed(2)}), ${level === "calm" ? "спокійна" : level === "medium" ? "помірна" : "напружена"} прогресія (напруга ${tension.toFixed(2)}), акорд: ${chord.ext}`,
       });
     });

@@ -103,8 +103,12 @@ SUITES.push(async function stage2() {
 
 SUITES.push(async function stage3() {
   const { analyzeSource } = await import("./analysis/analyze.js");
-  const { loadPreset, mapAnalysis, PARAMS } = await import("./mapping/mapper.js");
-  const run = async (src, preset) => { const a = await analyzeSource(src); return { a, m: mapAnalysis(a, await loadPreset(preset)) }; };
+  const { presetFor, mapAnalysis, PARAMS } = await import("./mapping/mapper.js");
+  const { loadTopics, getTopic } = await import("./topics/topics.js");
+  await loadTopics();
+  // тема визначає звучання; для перевірок шару 2 — теми з рівним розміром 4/4
+  const TOPIC_OF = { nightlights: "nightlights", heatmap: "temperature" };
+  const run = async (src, preset) => { const a = await analyzeSource(src); const t = getTopic(TOPIC_OF[preset] || "generic"); return { a, m: mapAnalysis(a, await presetFor(a.profile.sceneType, t), { topic: t }) }; };
   const inRange = m => m.bars.every(b => PARAMS.every(p => Number.isFinite(b.params[p]) && b.params[p] >= (p === "pan" ? -1 : 0) && b.params[p] <= 1));
   const order = m => m.meta.sections.map(s => s.id).join(" → ");
 
@@ -127,7 +131,7 @@ SUITES.push(async function stage3() {
 
   const ecco = window.__ecco;
   const ae = await analyzeSource(ecco.source);
-  const me = mapAnalysis(ae, await loadPreset("heatmap"));
+  const me = mapAnalysis(ae, await presetFor(ae.profile.sceneType, getTopic("temperature")), { topic: getTopic("temperature") });
   const acc = me.bars.filter(b => b.params.accent > 0).length;
   check("ECCO2: мапінг, акценти подій (не в кожному такті), суша = паузи в контурі", inRange(me) && acc > 0 && acc <= me.bars.length * 0.6 && me.bars.some(b => b.params.contour.includes(null)),
     `${me.meta.nBars} тактів, ${me.meta.bpm} BPM, тактів з акцентами ${acc}; ${order(me)}; контур такту 5: ${me.bars[5].params.contour.map(v => v === null ? "·" : Math.round(v * 9)).join("")}`);
@@ -234,6 +238,45 @@ SUITES.push(async function stage7() {
     if (m < 0.005) silent.push(it.text.slice(0, 30));
   }
   check("Аудіолегенда: усі пункти звучать (heatmap, nightlights)", !silent.length, silent.join("; ") || `${legendItems("heatmap").length + legendItems("nightlights").length} пунктів`);
+});
+
+SUITES.push(async function stage9() {
+  const T = await import("./topics/topics.js");
+  const topics = await T.loadTopics();
+  const { presetFor, mapAnalysis } = await import("./mapping/mapper.js");
+  const { compose } = await import("./composer/composer.js");
+  const { renderOffline } = await import("./audio/render.js");
+  const { analyzeSource } = await import("./analysis/analyze.js");
+  // зіставлення тексту з темою (ТЗ v3, етап 9.6)
+  const cases = [["викиди CO2", "co2"], ["вуглекислий газ", "co2"], ["carbon dioxide emissions", "co2"], ["СО2", "co2"], ["це о два", "co2"],
+    ["гроза", "storms"], ["ураган", "storms"], ["hurricane", "storms"], ["thunderstorm", "storms"], ["урагани над Атлантикою", "storms"],
+    ["морський лід", "ice"], ["льоду в Арктиці", "ice"], ["лісові пожежі", "fires"], ["sea surface temperature", "temperature"], ["NDVI", "vegetation"]];
+  const bad = cases.filter(([q, id]) => T.matchTopic(q, topics).topic?.id !== id).map(([q, id]) => `${q} → ${T.matchTopic(q, topics).topic?.id || "—"} (треба ${id})`);
+  check("Тема з тексту: CO₂, шторми, лід, пожежі, температура, NDVI (uk/en)", !bad.length, bad.join("; ") || `${cases.length} фраз розпізнано`);
+  check("Тема з тексту: нерелевантне не вгадуємо", !T.matchTopic("бананові ціни", topics).topic, "«бананові ціни» → немає збігу");
+  check("Теми без російської: усі мають uk і en синоніми", topics.every(t => t.synonyms.uk.length && t.synonyms.en.length && t.soundProfile && t.name.uk && t.name.en), `${topics.length} тем`);
+
+  // одне відео з різними темами → різні інструменти, розмір/BPM/тональність
+  const a = await analyzeSource(window.__ecco.source);
+  const trackFor = async id => { const t = T.getTopic(id); const m = mapAnalysis(a, await presetFor(a.profile.sceneType, t), { topic: t }); return { m, s: compose(m, { seed: `ecco2|${id}` }) }; };
+  const sig = x => `${x.s.key} ${x.s.meter.id} ${x.s.bpm} BPM | ${x.s.parts.map(p => p.instrument).join(",")}`;
+  const res = {};
+  for (const id of ["co2", "storms", "ice", "vegetation", "ocean-currents"]) res[id] = await trackFor(id);
+  const sigs = Object.values(res).map(sig);
+  check("Одне відео, різні теми → різні тембри й характер", new Set(sigs).size === sigs.length, Object.entries(res).map(([k, v]) => `${k}: ${sig(v)}`).join(" · "));
+  check("Тема задає розмір: лід 3/4, рослинність 6/8, CO₂ 4/4", res.ice.s.meter.id === "3/4" && res.vegetation.s.meter.id === "6/8" && res.co2.s.meter.id === "4/4", "");
+  const bpmOk = Object.entries(res).every(([id, v]) => { const r = T.getTopic(id).soundProfile.bpm; return v.s.bpm >= r[0] && v.s.bpm <= r[1]; });
+  check("BPM у діапазоні теми, усе пояснено (why)", bpmOk && Object.values(res).every(v => v.m.meta.why.key && v.m.meta.why.tempo && v.m.meta.why.sound), res.co2.m.meta.why.key);
+  const again = compose(res.storms.m, { seed: "ecco2|storms" });
+  check("Однаковий seed → однаковий трек", JSON.stringify(again.notes) === JSON.stringify(res.storms.s.notes), `${again.notes.length} нот`);
+  // кожна тема рендериться офлайн без помилок і звучить
+  const silent = [];
+  for (const t of topics) {
+    const x = await trackFor(t.id);
+    const r = await renderOffline(x.s, x.m, { from: x.m.meta.duration * 0.4, seconds: 4 });
+    if (!(r.rms > 0.003) || r.peak > 1) silent.push(`${t.id} (RMS ${r.rms.toFixed(3)}, пік ${r.peak.toFixed(2)})`);
+  }
+  check("Кожна з тем звучить (офлайн-рендер), без перевантаження", !silent.length, silent.join("; ") || `${topics.length} тем`);
 });
 
 (async () => {

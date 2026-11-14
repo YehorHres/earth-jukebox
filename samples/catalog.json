@@ -1,6 +1,7 @@
 [
   {
     "id": "ecco2_sst_flow",
+    "topic": "ocean-currents",
     "title": "Течії та температура океану (ECCO2)",
     "kind": "video",
     "src": ["samples/ecco2_sst_flow.webm", "samples/ecco2_sst_flow.mp4"],
@@ -12,6 +13,7 @@
   },
   {
     "id": "night_lights_rotating",
+    "topic": "nightlights",
     "title": "Земля вночі: вогні міст (Suomi NPP)",
     "kind": "video",
     "src": ["samples/night_lights_rotating.webm", "samples/night_lights_rotating.mp4"],
@@ -22,6 +24,7 @@
   },
   {
     "id": "synthetic-dark",
+    "topic": "nightlights",
     "title": "Тест: темна нічна карта з ледь помітними змінами",
     "kind": "synthetic",
     "synth": "dark-lights",

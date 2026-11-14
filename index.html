@@ -22,6 +22,20 @@
       <label for="file">Або перетягніть сюди своє відео / фото, чи виберіть файл: </label>
       <input type="file" id="file" accept="video/*,image/*">
     </div>
+    <div class="topic-box">
+      <label for="topic"><strong>Що на цій карті?</strong> Тема задає звучання: тембр = тема, ноти = дані.</label>
+      <div class="row">
+        <input id="topic" type="text" autocomplete="off" spellcheck="false" aria-describedby="topic-hint"
+               placeholder="напр. «викиди CO₂», «ураган», «морський лід», «sea surface temperature»">
+        <button id="mic" type="button" hidden aria-pressed="false" aria-label="Сказати тему голосом">🎤</button>
+        <span role="group" aria-label="Мова теми й голосу" class="row">
+          <button id="lang-uk" type="button" aria-pressed="true" lang="uk">UA</button>
+          <button id="lang-en" type="button" aria-pressed="false" lang="en">EN</button>
+        </span>
+      </div>
+      <p id="topic-hint" class="keys">Тему не вибрано.</p>
+      <ul id="topic-list" class="topic-list" hidden aria-label="Теми"></ul>
+    </div>
     <div class="viewer" id="viewer">
       <div class="placeholder" id="placeholder">Оберіть візуалізацію в галереї вище.</div>
       <canvas id="overlay" aria-hidden="true"></canvas>

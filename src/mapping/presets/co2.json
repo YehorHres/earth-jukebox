@@ -1,0 +1,66 @@
+{
+  "id": "co2",
+  "params": {
+    "tension": {
+      "base": 0.15,
+      "sources": [
+        {
+          "feature": "hotspot1",
+          "channel": "trend40",
+          "weight": 0.3,
+          "curve": "linear"
+        },
+        {
+          "feature": "brightness",
+          "channel": "rank",
+          "weight": 0.25,
+          "curve": "exp"
+        },
+        {
+          "feature": "warmth",
+          "channel": "rank",
+          "weight": 0.25,
+          "curve": "exp"
+        }
+      ],
+      "why": "Концентрація росте й досягає рекордів — дисонанс і кластери"
+    },
+    "register": {
+      "base": 0.0,
+      "sources": [
+        {
+          "feature": "brightness",
+          "channel": "rank",
+          "weight": 0.5,
+          "curve": "linear"
+        },
+        {
+          "feature": "warmth",
+          "channel": "rank",
+          "weight": 0.4,
+          "curve": "linear"
+        }
+      ],
+      "why": "Регістр повільно піднімається знизу вгору разом із концентрацією"
+    },
+    "density": {
+      "base": 0.05,
+      "sources": [
+        {
+          "feature": "activeMass",
+          "channel": "rel",
+          "weight": 0.35,
+          "curve": "linear"
+        },
+        {
+          "feature": "hotspot1",
+          "channel": "rel",
+          "weight": 0.3,
+          "curve": "smooth"
+        }
+      ],
+      "why": "Більше CO₂ — щільніша фактура"
+    }
+  },
+  "title": "тема co2"
+}

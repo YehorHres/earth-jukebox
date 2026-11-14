@@ -1,5 +1,5 @@
 // Офлайн-рендер партитури (OfflineAudioContext): автотести і експорт треку у WAV.
-import { Engine, levelFor } from "./engine.js";
+import { Engine, levelFor, dipFor } from "./engine.js";
 import { playNote } from "./instruments.js";
 import { SEND } from "./player.js";
 
@@ -14,6 +14,7 @@ export async function renderOffline(score, mapping, { from = 0, seconds = null, 
     const at = Math.max(0, b.t0 - from);
     eng.setSpace(b.params.space, at);
     eng.setLevel(levelFor(b.params), at);
+    eng.setDip(dipFor(mapping, b.bar), at);
   }
   for (const n of score.notes) {
     if (n.t < from || n.t >= from + dur - 0.5) continue;

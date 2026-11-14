@@ -120,7 +120,8 @@ export function setupPlayback(app, { timeline, mappingTable }) {
   /* ---- після мапінгу: пишемо партитуру ---- */
   async function onMapped() {
     player.stop(); setPlayUI(false);
-    app.score = compose(app.mapping, { seed: app.analysis.key || app.source.key });
+    // seed = відео + тема: те саме відео з тією самою темою — той самий трек
+    app.score = compose(app.mapping, { seed: `${app.catalogItem?.id || app.source.name}|${app.mapping.meta.topic}`, style: app.style || null });
     player.load(app.score, app.mapping, app.source);
     setMinGap(Math.max(4000, app.score.barDur * 4 * 1000));
     lastSection = null; lastAnnouncedBar = -99;

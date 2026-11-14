@@ -1,11 +1,11 @@
 // Плеєр: планує ноти партитури на AudioContext із запасом (lookahead) і тримає відео синхронно з музикою.
 // Музика — головний годинник; відео підлаштовується (дрейф > 80 мс → перемотка).
 import { playNote } from "./instruments.js";
-import { levelFor } from "./engine.js";
+import { levelFor, dipFor } from "./engine.js";
 
 const LOOKAHEAD = 0.25, TICK_MS = 30, DRIFT = 0.08;
 // посил на реверб для кожної партії
-export const SEND = { pad: 0.45, drums: 0.15, melody: 0.35, counter: 0.4, accents: 0.55, stars: 0.6, arp: 0.3, bass: 0.15 };
+export const SEND = { texture: 0.5, pad: 0.45, drums: 0.15, melody: 0.35, counter: 0.4, accents: 0.55, stars: 0.6, arp: 0.3, bass: 0.15 };
 
 export class Player {
   constructor(engine, { onBar = () => {}, onTick = () => {}, onEnd = () => {} } = {}) {
@@ -90,6 +90,7 @@ export class Player {
       const at = Math.max(this.eng.ctx.currentTime, this.startCtx + (bar * this.score.barDur - this.pos));
       this.eng.setSpace(this.mapping.bars[bar].params.space, at);
       this.eng.setLevel(levelFor(this.mapping.bars[bar].params), at);
+      this.eng.setDip(dipFor(this.mapping, bar), at);
       this.cb.onBar(bar, false);
     }
     this.syncVideo(false);

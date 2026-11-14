@@ -1,0 +1,28 @@
+{
+  "id": "vegetation",
+  "params": {
+    "brightness": {
+      "base": 0.1,
+      "sources": [
+        {
+          "feature": "greenness",
+          "channel": "abs",
+          "in": [
+            0.0,
+            0.4
+          ],
+          "weight": 0.6,
+          "curve": "smooth"
+        },
+        {
+          "feature": "greenness",
+          "channel": "rel",
+          "weight": 0.3,
+          "curve": "linear"
+        }
+      ],
+      "why": "Більше зелені — мажорніший лад"
+    }
+  },
+  "title": "тема vegetation"
+}
