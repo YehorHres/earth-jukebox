@@ -47,7 +47,7 @@
 візуалізації, аудіолегенда («так звучить холодне / тепле»), mute/solo для партій.
 
 ## Поточний стан
-`index.html` + `src/` — версія 2 (етапи 1–13 з `docs/PROMPT-v2-engine.md` і `docs/PROMPT-v3.md`, стан — у `docs/plan-v2.md`).
+`index.html` + `src/` — версія 2 (етапи 1–15 і v5-A «граматика звуку» — `src/grammar.js`; стан — у `docs/plan-v2.md`).
 Тема карти (`src/topics/topics.json`) задає тембр, дані — ноти. Галерея: 5 відео NASA з готовими аналізами
 (`samples/*.analysis.json`, перерахувати — `tools/precompute.html` після зміни `ANALYSIS_VERSION`).
 Автотести — `test.html`. `prototype/` — v1, запасне демо.

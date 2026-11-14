@@ -6,13 +6,14 @@ import { computeForm, SECTION_LABEL } from "./form.js";
 import { getFeature } from "../features/index.js";
 import { clamp, percentile, mean, slope } from "../util/stats.js";
 import { meterOf } from "../composer/meter.js";
+import { polarity, orient, pickSoloZones, DEFAULT_TICK } from "../grammar.js";
 
 export const PARAMS = ["level", "energy", "density", "tension", "brightness", "register", "pan", "motion", "articulation", "space"];
 export const PARAM_LABEL = {
   level: "Наповненість кадру (abs; гучність треку нормована до −16 LUFS)", energy: "Енергія (гучність, к-сть інструментів)", density: "Густота ритму", tension: "Напруга (гармонія, дисонанс)",
   brightness: "Світлість ладу", register: "Регістр мелодії", pan: "Панорама (захід ↔ схід)", motion: "Рухливість",
   articulation: "Артикуляція (легато ↔ стакато)", space: "Простір (реверберація)", accent: "Акценти подій",
-  orchestration: "Оркестровка", contour: "Контур мелодії",
+  orchestration: "Оркестровка", contour: "Контур мелодії", value: "Значення головної величини (висота голосу даних)",
 };
 export const CHANNEL_LABEL = { abs: "абс.", rel: "відн.", rank: "ранг", d1: "зміна за кадр", speed10: "швидкість", accel20: "прискорення", trend40: "тренд" };
 const TEMPORAL = new Set(["d1", "speed10", "accel20", "trend40"]);
@@ -98,7 +99,7 @@ function aggregate(arr, idx, how = "mean") {
  * @param {object} a аналіз (analyze.js)
  * @param {object} preset JSON-пресет
  */
-export function mapAnalysis(a, preset, { topic = null } = {}) {
+export function mapAnalysis(a, preset, { topic = null, timeUnit = null } = {}) {
   const p = a.profile, dur = p.durationSec, still = p.isStill || a.count === 1;
   const noChange = p.changeScale === "none";
   const sp = topic?.soundProfile || {};
@@ -156,6 +157,13 @@ export function mapAnalysis(a, preset, { topic = null } = {}) {
   const minStrength = preset.accent.minStrength ?? 0.5;
   let lastAccentBar = -9;
 
+  // ---- граматика звуку: головна величина (відносна в межах відео) з полярністю теми (moreMeans)
+  const pol = polarity(topic);
+  const valueFeature = a.leadFeature || a.mainFeature;
+  const valueSeries = !still && !noChange && valueFeature ? a.rel[valueFeature] : null;
+  const valueLabel = a.labels?.[valueFeature] || getFeature(valueFeature)?.label || valueFeature || "—";
+  let prevSolo = [];
+
   // ---- параметри по тактах
   const bars = [];
   const prev = {};
@@ -197,6 +205,13 @@ export function mapAnalysis(a, preset, { topic = null } = {}) {
     }
     params.contour = contour;
     params.contourCover = contourCover;
+
+    // значення головної величини → висота голосу даних (більше за змістом теми → вище)
+    params.value = orient(clamp(valueSeries ? aggregate(valueSeries, idx) : 0.5), pol);
+    explain.value = [{ source: `${valueLabel} (відн.)${pol < 0 ? " — обернено: для теми «більше» = менше значення ознаки" : ""}`, contrib: params.value }];
+    // солісти зон: до 2 колонок, що найбільше відхиляються, не ближче ніж 3 зони
+    params.soloZones = pickSoloZones(contour, pol, prevSolo);
+    prevSolo = params.soloZones.map(z => z.col);
 
     // події такту: усі — для пояснень; сильні — акценти (не більше 2, не в сусідніх тактах без потреби)
     const t0 = b * barDur;
@@ -253,6 +268,12 @@ export function mapAnalysis(a, preset, { topic = null } = {}) {
       : s < -0.25 ? `«${a.labels[lf]}» загалом спадає — кульмінація раніше, далі довга розв'язка`
       : `«${a.labels[lf]}» коливається без загального тренду — форма йде за піками даних`;
   } else why.form = noChange ? "Змін немає — спокійна форма без кульмінації" : "Форма — за піками даних";
+  // точка відліку: медіана головної величини за все відео; тіки — одиниця часу з картки або кожні 10 с
+  const reference = { value: percentile(bars.map(x => x.params.value), 50), feature: valueFeature || null,
+    why: `Референсний тон — медіана «${valueLabel}» за все відео: вище за нього — більше, нижче — менше` };
+  const tick = timeUnit?.seconds > 0 ? { seconds: timeUnit.seconds, strong: timeUnit.strong || 12, label: timeUnit.label || "одиниця часу" } : DEFAULT_TICK;
+  why.value = `Голос даних: «${valueLabel}»${topic?.more?.uk ? ` (${topic.more.uk} → вище)` : " (більше → вище)"}`;
+  why.reference = reference.why;
   why.sound = topic ? `${topic.name.uk}: ${sp.why}` : "Тему не вказано — нейтральний оркестр";
 
   return {
@@ -260,6 +281,7 @@ export function mapAnalysis(a, preset, { topic = null } = {}) {
       preset: preset.id, presetTitle: preset.title, bpm, barDur, nBars, phrase, sections, still, noChange, scaleNote,
       tempoWhy: tp.why, tempoX, sceneType: p.sceneType, duration: still ? nBars * barDur : dur,
       meter, key, topic: topic?.id || "generic", soundProfile: sp, why,
+      polarity: pol, valueFeature: valueFeature || null, reference, tick,
     },
     bars,
   };

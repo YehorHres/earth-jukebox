@@ -3,12 +3,14 @@ import { Engine, levelFor, dipFor } from "./engine.js";
 import { playNote } from "./instruments.js";
 import { SEND } from "./player.js";
 
-export async function renderOffline(score, mapping, { from = 0, seconds = null, sampleRate = 44100, muted = [], solo = null, master = null } = {}) {
+export async function renderOffline(score, mapping, { from = 0, seconds = null, sampleRate = 44100, muted = [], solo = null, master = null, duck = null } = {}) {
   const dur = seconds ?? score.duration + 2;
   const ctx = new OfflineAudioContext(2, Math.ceil(dur * sampleRate), sampleRate);
   const eng = new Engine();
   eng.masterCal = master || score.master || { gainDb: 0, balanceDb: 0 };
   await eng.init(ctx);
+  eng.setLead(score.lead);
+  if (duck) { eng.duck(true, duck[0]); eng.duck(false, duck[1]); }
   if (solo) for (const p of score.parts) if (!solo.includes(p.id)) muted = [...muted, p.id];
   for (const p of score.parts) eng.bus(p.id, { send: SEND[p.id] ?? 0.3 });
   for (const id of muted) eng.setPart(id, { mute: true });

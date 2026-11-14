@@ -2,6 +2,7 @@
 // Кожен пункт — кнопка (можна переслухати); клавіша L — уся легенда підряд.
 import { playNote } from "../audio/instruments.js";
 import { announce, prefs } from "../a11y/announcer.js";
+import { earconsFor, voiceColor, valueToMidi, DEFAULT_TICK } from "../grammar.js";
 
 const A = 57; // A3
 const seq = (inst, notes, step, opts = {}) => notes.map((m, k) => ({ inst, t: k * step, midi: m, dur: opts.dur ?? step * 1.4, vel: opts.vel ?? 0.6, pan: opts.pan ? opts.pan(k, notes.length) : 0 }));
@@ -54,14 +55,35 @@ export function legendItems(scene, ctx = {}) {
     const mel = score?.parts.find(p => p.id === "melody")?.instrument || "violin";
     const pad = score?.parts.find(p => p.id === "pad")?.instrument || "strings";
     const more = colorMore || topic.more?.uk || "більше значення";
-    items.push({ intro: true, text: `${topic.name.uk}: ${more} — вищі ноти, менше — нижчі.`, notes: () => seq(mel, [60, 64, 67, 72, 76], 0.35, { vel: 0.6 }) });
+    items.push({ intro: true, text: `${topic.name.uk}: ${more} — голос даних звучить вище, менше — нижче.`,
+      notes: () => seq("voice", [62, 67, 71, 74, 79, 86], 0.35, { vel: 0.8 }).map((n, k, all) => ({ ...n, color: voiceColor(topic.id), from: all[k - 1]?.midi })) });
     items.push({ intro: true, text: `Тембр теми: ${topic.soundProfile.why}.`, notes: () => [...chord(pad, [48, 55, 60, 64], 0, 2.6, 0.45), ...seq(mel, [67, 72], 0.6, { vel: 0.5 }).map(n => ({ ...n, t: n.t + 0.6 }))] });
+  }
+  // граматика звуку (v5-A): точка відліку, тіки часу й кожен ерікон теми
+  const g = score?.grammar, tid = topic?.id || "generic";
+  if (g || topic) {
+    const ref = Math.round(valueToMidi(g?.reference?.value ?? 0.5)), tk = g?.tick || DEFAULT_TICK;
+    items.push({ grammar: "reference", text: "Точка відліку: на початку треку звучить референсний тон — середнє значення за все відео. Голос даних вище за нього — більше, нижче — менше.",
+      notes: () => [{ inst: "reftone", t: 0, midi: ref, dur: 1.5, vel: 0.9, pan: 0 }, ...seq("voice", [ref + 7, ref - 5], 0.7, { vel: 0.8 }).map(n => ({ ...n, t: n.t + 1.7, color: voiceColor(tid) }))] });
+    items.push({ grammar: "ticks", text: `Шкала часу: тихий клік кожні ${tk.label}, сильніший — кожен ${tk.strong}-й.`,
+      notes: () => Array.from({ length: 5 }, (_, k) => ({ inst: "tick", t: k * 0.5, midi: 0, dur: 0.05, vel: k % 4 === 0 ? 0.8 : 0.45, strong: k % 4 === 0, pan: 0 })) });
+    for (const ec of earconsFor(tid)) items.push({ grammar: "earcon", earcon: ec.id, text: `Знак події «${ec.label}»: ${ec.text}.`,
+      notes: () => [0, 0.9].map(t => ({ inst: "earcon", t, midi: 0, dur: ec.spec.dur, vel: 0.9, pan: 0, ec: ec.spec })) });
   }
   return [...items, ...(SCENES[scene] || SCENES.heatmap), ...COMMON];
 }
 
 /** Сказати голосом (speechSynthesis) і дочекатися кінця; без синтезу — aria-live і пауза за довжиною тексту. */
+let duckEngine = null;
+/** Двигун, який приглушується під час мовлення (ducking). */
+export function setDuckEngine(engine) { duckEngine = engine; }
+const unduck = v => { duckEngine?.duck(false); return v; };
+
 export function say(text, lang = "uk-UA") {
+  duckEngine?.duck(true);
+  return sayRaw(text, lang).then(unduck, unduck);
+}
+function sayRaw(text, lang) {
   const st = document.getElementById("status");
   if (st) st.textContent = text;                          // видимий текст вступу
   // голос є — говоримо ним (без aria-live, щоб скрінрідер не дублював); немає — aria-live
@@ -90,6 +112,7 @@ export async function playIntro(engine, { title, years, items }) {
   let stopped = false;
   introCancel = () => { stopped = true; if (window.speechSynthesis) speechSynthesis.cancel(); };
   await engine.init();
+  setDuckEngine(engine);
   engine.fade(0.9, 0.02);
   await say(`${title}${years ? ", " + years : ""}.`);
   for (const it of items) {

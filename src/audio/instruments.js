@@ -2,10 +2,12 @@
 // Етап 6: якщо семпли завантажились — грає Sampler, інакше лишається синтезатор.
 // Інтерфейс: play(engine, dest, note, t) де note = { midi, dur, vel, pan }.
 import { topicSynths } from "./synths-topic.js";
+import { grammarSynths } from "./synths-grammar.js";
 
 export const mtof = m => 440 * Math.pow(2, (m - 69) / 12);
 
 export const INSTRUMENT_LABEL = {
+  voice: "голос даних (колір — від теми)", reftone: "референсний тон", tick: "клік шкали часу", earcon: "звук-знак події",
   strings: "струнні (легато)", contrabass: "контрабас pizz.", cello: "віолончель", drone: "глибокий дрон", piano: "фортепіано",
   harp: "арфа", celesta: "челеста", glockenspiel: "глокеншпіль", bells: "дзвони", violin: "скрипка", flute: "флейта",
   subbass: "саб-бас", thunder: "грім", tuba: "туба", organ: "орган", choir: "хор", warmpad: "теплий пед", glasspad: "холодний (скляний) пед",
@@ -189,6 +191,7 @@ const SYNTH = {
 };
 
 Object.assign(SYNTH, topicSynths({ out, env, osc, vibrato, mtof, bell }));
+Object.assign(SYNTH, grammarSynths({ out, mtof }));
 
 function bell(eng, dest, n, t, partials, decay, level) {
   const ctx = eng.ctx, f = mtof(n.midi), dst = out(eng, dest, t, n.pan);
