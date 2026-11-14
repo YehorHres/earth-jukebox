@@ -6,6 +6,7 @@ import { initAnnouncer, announce, prefs, stopVoice } from "./a11y/announcer.js";
 import { createTimeline } from "./ui/timeline.js";
 import { loadPreset, mapAnalysis, presetForScene } from "./mapping/mapper.js";
 import { createMappingTable } from "./ui/mapping-table.js";
+import { setupPlayback } from "./ui/playback.js";
 
 const $ = id => document.getElementById(id);
 const NO_CACHE = new URLSearchParams(location.search).has("nocache");   // ?nocache — завжди аналізувати заново
@@ -15,14 +16,14 @@ window.jukebox = app; // для налагодження й автотестів
 initAnnouncer($("live"));
 const timeline = createTimeline($("timeline"), $("tl-legend"), {
   onSeek: t => {
-    if (app.seekTo) return app.seekTo(t);
+    if (app.score) return app.seekTo(t);
     if (app.source?.kind === "video") app.source.el.currentTime = t;
     timeline.setCursor(t);
-    if (app.mapping) mappingTable.update(Math.floor(t / app.mapping.meta.barDur));
   },
 });
 const mappingTable = createMappingTable($("mapping"));
-let onMapped = null;   // етап 4: підготовка музики після мапінгу
+const playback = setupPlayback(app, { timeline, mappingTable });
+const onMapped = playback.onMapped;   // шар 3: партитура й плеєр після мапінгу
 const setStatus = s => ($("status").textContent = s);
 const setProgress = p => ($("progress").firstElementChild.style.width = `${Math.round(p * 100)}%`);
 
@@ -61,8 +62,10 @@ async function loadSource(title, open, item) {
   if (app.busy) return;
   app.busy = true;
   stopVoice();
-  app.profile = app.analysis = app.mapping = null;
+  playback.stop();
+  app.profile = app.analysis = app.mapping = app.score = null;
   $("mapping-wrap").hidden = true;
+  $("parts-wrap").hidden = true;
   ["play", "legendBtn", "exportBtn"].forEach(id => ($(id).disabled = true));
   $("card").hidden = true;
   $("timeline-wrap").hidden = true;

@@ -6,9 +6,9 @@ import { computeForm, SECTION_LABEL } from "./form.js";
 import { getFeature } from "../features/index.js";
 import { clamp, percentile, mean } from "../util/stats.js";
 
-export const PARAMS = ["energy", "density", "tension", "brightness", "register", "pan", "motion", "articulation", "space"];
+export const PARAMS = ["level", "energy", "density", "tension", "brightness", "register", "pan", "motion", "articulation", "space"];
 export const PARAM_LABEL = {
-  energy: "Енергія (гучність, к-сть інструментів)", density: "Густота ритму", tension: "Напруга (гармонія, дисонанс)",
+  level: "Загальна гучність (abs)", energy: "Енергія (гучність, к-сть інструментів)", density: "Густота ритму", tension: "Напруга (гармонія, дисонанс)",
   brightness: "Світлість ладу", register: "Регістр мелодії", pan: "Панорама (захід ↔ схід)", motion: "Рухливість",
   articulation: "Артикуляція (легато ↔ стакато)", space: "Простір (реверберація)", accent: "Акценти подій",
   orchestration: "Оркестровка", contour: "Контур мелодії",

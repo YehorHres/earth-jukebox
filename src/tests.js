@@ -134,6 +134,36 @@ SUITES.push(async function stage3() {
   window.__mapEcco = me; window.__mapDark = md;
 });
 
+SUITES.push(async function stage4() {
+  const { compose } = await import("./composer/composer.js");
+  const { renderOffline } = await import("./audio/render.js");
+  const me = window.__mapEcco, md = window.__mapDark;
+  const s1 = compose(me, { seed: "ecco" }), s2 = compose(me, { seed: "ecco" });
+  const valid = s => s.notes.every(n => Number.isFinite(n.t) && n.t >= 0 && n.dur > 0 && n.vel > 0 && n.vel <= 1 && (n.midi === 0 || (n.midi >= 21 && n.midi <= 108)));
+  check("Композитор (ECCO2): ноти коректні", s1.notes.length > 100 && valid(s1), `${s1.notes.length} нот, ${s1.bpm} BPM, тональність ${s1.key}, партії: ${s1.parts.map(p => p.id).join(", ")}`);
+  check("Композитор: детермінованість (seed)", JSON.stringify(s1.notes) === JSON.stringify(s2.notes), "дві партитури однакові");
+  const introParts = Math.max(...s1.bars.filter((_, b) => me.bars[b].section === "intro" && !me.bars[b].transition).map(x => x.active.length));
+  const climaxParts = Math.max(...s1.bars.filter((_, b) => me.bars[b].section === "climax").map(x => x.active.length));
+  check("Оркестровка: вступ ≤ 3 партії, кульмінація — більше", introParts <= 3 && climaxParts > introParts, `вступ ${introParts}, кульмінація ${climaxParts}`);
+  const modes = new Set(s1.harmony.bars.map(h => h.mode.label));
+  check("Гармонія: лад із даних, акорди змінюються", s1.harmony.bars.length === me.bars.length && new Set(s1.harmony.bars.map(h => h.chords[0].chord.degree)).size >= 3, `лади: ${[...modes].join(", ")}; модуляцій ${s1.harmony.modulations.length}`);
+  // голосоведення педів: середній рух голосу між акордами невеликий
+  const padBars = {};
+  for (const n of s1.notes) if (n.part === "pad") (padBars[Math.round(n.t / s1.barDur)] ||= []).push(n.midi);
+  const keys = Object.keys(padBars).map(Number).sort((a, b) => a - b);
+  let mv = 0, cnt = 0;
+  for (let k = 1; k < keys.length; k++) { const a = padBars[keys[k - 1]].sort((x, y) => x - y), b = padBars[keys[k]].sort((x, y) => x - y); for (const v of b) { mv += Math.min(...a.map(p => Math.abs(p - v))); cnt++; } }
+  check("Голосоведення педів: мінімальний рух голосів", cnt && mv / cnt < 3, `середній рух ${(mv / cnt).toFixed(2)} півтону`);
+  const sd = compose(md, { seed: "dark" });
+  check("Нічна карта: дрон і арфа замість контрабаса й фортепіано", sd.parts.find(p => p.id === "bass").instrument === "drone" && sd.parts.find(p => p.id === "arp").instrument === "harp", sd.parts.map(p => `${p.id}=${p.instrument}`).join(", "));
+  // офлайн-рендер: звучить, не клипує
+  const r = await renderOffline(s1, me, { from: 0, seconds: 12 });
+  check("Звук (офлайн-рендер 12 с ECCO2): є сигнал, без перевантаження", r.rms > 0.005 && r.peak <= 1.0, `RMS ${r.rms.toFixed(3)}, пік ${r.peak.toFixed(3)}`);
+  const rd = await renderOffline(sd, md, { from: md.meta.duration * 0.6, seconds: 10 });
+  check("Звук (темне відео): тихіший за ECCO2, але не тиша", rd.rms > 0.002 && rd.rms < r.rms, `RMS ${rd.rms.toFixed(3)} (ECCO2 ${r.rms.toFixed(3)}), пік ${rd.peak.toFixed(3)}`);
+  window.__score = s1;
+});
+
 (async () => {
   for (const s of SUITES) {
     try { await s(); }
