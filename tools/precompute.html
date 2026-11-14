@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="uk">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Готові аналізи</title>
+<link rel="icon" href="data:,">
+<link rel="stylesheet" href="../src/style.css">
+<style>body { padding: 16px 24px; } li { margin: 4px 0; }</style>
+</head>
+<body>
+<h1>Готові аналізи для галереї</h1>
+<p>Аналізує кожне відео з <code>samples/catalog.json</code>, у якого є поле <code>analysis</code>,
+і зберігає результат у <code>samples/&lt;id&gt;.analysis.json</code> (потрібен <code>python tools/serve.py</code>).
+Запускати після змін у двигуні аналізу (коли зростає <code>ANALYSIS_VERSION</code>).</p>
+<button id="go" class="primary">Перерахувати всі</button>
+<ul id="log" aria-live="polite"></ul>
+<script type="module">
+import { openVideo, openImage } from "../src/media/sources.js";
+import { analyzeSource } from "../src/analysis/analyze.js";
+import { serializeAnalysis } from "../src/analysis/serialize.js";
+const log = t => { const li = document.createElement("li"); li.textContent = t; document.getElementById("log").appendChild(li); return li; };
+async function run() {
+  const items = (await (await fetch("../samples/catalog.json")).json()).filter(it => it.analysis);
+  for (const it of items) {
+    const li = log(`${it.title}: відкриваю…`);
+    try {
+      const src = it.kind === "image" ? await openImage("../" + it.src[0], { name: it.title }) : await openVideo(it.src.map(s => "../" + s), { name: it.id, fps: it.fps });
+      const a = await analyzeSource(src, { useCache: false, sceneOverride: it.sceneType || null, onProgress: (st, p, msg) => (li.textContent = `${it.title}: ${msg}`) });
+      const body = JSON.stringify(serializeAnalysis(a));
+      const res = await fetch(`/__save/${it.analysis}`, { method: "POST", body });
+      li.textContent = `${it.title}: ${res.ok ? "✔ збережено" : "✘ " + res.status} (${(body.length / 1024).toFixed(0)} КБ, аналіз ${a.seconds.toFixed(1)} с, подій ${a.events.length})`;
+    } catch (e) { li.textContent = `${it.title}: ✘ ${e.message}`; console.error(e); }
+  }
+  log("Готово.");
+  window.__done = true;
+}
+document.getElementById("go").addEventListener("click", run);
+if (new URLSearchParams(location.search).has("run")) run();
+</script>
+</body>
+</html>

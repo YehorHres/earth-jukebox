@@ -49,6 +49,25 @@ class Handler(http.server.SimpleHTTPRequestHandler):
         self._range_left = end - start + 1
         return f
 
+    def do_POST(self):
+        """Лише для tools/precompute.html: зберегти готовий аналіз у samples/<id>.analysis.json."""
+        m = re.fullmatch(r"/__save/samples/([\w.-]+\.analysis\.json)", self.path)
+        if not m:
+            self.send_error(403, "only samples/*.analysis.json")
+            return
+        length = int(self.headers.get("Content-Length", 0))
+        if length > 20 * 1024 * 1024:
+            self.send_error(413)
+            return
+        data = self.rfile.read(length)
+        target = os.path.join(os.getcwd(), "samples", m.group(1))
+        with open(target, "wb") as f:
+            f.write(data)
+        self.send_response(200)
+        self.send_header("Content-Type", "text/plain; charset=utf-8")
+        self.end_headers()
+        self.wfile.write(f"saved {len(data)} bytes".encode())
+
     def copyfile(self, source, outputfile):
         left = getattr(self, "_range_left", None)
         if left is None:

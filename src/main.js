@@ -97,8 +97,8 @@ async function loadSource(title, open, item) {
     app.profile = app.analysis.profile;
     const dt = ((performance.now() - t0) / 1000).toFixed(1);
     setProgress(1);
-    const how = app.analysis.fromCache ? "узято з кешу" : app.analysis.fromPrecomputed ? "завантажено готовий" : `виконано за ${dt} с`;
-    setStatus(`Аналіз ${how}: ${app.analysis.count} кадрів, подій: ${app.analysis.events.length}.`);
+    const how = app.analysis.fromCache ? "Аналіз узято з кешу" : app.analysis.fromPrecomputed ? "Готовий аналіз завантажено" : `Аналіз виконано за ${dt} с`;
+    setStatus(`${how}: ${app.analysis.count} кадрів, подій: ${app.analysis.events.length}.`);
     renderCard();
     $("timeline-wrap").hidden = false;     // спершу показати — інакше canvas має ширину 0
     timeline.set(app.analysis);
