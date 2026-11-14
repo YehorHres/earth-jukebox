@@ -125,7 +125,7 @@ export function setupExplore(app, { engine }) {
     return state.last;
   }
 
-  function sound(res) {
+  function sound(res, { touch = false } = {}) {
     if (!res.place.inside || res.r.value === null || !app.score) return;
     const now = performance.now();
     if (now - state.lastSound < 90) return;
@@ -137,7 +137,8 @@ export function setupExplore(app, { engine }) {
       engine.fade(0.9, 0.02);
       playNote(engine, engine.bus("probe", { send: 0.2 }), inst, { midi, dur: 0.35, vel: 0.6, pan: state.x * 2 - 1, legato: false }, engine.ctx.currentTime + 0.01);
     });
-    if (navigator.vibrate) navigator.vibrate(Math.round(15 + 150 * res.r.value));
+    // вібрація — лише при дотику (на телефоні); з клавіатури чи мишею браузер її блокує
+    if (touch && navigator.vibrate) navigator.vibrate(Math.round(15 + 150 * res.r.value));
   }
 
   function draw() {
@@ -153,10 +154,10 @@ export function setupExplore(app, { engine }) {
     g.beginPath(); g.moveTo(px - 16 * dpr, py); g.lineTo(px + 16 * dpr, py); g.moveTo(px, py - 16 * dpr); g.lineTo(px, py + 16 * dpr); g.stroke();
   }
 
-  function update({ speak = true, immediate = false } = {}) {
+  function update({ speak = true, immediate = false, touch = false } = {}) {
     const res = probe();
     draw();
-    sound(res);
+    sound(res, { touch });
     $("explore-readout").textContent = res.text;
     clearTimeout(state.speakTimer);
     if (speak) state.speakTimer = setTimeout(() => announce(res.text, { force: true }), immediate ? 0 : 280);
@@ -205,8 +206,8 @@ export function setupExplore(app, { engine }) {
     state.x = Math.max(0, Math.min(1, (ev.clientX - r.left - ox) / (w * k)));
     state.y = Math.max(0, Math.min(1, (ev.clientY - r.top - oy) / (h * k)));
   };
-  viewer.addEventListener("pointermove", ev => { if (!state.on) return; fromPointer(ev); update(); });
-  viewer.addEventListener("pointerdown", ev => { if (!state.on) return; ev.preventDefault(); fromPointer(ev); update({ immediate: true }); });
+  viewer.addEventListener("pointermove", ev => { if (!state.on) return; fromPointer(ev); update({ touch: ev.pointerType === "touch" }); });
+  viewer.addEventListener("pointerdown", ev => { if (!state.on) return; ev.preventDefault(); fromPointer(ev); update({ immediate: true, touch: ev.pointerType === "touch" }); });
 
   return { setOn, state, update, probe };
 }
