@@ -130,4 +130,46 @@ export const SCENES = {
     },
     truth: () => true,
   },
+  // ---- v4-15: «справжні» відео учасників ----
+  // глобальна карта з чорними смугами згори/знизу, горизонтальною шкалою в нижній смузі й датою, що міняється
+  "letterbox-date": {
+    w: 640, h: 360, duration: 12, fps: 10, shape: "rect", date: [8, 46, 150, 70],
+    draw(g, t, W, H) {
+      g.fillStyle = "#000"; g.fillRect(0, 0, W, H);
+      drawHeatMap(g, 0, 40, 640, 280, t);
+      for (let k = 0; k < 200; k++) { g.fillStyle = heat(k / 199); g.fillRect(220 + k, 332, 1, 12); }
+      const f = Math.round(t * this.fps), day = 1 + (f % 28), mon = 1 + Math.floor(f / 28) % 12;
+      g.fillStyle = "#fff"; g.font = "bold 18px sans-serif";
+      g.fillText(`2005-${String(mon).padStart(2, "0")}-${String(day).padStart(2, "0")}`, 12, 64);
+    },
+    truth(x, y) { const [x0, y0, x1, y1] = this.date; return y >= 40 && y < 320 && !(x >= x0 && x < x1 && y >= y0 && y < y1); },
+  },
+  // карта «країни» на чорному; з 4-ї по 6-ту секунду камера наближається (×1.04 за кадр)
+  "country-zoom": {
+    w: 480, h: 270, duration: 12, fps: 10, shape: "any", zoom: [4, 6],
+    scaleAt(t) { const [a, b] = this.zoom, k = Math.round((Math.min(b, Math.max(a, t)) - a) * this.fps); return 1.04 ** k; },
+    draw(g, t, W, H) {
+      g.fillStyle = "#000"; g.fillRect(0, 0, W, H);
+      const s = this.scaleAt(t);
+      g.save(); g.translate(W / 2, H / 2); g.scale(s, s); g.translate(-W / 2, -H / 2);
+      g.beginPath(); g.ellipse(W / 2, H / 2, 110, 60, 0, 0, 7); g.clip();
+      drawHeatMap(g, W / 2 - 110, H / 2 - 60, 220, 120, t);
+      g.restore();
+    },
+    // область — уся «країна» при найбільшому наближенні (об'єднання по кадрах)
+    truth(x, y) { const s = this.scaleAt(99); return ((x - this.w / 2) / (110 * s)) ** 2 + ((y - this.h / 2) / (60 * s)) ** 2 <= 1; },
+  },
+  // білі полярні смуги — це лід (дані), а не рамка; межа льоду рухається
+  "polar-white": {
+    w: 640, h: 360, duration: 12, fps: 10, shape: "full",
+    draw(g, t, W, H) {
+      drawHeatMap(g, 0, 0, W, H, t);
+      g.fillStyle = "rgb(240,244,248)";
+      for (let x = 0; x < W; x += 4) {
+        const top = 36 + 10 * Math.sin(x * 0.03 + t * 0.6), bot = 30 + 8 * Math.cos(x * 0.025 - t * 0.5);
+        g.fillRect(x, 0, 4, top); g.fillRect(x, H - bot, 4, bot);
+      }
+    },
+    truth: () => true,
+  },
 };

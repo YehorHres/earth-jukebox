@@ -87,9 +87,17 @@ export function detectDynamicText({ w, h, pxStd, maxVal, minSat, exclude = null 
   }
   const { lab, sizes } = components(dil, w, h);
   const mask = new Uint8Array(n), boxes = [];
+  // «схоже на літеру» без умови мерехтіння — щоб дописати незмінну частину дати («2005-»)
+  const letter = i => maxVal[i] > 0.6 && minSat[i] < 0.25 && !(exclude && exclude[i]);
+  const colHas = (x, y0, y1) => { for (let y = y0; y <= y1; y++) if (letter(y * w + x)) return true; return false; };
   sizes.forEach((size, id) => {
     let x0 = w, y0 = h, x1 = -1, y1 = -1, c = 0;
     for (let i = 0; i < n; i++) if (lab[i] === id) { const x = i % w, y = (i - x) / w; if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y; if (cand[i]) c++; }
+    // текст не торкається рамки кадру і не впирається в межу зони кута (а от межа льоду чи хмар — так)
+    if (x0 <= 0 || y0 <= 0 || x1 >= w - 1 || y1 >= h - 1 || (x0 < mx && x1 >= mx - 1) || (x1 >= w - mx && x0 <= w - mx)) return;
+    // дописуємо статичну частину рядка ліворуч і праворуч (проміжки між літерами ≤ 4 стовпці)
+    for (let x = x0 - 1; x >= 1 && x0 - x <= 5; x--) if (colHas(x, y0, y1)) x0 = x;
+    for (let x = x1 + 1; x <= w - 2 && x - x1 <= 5; x++) if (colHas(x, y0, y1)) x1 = x;
     const bw = x1 - x0 + 1, bh = y1 - y0 + 1;
     if (c < 4 || bw * bh > n * 0.03 || bw < bh * 1.5 || bh > h * 0.12) return;   // текст: малий, широкий, низький
     boxes.push({ x0: x0 / w, y0: y0 / h, x1: (x1 + 1) / w, y1: (y1 + 1) / h });
@@ -122,16 +130,19 @@ export function estimateCamera(prev, cur) {
   const sad = (s, dx, dy) => {
     let sum = 0, c = 0;
     for (let y = 2; y < H - 2; y++) for (let x = 3; x < W - 3; x++) {
-      // звідки точка (x, y) поточного кадру взялась у попередньому
-      const px = Math.round(cx + (x - cx) / s - dx), py = Math.round(cy + (y - cy) / s - dy);
-      if (px < 0 || px >= W || py < 0 || py >= H) continue;
-      sum += Math.abs(cur[y * W + x] - prev[py * W + px]); c++;
+      // звідки точка (x, y) поточного кадру взялась у попередньому (білінійно — бачимо й субклітинковий рух)
+      const fx = cx + (x - cx) / s - dx, fy = cy + (y - cy) / s - dy;
+      const x0 = Math.floor(fx), y0 = Math.floor(fy);
+      if (x0 < 0 || x0 >= W - 1 || y0 < 0 || y0 >= H - 1) continue;
+      const ax = fx - x0, ay = fy - y0, k = y0 * W + x0;
+      const v = (prev[k] * (1 - ax) + prev[k + 1] * ax) * (1 - ay) + (prev[k + W] * (1 - ax) + prev[k + W + 1] * ax) * ay;
+      sum += Math.abs(cur[y * W + x] - v); c++;
     }
     return c > W * H * 0.4 ? sum / c : Infinity;
   };
   const id = sad(1, 0, 0);
   let best = { scale: 1, dx: 0, dy: 0, v: id };
-  for (const s of [0.92, 0.96, 1, 1.04, 1.08]) for (let dx = -2; dx <= 2; dx++) for (let dy = -2; dy <= 2; dy++) {
+  for (const s of [0.9, 0.94, 0.97, 1, 1.03, 1.06, 1.1]) for (let dx = -2; dx <= 2; dx++) for (let dy = -2; dy <= 2; dy++) {
     if (s === 1 && !dx && !dy) continue;
     const v = sad(s, dx, dy);
     if (v < best.v) best = { scale: s, dx, dy, v };

@@ -18,7 +18,7 @@ export function serializeAnalysis(a) {
     zones: a.zones.map(z => ({ cols: z.cols.map(v => (v === null ? null : r5(v))), colsCover: z.colsCover.map(r5), bands: mapObj(z.bands, v => (v === null ? null : r5(v))), hemi: z.hemi })),
     norm: a.norm, labels: a.labels, events: a.events, cuts: a.cuts, period: a.period, climax: a.climax,
     hotspots: a.hotspots.map(({ series, ...h }) => h),
-    keyFeatures: a.keyFeatures, mainFeature: a.mainFeature, leadFeature: a.leadFeature,
+    keyFeatures: a.keyFeatures, mainFeature: a.mainFeature, leadFeature: a.leadFeature, camera: a.camera,
     seconds: a.seconds, processor: a.processor, createdAt: new Date().toISOString(),
   };
 }

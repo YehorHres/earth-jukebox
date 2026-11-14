@@ -157,7 +157,18 @@ export function buildAnalysis(profile, pb) {
   const sceneType = profile.sceneType;
   const keyFeatures = [...(KEY_FEATURES[sceneType] || KEY_FEATURES.mixed)];
   if (abs.hotspot1) keyFeatures.push("hotspot1");
-  const events = n > 1 ? detectEvents({ times, abs, rel, norm, valid, rate, keyFeatures, labels, zonesCols: zones.map(z => z.cols) }) : [];
+  // v4-15: рух камери / наближення. Площа й яскравість тут змінюються через камеру, а не через дані —
+  // у цих кадрах (±0.5 с) події не народжуються. Самі ознаки вже нормовані на площу області даних кадру.
+  const camMotion = Float32Array.from(frames, f => f.cam?.motion || 0);
+  const camMoving = new Uint8Array(n), pad = Math.max(1, Math.round(rate * 0.5));
+  for (let i = 0; i < n; i++) if (camMotion[i] > 0) for (let k = Math.max(0, i - pad); k <= Math.min(n - 1, i + pad); k++) camMoving[k] = 1;
+  const camera = { movingShare: n ? camMoving.reduce((s, v) => s + v, 0) / n : 0, segments: [] };
+  for (let i = 0; i < n; i++) if (camMoving[i] && !camMoving[i - 1]) {
+    let j = i; while (j + 1 < n && camMoving[j + 1]) j++;
+    camera.segments.push({ frame: i, time: times[i], endFrame: j, endTime: times[j] });
+  }
+  const events = (n > 1 ? detectEvents({ times, abs, rel, norm, valid, rate, keyFeatures, labels, zonesCols: zones.map(z => z.cols) }) : [])
+    .filter(e => !camMoving[e.frame]);
 
   // ---- провідна ознака: перша значуща з «історії» сцени → головної → гарячої точки → ключових
   const main = MAIN_FEATURE[sceneType] || "brightness";
@@ -197,7 +208,7 @@ export function buildAnalysis(profile, pb) {
 
   return {
     version: ANALYSIS_VERSION, profile, rate, count: n, times, valid, abs, rel, temporal, rank, zones, norm, labels,
-    events, cuts, period, climax, hotspots, keyFeatures, mainFeature: main, leadFeature,
+    events, cuts, period, climax, hotspots, keyFeatures, mainFeature: main, leadFeature, camera,
   };
 }
 
