@@ -1,0 +1,18 @@
+{
+  "name": {
+    "uk": "Оркестр",
+    "en": "Orchestral"
+  },
+  "kit": "orchestral",
+  "instruments": {
+    "pad": "strings",
+    "bass": "contrabass",
+    "arp": "harp",
+    "melody": "violin",
+    "counter": "horn",
+    "accents": "bells",
+    "stars": "celesta"
+  },
+  "why": "Симфонічний оркестр: струнні, арфа, скрипка, валторна, дзвони",
+  "id": "orchestral"
+}

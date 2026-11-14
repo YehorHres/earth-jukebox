@@ -12,6 +12,16 @@ export const SAMPLE_SETS = {
   harp: ["C3", "G3", "D4", "A4", "E5", "B5", "F6"],
   contrabass: ["G1", "C2", "E2", "A2", "Cs3", "E3"],
   horn: ["C2", "G2", "D3", "F3", "C4"],
+  // етап 11: решта CC-BY 3.0 інструментів (ноти приблизно через терцію)
+  tuba: ["F1", "As1", "Ds2", "As2", "D3"],
+  trombone: ["Ds2", "Gs2", "C3", "F3", "As3", "D4"],
+  trumpet: ["F3", "A3", "Ds4", "G4", "D5", "F5"],
+  saxophone: ["D3", "Fs3", "As3", "D4", "Fs4", "As4", "D5"],
+  organ: ["C2", "Fs2", "C3", "Fs3", "C4", "Fs4", "C5"],
+  harmonium: ["C3", "E3", "Gs3", "C4", "E4", "Gs4", "C5"],
+  xylophone: ["G4", "C5", "G5", "C6", "G6", "C7"],
+  guitar: ["E2", "Gs2", "C3", "E3", "Gs3", "C4", "E4", "Gs4"],
+  eguitar: ["E2", "A2", "C3", "Fs3", "C4", "Fs4", "A4"],
 };
 
 const BASE = new URL("../../vendor/samples/", import.meta.url);

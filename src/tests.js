@@ -340,6 +340,53 @@ SUITES.push(async function stage10() {
   check("Фото: напрям північ→південь (лінія йде згори вниз)", L1.dir === "ns" && L2.y > L1.y, `y ${L1.y.toFixed(2)} → ${L2.y.toFixed(2)}`);
 });
 
+SUITES.push(async function stage11() {
+  const L = await import("./audio/library/index.js");
+  const I = await import("./audio/instruments.js");
+  const { KITS } = await import("./audio/library/kits.js");
+  const { loadStyles } = await import("./styles/index.js");
+  const { Engine } = await import("./audio/engine.js");
+  const { compose } = await import("./composer/composer.js");
+  const { renderOffline } = await import("./audio/render.js");
+  const all = L.listInstruments();
+  const r = await L.loadFor(new OfflineAudioContext(1, 1, 44100), all.map(i => i.id));
+  check("Бібліотека: ≥ 15 семплів CC-BY і ≥ 40 синтезаторів, родини", all.filter(i => i.kind === "sample").length >= 15 && all.filter(i => i.kind === "synth").length >= 40 && !r.failed.length,
+    `${all.length} інструментів (${all.filter(i => i.kind === "sample").length} семплів, ${all.filter(i => i.kind === "synth").length} синтезаторів); родини: ${L.families().join(", ")}`);
+  const peakOf = async (inst, midi) => {
+    const ctx = new OfflineAudioContext(2, 44100 * 1.5, 44100);
+    const e = new Engine(); await e.init(ctx);
+    I.playNote(e, e.bus("t", { send: 0 }), inst, { midi, dur: 0.8, vel: 0.7, pan: 0, amount: 0.6 }, 0.02);
+    const b = await ctx.startRendering(); let m = 0; for (const v of b.getChannelData(0)) m = Math.max(m, Math.abs(v)); return m;
+  };
+  const silent = [];
+  for (const i of all) {
+    const midi = Math.round((Math.max(24, i.range[0]) + Math.min(108, i.range[1])) / 2);
+    if ((await peakOf(i.id, midi)) < 0.003) silent.push(i.id);
+    if (i.kind === "sample" && (await peakOf(I.FALLBACK[i.id] || i.id, midi)) < 0.003) silent.push(`${i.id} (запасний синтезатор)`);
+  }
+  check("Кожен інструмент бібліотеки звучить (і запасні синтезатори семплів)", !silent.length, silent.join(", ") || `${all.length} інструментів`);
+  // стиль змінює лише інструменти: ті самі ноти, ритм і форма
+  const m = window.__mapEcco, base = compose(m, { seed: "s11" });
+  const styles = await loadStyles();
+  // стиль не чіпає даних: та сама гармонія (тональність, лади, акорди) і ті самі моменти нот партій;
+  // висота може зсунутись в регістр нового інструмента, бас-дрон тримає довгу ноту — це тембр, не дані
+  const sig = s => s.harmony.bars.map(h => `${h.root}${h.mode.id}${h.chords[0].chord.degree}`).join(",") + "#" +
+    s.notes.filter(n => ["pad", "arp", "melody", "counter", "accents"].includes(n.part)).map(n => `${n.part}:${n.t.toFixed(3)}`).join("|");
+  const bad = [], diffs = [];
+  for (const st of styles) {
+    const s = compose(m, { seed: "s11", style: st });
+    if (sig(s) !== sig(base)) bad.push(st.id);
+    diffs.push(`${st.id}: ${s.parts.map(p => p.instrument).slice(0, 5).join(",")} / ${s.kit.id}`);
+    const out = await renderOffline(s, m, { from: m.meta.duration * 0.45, seconds: 3 });
+    if (!(out.rms > 0.003) || out.peak > 1) bad.push(`${st.id} (рендер)`);
+  }
+  check("Стилі: та сама гармонія й ритм, інші інструменти; кожен стиль звучить", !bad.length, bad.join(", ") || diffs.join(" · "));
+  const drumsInst = st => new Set(compose(m, { seed: "s11", style: st }).notes.filter(n => n.part === "drums").map(n => n.inst));
+  const el = drumsInst(styles.find(s => s.id === "electronic")), orch = drumsInst(styles.find(s => s.id === "orchestral"));
+  check("Набори ударних: електронний ≠ оркестровий", [...el].some(i => ["kick808", "clap", "hihat", "tom"].includes(i)) && ![...orch].some(i => ["kick808", "clap", "hihat"].includes(i)) && Object.keys(KITS).length >= 4,
+    `електронний: ${[...el].join(",")}; оркестровий: ${[...orch].join(",")}`);
+});
+
 (async () => {
   for (const s of SUITES) {
     try { await s(); }

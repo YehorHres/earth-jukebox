@@ -45,6 +45,6 @@ export default {
       const k = 10, startT = bar.t0 + bar.dur - 2 * beat;
       for (let i = 0; i < k; i++) out.push({ inst: "timpani", t: startT + i * (2 * beat / k), midi: tpRoot, dur: 0.4, vel: 0.15 + 0.5 * (i / k), fixed: true });
     }
-    if (bar.sectionStart && bar.section === "climax") out.push({ inst: "timpani", t: bar.t0, midi: tpRoot, dur: 1.2, vel: 0.85, fixed: true });
+    if (bar.sectionStart && bar.section === "climax") out.push({ inst: "timpani", t: bar.t0, midi: tpRoot, dur: 1.2, vel: 0.85, fixed: true }, { inst: "cymbal", t: bar.t0, midi: 0, dur: 2, vel: 0.7, fixed: true });
   },
 };

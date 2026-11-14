@@ -1,0 +1,18 @@
+{
+  "name": {
+    "uk": "Фортепіано",
+    "en": "Piano"
+  },
+  "kit": "ambient",
+  "instruments": {
+    "pad": "piano",
+    "bass": "piano",
+    "arp": "piano",
+    "melody": "piano",
+    "counter": "piano",
+    "accents": "piano",
+    "stars": "piano"
+  },
+  "why": "Усі партії — фортепіано: дані звучать як соло піаніста",
+  "id": "piano"
+}

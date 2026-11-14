@@ -154,6 +154,85 @@ export function topicSynths({ out, env, osc, vibrato, mtof, bell }) {
       o.connect(og).connect(dst); o.start(t); o.stop(t + 1.5);
     },
 
+    /* ---------- етап 11: ще тембри ---------- */
+    handpan(eng, dest, n, t) { bell(eng, dest, n, t, [[1, 1], [2, 0.35], [2.98, 0.12], [4.1, 0.05]], 2.4, 0.2); },
+    lead(eng, dest, n, t) {
+      const ctx = eng.ctx, f = mtof(n.midi);
+      const { g, stop } = env(ctx, t, { a: 0.02, d: 0.2, s: 0.7, r: 0.25, dur: n.dur, peak: 0.08 * n.vel });
+      const lp = ctx.createBiquadFilter(); lp.type = "lowpass"; lp.Q.value = 4;
+      lp.frequency.setValueAtTime(2500, t); lp.frequency.exponentialRampToValueAtTime(1200, t + 0.3);
+      lp.connect(g).connect(out(eng, dest, t, n.pan));
+      const o = osc(ctx, "square", f, t, stop, 4); vibrato(ctx, o, t, stop, 5.5, 10, 0.3); o.connect(lp);
+      osc(ctx, "sawtooth", f, t, stop, -5).connect(lp);
+    },
+    pluck(eng, dest, n, t) {
+      const ctx = eng.ctx, f = mtof(n.midi), stop = t + 0.8;
+      const g = ctx.createGain(); g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(0.16 * n.vel, t + 0.003); g.gain.setTargetAtTime(0.0001, t + 0.004, 0.15);
+      const lp = ctx.createBiquadFilter(); lp.type = "lowpass"; lp.Q.value = 6; lp.frequency.setValueAtTime(5000, t); lp.frequency.exponentialRampToValueAtTime(500, t + 0.25);
+      lp.connect(g).connect(out(eng, dest, t, n.pan));
+      osc(ctx, "sawtooth", f, t, stop).connect(lp);
+    },
+    /* ---------- ударні для наборів ---------- */
+    cymbal(eng, dest, n, t) {
+      const ctx = eng.ctx, s = noiseSrc(eng, t, t + 2.5, false);
+      const hp = ctx.createBiquadFilter(); hp.type = "highpass"; hp.frequency.value = 5000;
+      const g = ctx.createGain(); g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(0.12 * n.vel, t + 0.005); g.gain.setTargetAtTime(0.0001, t + 0.01, 0.6);
+      s.connect(hp).connect(g).connect(out(eng, dest, t, 0.3));
+    },
+    kick808(eng, dest, n, t) {
+      const ctx = eng.ctx, o = ctx.createOscillator(); o.type = "sine";
+      o.frequency.setValueAtTime(150, t); o.frequency.exponentialRampToValueAtTime(48, t + 0.08);
+      const g = ctx.createGain(); g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(0.55 * n.vel, t + 0.003); g.gain.setTargetAtTime(0.0001, t + 0.02, 0.2);
+      o.connect(g).connect(out(eng, dest, t, 0)); o.start(t); o.stop(t + 1);
+    },
+    clap(eng, dest, n, t) {
+      const ctx = eng.ctx, s = noiseSrc(eng, t, t + 0.4, false);
+      const bp = ctx.createBiquadFilter(); bp.type = "bandpass"; bp.frequency.value = 1200; bp.Q.value = 1.5;
+      const g = ctx.createGain(); g.gain.setValueAtTime(0.0001, t);
+      for (const d of [0, 0.012, 0.024]) { g.gain.setValueAtTime(0.22 * n.vel, t + d); g.gain.setTargetAtTime(0.02, t + d + 0.002, 0.004); }
+      g.gain.setValueAtTime(0.18 * n.vel, t + 0.036); g.gain.setTargetAtTime(0.0001, t + 0.04, 0.06);
+      s.connect(bp).connect(g).connect(out(eng, dest, t, -0.1));
+    },
+    hihat(eng, dest, n, t) {
+      const ctx = eng.ctx, s = noiseSrc(eng, t, t + 0.1, false);
+      const hp = ctx.createBiquadFilter(); hp.type = "highpass"; hp.frequency.value = 8000;
+      const g = ctx.createGain(); g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(0.1 * n.vel, t + 0.002); g.gain.setTargetAtTime(0.0001, t + 0.004, 0.015);
+      s.connect(hp).connect(g).connect(out(eng, dest, t, 0.25));
+    },
+    tom(eng, dest, n, t) {
+      const ctx = eng.ctx, f = mtof(n.midi || 45), o = ctx.createOscillator(); o.type = "sine";
+      o.frequency.setValueAtTime(f * 1.5, t); o.frequency.exponentialRampToValueAtTime(f, t + 0.1);
+      const g = ctx.createGain(); g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(0.4 * n.vel, t + 0.004); g.gain.setTargetAtTime(0.0001, t + 0.02, 0.15);
+      o.connect(g).connect(out(eng, dest, t, -0.15)); o.start(t); o.stop(t + 1);
+    },
+    woodblock(eng, dest, n, t) { bell(eng, dest, { ...n, midi: 79 }, t, [[1, 1], [2.7, 0.3]], 0.12, 0.3); },
+    stone(eng, dest, n, t) {
+      const ctx = eng.ctx, s = noiseSrc(eng, t, t + 0.2, false);
+      const bp = ctx.createBiquadFilter(); bp.type = "bandpass"; bp.frequency.value = 350; bp.Q.value = 3;
+      const g = ctx.createGain(); g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(0.5 * n.vel, t + 0.002); g.gain.setTargetAtTime(0.0001, t + 0.004, 0.03);
+      s.connect(bp).connect(g).connect(out(eng, dest, t, 0));
+    },
+    waterdrop(eng, dest, n, t) {
+      const ctx = eng.ctx, o = ctx.createOscillator(); o.type = "sine";
+      const f = 900 + ((t * 977) % 700);
+      o.frequency.setValueAtTime(f, t); o.frequency.exponentialRampToValueAtTime(f * 1.8, t + 0.05);
+      const g = ctx.createGain(); g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(0.12 * n.vel, t + 0.003); g.gain.setTargetAtTime(0.0001, t + 0.01, 0.025);
+      o.connect(g).connect(out(eng, dest, t, 0.2)); o.start(t); o.stop(t + 0.2);
+    },
+    logdrum(eng, dest, n, t) { bell(eng, dest, { ...n, midi: n.midi || 50 }, t, [[1, 1], [1.5, 0.4], [2.2, 0.15]], 0.5, 0.35); },
+    softkick(eng, dest, n, t) {
+      const ctx = eng.ctx, o = ctx.createOscillator(); o.type = "sine";
+      o.frequency.setValueAtTime(80, t); o.frequency.exponentialRampToValueAtTime(40, t + 0.2);
+      const g = ctx.createGain(); g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(0.3 * n.vel, t + 0.02); g.gain.setTargetAtTime(0.0001, t + 0.04, 0.12);
+      o.connect(g).connect(out(eng, dest, t, 0)); o.start(t); o.stop(t + 0.8);
+    },
+    brush(eng, dest, n, t) {
+      const ctx = eng.ctx, s = noiseSrc(eng, t, t + 0.3, false);
+      const bp = ctx.createBiquadFilter(); bp.type = "bandpass"; bp.frequency.value = 3000; bp.Q.value = 0.7;
+      const g = ctx.createGain(); g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(0.08 * n.vel, t + 0.03); g.gain.setTargetAtTime(0.0001, t + 0.05, 0.06);
+      s.connect(bp).connect(g).connect(out(eng, dest, t, 0.15));
+    },
+
     /* ---------- текстури (одна «нота» на такт; n.amount = інтенсивність) ---------- */
     wind(eng, dest, n, t) {
       const ctx = eng.ctx, a = n.amount ?? 0.5, { g, stop } = texEnv(ctx, t, n, 0.08 + 0.12 * a, 0.6);

@@ -12,6 +12,10 @@ export const INSTRUMENT_LABEL = {
   tremolo: "тремоло струнних", pizz: "піцикато струнних", marimba: "маримба", kalimba: "калімба", glass: "скло", harmonics: "флажолети",
   fmbell: "FM-дзвони", clarinet: "кларнет", bassoon: "фагот", snare: "малий барабан",
   wind: "вітер", rain: "дощ", waves: "хвилі", crackle: "тріск вогню", air: "повітря", granular: "гранулярна текстура",
+  tuba: "туба", trombone: "тромбон", trumpet: "труба", saxophone: "саксофон", organ: "орган", harmonium: "фісгармонія",
+  xylophone: "ксилофон", guitar: "акустична гітара", eguitar: "електрогітара", handpan: "ханпан", lead: "синт-лід", pluck: "синт-щипок",
+  cymbal: "тарілка", kick808: "електронний бас-барабан", clap: "плеск", hihat: "хай-хет", tom: "том", woodblock: "дерев'яна коробочка",
+  stone: "камінь", waterdrop: "крапля води", logdrum: "дерев'яний барабан", softkick: "м'який удар", brush: "щітка",
   horn: "валторна", brass: "брас-стаб", swell: "свел (як тарілка)", perc: "перкусія (шейкер, литаври)", shaker: "шейкер", kick: "м'який барабан", timpani: "литаври",
 };
 
@@ -209,7 +213,7 @@ function playSample(eng, dest, n, t, s, inst) {
   src.buffer = best.buffer;
   src.playbackRate.value = Math.pow(2, (n.midi - best.midi) / 12);
   const g = ctx.createGain();
-  const sustained = inst === "strings" || inst === "cello" || inst === "violin" || inst === "flute" || inst === "horn";
+  const sustained = SUSTAINED.has(inst);
   const level = (SAMPLE_LEVEL[inst] ?? 0.5) * n.vel;
   const a = sustained ? (n.legato === false ? 0.03 : 0.12) : 0.002;
   g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(level, t + a);
@@ -220,13 +224,24 @@ function playSample(eng, dest, n, t, s, inst) {
   src.stop(t + Math.min(best.buffer.duration / src.playbackRate.value, n.dur + rel * 2.5) + 0.05);
 }
 // рівні вирівняно з синтезаторами (RMS однієї ноти, vel 0.6): заміна синтезатора на семпл не змінює баланс
-const SAMPLE_LEVEL = { piano: 0.37, harp: 0.47, violin: 0.39, contrabass: 0.82, flute: 0.5, horn: 0.48 };
+export const SAMPLE_LEVEL = { piano: 0.37, harp: 0.47, violin: 0.39, contrabass: 0.82, flute: 0.5, horn: 0.48,
+  tuba: 0.5, trombone: 0.25, trumpet: 0.25, saxophone: 0.3, organ: 0.25, harmonium: 0.29, xylophone: 0.69, guitar: 0.4, eguitar: 0.48 };
+const SUSTAINED = new Set(["strings", "cello", "violin", "flute", "horn", "tuba", "trombone", "trumpet", "saxophone", "organ", "harmonium"]);
 
-/** Зіграти ноту: семпл, якщо є, інакше синтезатор (музика ніколи не мовчить). */
+// запасний синтезатор для інструментів, що існують лише як семпли (офлайн / файлів немає)
+export const FALLBACK = { tuba: "tuba", trombone: "brass", trumpet: "brass", saxophone: "clarinet", organ: "organ", harmonium: "organ",
+  xylophone: "marimba", guitar: "harp", eguitar: "pizz" };
+
+/** Зіграти ноту: семпл, якщо є (і для тривалої ноти семпл досить довгий), інакше синтезатор — музика ніколи не мовчить. */
 export function playNote(eng, dest, inst, n, t) {
   const s = samplers.get(inst);
-  if (s) return playSample(eng, dest, n, t, s, inst);
-  (SYNTH[inst] || SYNTH.piano)(eng, dest, n, t);
+  if (s) {
+    // тривала нота довша за семпл — синтезатор (без обриву звуку посеред ноти)
+    const near = s.buffers.reduce((b, x) => (Math.abs(x.midi - n.midi) < Math.abs(b.midi - n.midi) ? x : b), s.buffers[0]);
+    const len = near.buffer.duration / Math.pow(2, (n.midi - near.midi) / 12);
+    if (!(SUSTAINED.has(inst) && n.dur > len * 0.95 && (SYNTH[inst] || SYNTH[FALLBACK[inst]]))) return playSample(eng, dest, n, t, s, inst);
+  }
+  (SYNTH[inst] || SYNTH[FALLBACK[inst]] || SYNTH.piano)(eng, dest, n, t);
 }
 
 export const synthNames = () => Object.keys(SYNTH);

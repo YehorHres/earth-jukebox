@@ -4,7 +4,8 @@ import { compose } from "../composer/composer.js";
 import { Engine } from "../audio/engine.js";
 import { Player } from "../audio/player.js";
 import { INSTRUMENT_LABEL, hasSampler } from "../audio/instruments.js";
-import { loadSamples } from "../audio/samples.js";
+import { loadFor } from "../audio/library/index.js";
+import { loadStyle, loadStyles } from "../styles/index.js";
 import { renderOffline, toWav } from "../audio/render.js";
 import { legendItems, playItem, playLegend } from "../a11y/legend.js";
 import { announce, setMinGap, stopVoice } from "../a11y/announcer.js";
@@ -103,7 +104,7 @@ export function setupPlayback(app, { timeline, mappingTable }) {
     root.replaceChildren();
     app.score.parts.forEach((p, k) => {
       const st = engine.getPart(p.id);
-      const instr = `${INSTRUMENT_LABEL[p.instrument] || p.instrument}${hasSampler(p.instrument) ? " · справжні семпли" : ""}`;
+      const instr = p.id === "drums" ? `набір: ${app.score.kit?.label || "оркестровий"}` : `${INSTRUMENT_LABEL[p.instrument] || p.instrument}${hasSampler(p.instrument) ? " · справжні семпли" : ""}`;
       const name = Object.assign(document.createElement("span"), { className: st.mute ? "off" : "on", title: p.role });
       name.append(`${k + 1}. ${p.label} `, Object.assign(document.createElement("small"), { className: "keys", textContent: `(${instr})` }));
       const mute = Object.assign(document.createElement("button"), { textContent: st.mute ? "Увімк." : "Вимк." });
@@ -144,7 +145,7 @@ export function setupPlayback(app, { timeline, mappingTable }) {
     const insts = [...new Set(app.score.notes.map(n => n.inst))];
     const decoder = new OfflineAudioContext(1, 1, 44100);
     const status = $("status"), base = status.textContent;
-    loadSamples(decoder, insts, (d, n) => { status.textContent = `${base} Семпли інструментів: ${d}/${n}…`; })
+    loadFor(decoder, insts, (d, n) => { status.textContent = `${base} Семпли інструментів: ${d}/${n}…`; })
       .then(({ loaded, failed }) => {
         status.textContent = `${base} ${loaded.length ? `Справжні інструменти: ${loaded.map(i => INSTRUMENT_LABEL[i]).join(", ")}.` : ""}${failed.length ? ` Синтезатор замість: ${failed.map(i => INSTRUMENT_LABEL[i]).join(", ")}.` : ""}`;
         renderParts();
@@ -201,6 +202,22 @@ export function setupPlayback(app, { timeline, mappingTable }) {
     const ev = m.bars.flatMap(b => b.events).slice(0, 8).map(e => `${fmtTime(e.time)} ${e.text}`).join("; ");
     $("timeline").setAttribute("aria-label", `Таймлайн. Розділи: ${secs}. ${ev ? "Головні події: " + ev + "." : "Помітних подій немає."} Клік або стрілки — перехід у часі.`);
   }
+
+  /* ---- стиль звучання (етап 11): перекриває лише інструменти партій; дані й мапінг ті самі ---- */
+  loadStyles().then(styles => {
+    const sel = $("style");
+    for (const st of styles) sel.appendChild(Object.assign(document.createElement("option"), { value: st.id, textContent: st.name.uk }));
+  });
+  $("style").addEventListener("change", async e => {
+    const st = await loadStyle(e.target.value);
+    app.style = st;
+    if (!app.mapping) return;
+    const was = player.playing, at = player.time;
+    await onMapped();
+    if (at) await player.seek(at);
+    if (was) { await player.play(); setPlayUI(true); }
+    announce(st ? `Стиль: ${st.name.uk}. ${st.why}. Дані, гармонія й ритм — ті самі.` : "Стиль: за темою карти.", { force: true });
+  });
 
   app.seekTo = t => { if (app.score) player.seek(t); };
   $("play").addEventListener("click", toggle);

@@ -6,6 +6,7 @@ import { makeRng } from "../util/rng.js";
 import { planHarmony } from "./harmony.js";
 import { humanize } from "./humanize.js";
 import { meterOf } from "./meter.js";
+import { kitOf } from "../audio/library/kits.js";
 import bass from "./parts/bass.js";
 import pad from "./parts/pad.js";
 import arp from "./parts/arp.js";
@@ -38,7 +39,8 @@ export function compose(mapping, { seed = "earth-jukebox", style = null } = {}) 
   const instr = { ...DEFAULT_INSTRUMENTS, ...(sp.instruments || {}), ...(style?.instruments || {}) };
   const allowed = new Set(sp.parts || DEFAULT_PARTS);
   const parts = PARTS.filter(p => allowed.has(p.id));
-  const profile = { rhythm: sp.rhythm || "steady", fx: sp.fx || [], instruments: instr };
+  const kitId = style?.kit || sp.kit || "orchestral", kit = kitOf(kitId);
+  const profile = { rhythm: sp.rhythm || "steady", fx: sp.fx || [], instruments: instr, kit };
   const notes = [];
   const state = Object.fromEntries(parts.map(p => [p.id, {}]));
   const barInfo = [];
@@ -53,7 +55,11 @@ export function compose(mapping, { seed = "earth-jukebox", style = null } = {}) 
       active.push(part.id);
       const out = [];
       part.render({ ...ctx, state: state[part.id] }, out);
-      for (const n of out) notes.push({ part: part.id, inst: n.inst || instr[part.id], pan: bar.params.pan * 0.4, ...n });
+      for (const n of out) {
+        // ударні: роль (kick, snare, shaker, timpani, cymbal) → інструмент набору теми/стилю
+        const inst = part.id === "drums" && kit[n.inst] ? kit[n.inst] : n.inst || instr[part.id];
+        notes.push({ part: part.id, pan: bar.params.pan * 0.4, ...n, inst });
+      }
     }
     barInfo.push({ active, why: harmony.bars[b].why, mode: harmony.bars[b].mode.label, level: harmony.bars[b].level });
   }
@@ -66,7 +72,7 @@ export function compose(mapping, { seed = "earth-jukebox", style = null } = {}) 
 
   return {
     bpm: meta.bpm, barDur: meta.barDur, duration: bars.length * meta.barDur, topic: meta.topic, meter,
-    key: harmony.keyName, harmony, notes, bars: barInfo, why: meta.why || {},
+    key: harmony.keyName, harmony, notes, bars: barInfo, why: meta.why || {}, kit: { id: kitId, label: kit.label }, style: style?.id || null,
     // партії, які справді звучать у цьому треку
     parts: parts.filter(p => byPart[p.id]).map(p => ({ id: p.id, label: p.label, instrument: instr[p.id] || "perc", role: p.role })),
   };

@@ -1,251 +1,1119 @@
 [
   {
     "id": "co2",
-    "name": { "uk": "Вуглекислий газ (CO₂)", "en": "Carbon dioxide (CO₂)" },
-    "synonyms": {
-      "uk": ["вуглекислий газ", "вуглекислота", "діоксид вуглецю", "двоокис вуглецю", "co2", "викиди", "викиди co2", "парникові гази", "парниковий газ", "вуглець", "концентрація co2"],
-      "en": ["carbon dioxide", "co2", "carbon", "emissions", "carbon emissions", "greenhouse gas", "greenhouse gases"]
+    "name": {
+      "uk": "Вуглекислий газ (CO₂)",
+      "en": "Carbon dioxide (CO₂)"
     },
-    "units": { "uk": "ppm (частин на мільйон)", "en": "ppm" },
-    "more": { "uk": "більше CO₂ в атмосфері", "en": "more CO₂ in the atmosphere" },
+    "synonyms": {
+      "uk": [
+        "вуглекислий газ",
+        "вуглекислота",
+        "діоксид вуглецю",
+        "двоокис вуглецю",
+        "co2",
+        "викиди",
+        "викиди co2",
+        "парникові гази",
+        "парниковий газ",
+        "вуглець",
+        "концентрація co2"
+      ],
+      "en": [
+        "carbon dioxide",
+        "co2",
+        "carbon",
+        "emissions",
+        "carbon emissions",
+        "greenhouse gas",
+        "greenhouse gases"
+      ]
+    },
+    "units": {
+      "uk": "ppm (частин на мільйон)",
+      "en": "ppm"
+    },
+    "more": {
+      "uk": "більше CO₂ в атмосфері",
+      "en": "more CO₂ in the atmosphere"
+    },
     "preset": "co2",
     "soundProfile": {
-      "key": { "rule": "data" }, "modes": ["dorian", "aeolian", "phrygian"], "bpm": [50, 72], "meter": "4/4",
-      "instruments": { "pad": "organ", "bass": "tuba", "arp": "horn", "drums": "perc", "melody": "horn", "counter": "cello", "accents": "brass", "texture": "drone" },
-      "parts": ["pad", "bass", "arp", "drums", "melody", "counter", "accents", "texture"],
-      "rhythm": "slow", "space": 0.6, "fx": [],
-      "why": "Низькі мідні, туба й орган — важкий повільний звук: CO₂ накопичується поволі й нікуди не дівається"
+      "key": {
+        "rule": "data"
+      },
+      "modes": [
+        "dorian",
+        "aeolian",
+        "phrygian"
+      ],
+      "bpm": [
+        50,
+        72
+      ],
+      "meter": "4/4",
+      "instruments": {
+        "pad": "organ",
+        "bass": "tuba",
+        "arp": "horn",
+        "drums": "perc",
+        "melody": "horn",
+        "counter": "trombone",
+        "accents": "brass",
+        "texture": "drone"
+      },
+      "parts": [
+        "pad",
+        "bass",
+        "arp",
+        "drums",
+        "melody",
+        "counter",
+        "accents",
+        "texture"
+      ],
+      "rhythm": "slow",
+      "space": 0.6,
+      "fx": [],
+      "why": "Низькі мідні, туба й орган — важкий повільний звук: CO₂ накопичується поволі й нікуди не дівається",
+      "kit": "orchestral"
     }
   },
   {
     "id": "temperature",
-    "name": { "uk": "Температура (поверхні моря, повітря)", "en": "Temperature (sea surface, air)" },
-    "synonyms": {
-      "uk": ["температура", "температура океану", "температура поверхні моря", "температура моря", "температура повітря", "тепло", "спека", "потепління", "глобальне потепління", "аномалії температури", "sst"],
-      "en": ["temperature", "sea surface temperature", "sst", "air temperature", "heat", "warming", "global warming", "temperature anomaly", "heatwave"]
+    "name": {
+      "uk": "Температура (поверхні моря, повітря)",
+      "en": "Temperature (sea surface, air)"
     },
-    "units": { "uk": "°C", "en": "°C" },
-    "more": { "uk": "тепліше", "en": "warmer" },
+    "synonyms": {
+      "uk": [
+        "температура",
+        "температура океану",
+        "температура поверхні моря",
+        "температура моря",
+        "температура повітря",
+        "тепло",
+        "спека",
+        "потепління",
+        "глобальне потепління",
+        "аномалії температури",
+        "sst"
+      ],
+      "en": [
+        "temperature",
+        "sea surface temperature",
+        "sst",
+        "air temperature",
+        "heat",
+        "warming",
+        "global warming",
+        "temperature anomaly",
+        "heatwave"
+      ]
+    },
+    "units": {
+      "uk": "°C",
+      "en": "°C"
+    },
+    "more": {
+      "uk": "тепліше",
+      "en": "warmer"
+    },
     "preset": null,
     "soundProfile": {
-      "key": { "rule": "data" }, "modes": ["lydian", "ionian", "mixolydian", "dorian", "aeolian", "phrygian"], "bpm": [66, 104], "meter": "4/4",
-      "instruments": { "pad": "strings", "bass": "contrabass", "arp": "piano", "drums": "perc", "melody": "violin", "counter": "horn", "accents": "bells" },
-      "parts": ["pad", "bass", "arp", "drums", "melody", "counter", "accents"],
-      "rhythm": "steady", "space": 0.4, "fx": [],
-      "why": "Струнні, фортепіано й валторна: тепло — висота й лад, аномалії — напруга"
+      "key": {
+        "rule": "data"
+      },
+      "modes": [
+        "lydian",
+        "ionian",
+        "mixolydian",
+        "dorian",
+        "aeolian",
+        "phrygian"
+      ],
+      "bpm": [
+        66,
+        104
+      ],
+      "meter": "4/4",
+      "instruments": {
+        "pad": "strings",
+        "bass": "contrabass",
+        "arp": "piano",
+        "drums": "perc",
+        "melody": "violin",
+        "counter": "horn",
+        "accents": "bells"
+      },
+      "parts": [
+        "pad",
+        "bass",
+        "arp",
+        "drums",
+        "melody",
+        "counter",
+        "accents"
+      ],
+      "rhythm": "steady",
+      "space": 0.4,
+      "fx": [],
+      "why": "Струнні, фортепіано й валторна: тепло — висота й лад, аномалії — напруга",
+      "kit": "orchestral"
     }
   },
   {
     "id": "ocean-currents",
-    "name": { "uk": "Океанські течії", "en": "Ocean currents" },
-    "synonyms": {
-      "uk": ["течії", "океанські течії", "течії океану", "морські течії", "циркуляція океану", "гольфстрім", "вихори", "ecco2", "потоки"],
-      "en": ["ocean currents", "currents", "ocean circulation", "gulf stream", "eddies", "ocean flow", "ecco2"]
+    "name": {
+      "uk": "Океанські течії",
+      "en": "Ocean currents"
     },
-    "units": { "uk": "м/с", "en": "m/s" },
-    "more": { "uk": "швидша течія", "en": "faster current" },
+    "synonyms": {
+      "uk": [
+        "течії",
+        "океанські течії",
+        "течії океану",
+        "морські течії",
+        "циркуляція океану",
+        "гольфстрім",
+        "вихори",
+        "ecco2",
+        "потоки"
+      ],
+      "en": [
+        "ocean currents",
+        "currents",
+        "ocean circulation",
+        "gulf stream",
+        "eddies",
+        "ocean flow",
+        "ecco2"
+      ]
+    },
+    "units": {
+      "uk": "м/с",
+      "en": "m/s"
+    },
+    "more": {
+      "uk": "швидша течія",
+      "en": "faster current"
+    },
     "preset": null,
     "soundProfile": {
-      "key": { "rule": "data" }, "modes": ["lydian", "ionian", "mixolydian", "dorian", "aeolian"], "bpm": [60, 96], "meter": "6/8",
-      "instruments": { "pad": "strings", "bass": "cello", "arp": "harp", "drums": "perc", "melody": "cello", "counter": "piano", "accents": "bells", "texture": "waves" },
-      "parts": ["pad", "bass", "arp", "drums", "melody", "counter", "accents", "texture"],
-      "rhythm": "flowing", "space": 0.5, "fx": [],
-      "why": "Арпеджіо арфи, віолончель і хвилі в розмірі 6/8 — плин: швидкість течій — густота арпеджіо, напрямок — панорама"
+      "key": {
+        "rule": "data"
+      },
+      "modes": [
+        "lydian",
+        "ionian",
+        "mixolydian",
+        "dorian",
+        "aeolian"
+      ],
+      "bpm": [
+        60,
+        96
+      ],
+      "meter": "6/8",
+      "instruments": {
+        "pad": "strings",
+        "bass": "cello",
+        "arp": "harp",
+        "drums": "perc",
+        "melody": "cello",
+        "counter": "piano",
+        "accents": "bells",
+        "texture": "waves"
+      },
+      "parts": [
+        "pad",
+        "bass",
+        "arp",
+        "drums",
+        "melody",
+        "counter",
+        "accents",
+        "texture"
+      ],
+      "rhythm": "flowing",
+      "space": 0.5,
+      "fx": [],
+      "why": "Арпеджіо арфи, віолончель і хвилі в розмірі 6/8 — плин: швидкість течій — густота арпеджіо, напрямок — панорама",
+      "kit": "ambient"
     }
   },
   {
     "id": "ice",
-    "name": { "uk": "Лід і сніг", "en": "Ice and snow" },
-    "synonyms": {
-      "uk": ["лід", "льоду", "морський лід", "крига", "криги", "сніг", "снігу", "сніговий покрив", "льодовики", "льодовик", "арктика", "антарктида", "танення льоду", "мерзлота"],
-      "en": ["ice", "sea ice", "snow", "snow cover", "glacier", "glaciers", "arctic", "antarctic", "ice sheet", "melting ice", "permafrost"]
+    "name": {
+      "uk": "Лід і сніг",
+      "en": "Ice and snow"
     },
-    "units": { "uk": "частка площі", "en": "area fraction" },
-    "more": { "uk": "більше льоду", "en": "more ice" },
+    "synonyms": {
+      "uk": [
+        "лід",
+        "льоду",
+        "морський лід",
+        "крига",
+        "криги",
+        "сніг",
+        "снігу",
+        "сніговий покрив",
+        "льодовики",
+        "льодовик",
+        "арктика",
+        "антарктида",
+        "танення льоду",
+        "мерзлота"
+      ],
+      "en": [
+        "ice",
+        "sea ice",
+        "snow",
+        "snow cover",
+        "glacier",
+        "glaciers",
+        "arctic",
+        "antarctic",
+        "ice sheet",
+        "melting ice",
+        "permafrost"
+      ]
+    },
+    "units": {
+      "uk": "частка площі",
+      "en": "area fraction"
+    },
+    "more": {
+      "uk": "більше льоду",
+      "en": "more ice"
+    },
     "preset": "ice",
     "soundProfile": {
-      "key": { "rule": "fixed", "note": "E" }, "modes": ["lydian", "ionian", "dorian"], "bpm": [56, 80], "meter": "3/4",
-      "instruments": { "pad": "glasspad", "bass": "drone", "arp": "celesta", "drums": "perc", "melody": "glass", "counter": "harmonics", "accents": "fmbell", "stars": "celesta" },
-      "parts": ["pad", "bass", "arp", "melody", "counter", "accents"],
-      "rhythm": "sparse", "space": 0.75, "fx": [],
-      "why": "Челеста, скло й дзвони у вальсовому 3/4, рідко й прозоро: площа льоду — густота нот, танення — тиша"
+      "key": {
+        "rule": "fixed",
+        "note": "E"
+      },
+      "modes": [
+        "lydian",
+        "ionian",
+        "dorian"
+      ],
+      "bpm": [
+        56,
+        80
+      ],
+      "meter": "3/4",
+      "instruments": {
+        "pad": "glasspad",
+        "bass": "drone",
+        "arp": "celesta",
+        "drums": "perc",
+        "melody": "glass",
+        "counter": "harmonics",
+        "accents": "fmbell",
+        "stars": "celesta"
+      },
+      "parts": [
+        "pad",
+        "bass",
+        "arp",
+        "melody",
+        "counter",
+        "accents"
+      ],
+      "rhythm": "sparse",
+      "space": 0.75,
+      "fx": [],
+      "why": "Челеста, скло й дзвони у вальсовому 3/4, рідко й прозоро: площа льоду — густота нот, танення — тиша",
+      "kit": "ambient"
     }
   },
   {
     "id": "fires",
-    "name": { "uk": "Пожежі", "en": "Fires" },
-    "synonyms": {
-      "uk": ["пожежі", "пожежа", "лісові пожежі", "вогонь", "горіння", "спалахи", "дим пожеж", "згарища", "термальні аномалії"],
-      "en": ["fires", "fire", "wildfires", "wildfire", "burning", "active fires", "burn scars", "thermal anomalies"]
+    "name": {
+      "uk": "Пожежі",
+      "en": "Fires"
     },
-    "units": { "uk": "к-сть осередків", "en": "fire count" },
-    "more": { "uk": "більше пожеж", "en": "more fires" },
+    "synonyms": {
+      "uk": [
+        "пожежі",
+        "пожежа",
+        "лісові пожежі",
+        "вогонь",
+        "горіння",
+        "спалахи",
+        "дим пожеж",
+        "згарища",
+        "термальні аномалії"
+      ],
+      "en": [
+        "fires",
+        "fire",
+        "wildfires",
+        "wildfire",
+        "burning",
+        "active fires",
+        "burn scars",
+        "thermal anomalies"
+      ]
+    },
+    "units": {
+      "uk": "к-сть осередків",
+      "en": "fire count"
+    },
+    "more": {
+      "uk": "більше пожеж",
+      "en": "more fires"
+    },
     "preset": "fires",
     "soundProfile": {
-      "key": { "rule": "data" }, "modes": ["mixolydian", "dorian", "aeolian", "phrygian"], "bpm": [108, 140], "meter": "5/4",
-      "instruments": { "pad": "strings", "bass": "contrabass", "arp": "pizz", "drums": "perc", "melody": "marimba", "counter": "horn", "accents": "brass", "texture": "crackle" },
-      "parts": ["pad", "bass", "arp", "drums", "melody", "counter", "accents", "texture"],
-      "rhythm": "driving", "space": 0.25, "fx": [],
-      "why": "Ударні, піцикато, маримба й тріск у неспокійному 5/4: кожен спалах — акцент, площа — густота"
+      "key": {
+        "rule": "data"
+      },
+      "modes": [
+        "mixolydian",
+        "dorian",
+        "aeolian",
+        "phrygian"
+      ],
+      "bpm": [
+        108,
+        140
+      ],
+      "meter": "5/4",
+      "instruments": {
+        "pad": "strings",
+        "bass": "contrabass",
+        "arp": "pizz",
+        "drums": "perc",
+        "melody": "marimba",
+        "counter": "trumpet",
+        "accents": "brass",
+        "texture": "crackle"
+      },
+      "parts": [
+        "pad",
+        "bass",
+        "arp",
+        "drums",
+        "melody",
+        "counter",
+        "accents",
+        "texture"
+      ],
+      "rhythm": "driving",
+      "space": 0.25,
+      "fx": [],
+      "why": "Ударні, піцикато, маримба й тріск у неспокійному 5/4: кожен спалах — акцент, площа — густота",
+      "kit": "earth"
     }
   },
   {
     "id": "precipitation",
-    "name": { "uk": "Опади (дощ)", "en": "Precipitation (rain)" },
-    "synonyms": {
-      "uk": ["опади", "дощ", "дощі", "злива", "зливи", "мусон", "мусони", "вологість", "кількість опадів", "посуха"],
-      "en": ["precipitation", "rain", "rainfall", "showers", "monsoon", "drought", "imerg", "gpm"]
+    "name": {
+      "uk": "Опади (дощ)",
+      "en": "Precipitation (rain)"
     },
-    "units": { "uk": "мм/год", "en": "mm/h" },
-    "more": { "uk": "сильніший дощ", "en": "heavier rain" },
+    "synonyms": {
+      "uk": [
+        "опади",
+        "дощ",
+        "дощі",
+        "злива",
+        "зливи",
+        "мусон",
+        "мусони",
+        "вологість",
+        "кількість опадів",
+        "посуха"
+      ],
+      "en": [
+        "precipitation",
+        "rain",
+        "rainfall",
+        "showers",
+        "monsoon",
+        "drought",
+        "imerg",
+        "gpm"
+      ]
+    },
+    "units": {
+      "uk": "мм/год",
+      "en": "mm/h"
+    },
+    "more": {
+      "uk": "сильніший дощ",
+      "en": "heavier rain"
+    },
     "preset": "precipitation",
     "soundProfile": {
-      "key": { "rule": "data" }, "modes": ["mixolydian", "dorian", "aeolian"], "bpm": [70, 110], "meter": "4/4",
-      "instruments": { "pad": "strings", "bass": "contrabass", "arp": "harp", "drums": "perc", "melody": "piano", "counter": "cello", "accents": "bells", "texture": "rain" },
-      "parts": ["pad", "bass", "arp", "melody", "counter", "accents", "texture"],
-      "rhythm": "rain", "space": 0.45, "fx": [],
-      "why": "Арфа, піцикато й шум дощу: інтенсивність опадів — густота крапель і нот"
+      "key": {
+        "rule": "data"
+      },
+      "modes": [
+        "mixolydian",
+        "dorian",
+        "aeolian"
+      ],
+      "bpm": [
+        70,
+        110
+      ],
+      "meter": "4/4",
+      "instruments": {
+        "pad": "strings",
+        "bass": "contrabass",
+        "arp": "harp",
+        "drums": "perc",
+        "melody": "piano",
+        "counter": "cello",
+        "accents": "bells",
+        "texture": "rain"
+      },
+      "parts": [
+        "pad",
+        "bass",
+        "arp",
+        "melody",
+        "counter",
+        "accents",
+        "texture"
+      ],
+      "rhythm": "rain",
+      "space": 0.45,
+      "fx": [],
+      "why": "Арфа, піцикато й шум дощу: інтенсивність опадів — густота крапель і нот",
+      "kit": "earth"
     }
   },
   {
     "id": "storms",
-    "name": { "uk": "Шторми (грози, урагани, циклони)", "en": "Storms (thunderstorms, hurricanes, cyclones)" },
-    "synonyms": {
-      "uk": ["шторм", "шторми", "гроза", "грози", "ураган", "урагани", "циклон", "циклони", "тайфун", "тайфуни", "буря", "блискавки", "блискавка", "торнадо"],
-      "en": ["storm", "storms", "thunderstorm", "thunderstorms", "hurricane", "hurricanes", "cyclone", "cyclones", "typhoon", "lightning", "tornado", "tropical storm"]
+    "name": {
+      "uk": "Шторми (грози, урагани, циклони)",
+      "en": "Storms (thunderstorms, hurricanes, cyclones)"
     },
-    "units": { "uk": "інтенсивність", "en": "intensity" },
-    "more": { "uk": "сильніший шторм", "en": "stronger storm" },
+    "synonyms": {
+      "uk": [
+        "шторм",
+        "шторми",
+        "гроза",
+        "грози",
+        "ураган",
+        "урагани",
+        "циклон",
+        "циклони",
+        "тайфун",
+        "тайфуни",
+        "буря",
+        "блискавки",
+        "блискавка",
+        "торнадо"
+      ],
+      "en": [
+        "storm",
+        "storms",
+        "thunderstorm",
+        "thunderstorms",
+        "hurricane",
+        "hurricanes",
+        "cyclone",
+        "cyclones",
+        "typhoon",
+        "lightning",
+        "tornado",
+        "tropical storm"
+      ]
+    },
+    "units": {
+      "uk": "інтенсивність",
+      "en": "intensity"
+    },
+    "more": {
+      "uk": "сильніший шторм",
+      "en": "stronger storm"
+    },
     "preset": "storms",
     "soundProfile": {
-      "key": { "rule": "data" }, "modes": ["dorian", "aeolian", "phrygian"], "bpm": [64, 104], "meter": "4/4",
-      "instruments": { "pad": "tremolo", "bass": "subbass", "arp": "tremolo", "drums": "perc", "melody": "cello", "counter": "horn", "accents": "thunder", "texture": "wind" },
-      "parts": ["pad", "bass", "drums", "melody", "counter", "accents", "texture"],
-      "rhythm": "storm", "space": 0.55, "fx": ["circlePan"],
-      "why": "Саб-бас, гуркіт, литаври, тремоло струнних і вітер: спалахи — удари грому, щільність хмар — тремоло й вітер, обертання циклону — звук рухається по колу"
+      "key": {
+        "rule": "data"
+      },
+      "modes": [
+        "dorian",
+        "aeolian",
+        "phrygian"
+      ],
+      "bpm": [
+        64,
+        104
+      ],
+      "meter": "4/4",
+      "instruments": {
+        "pad": "tremolo",
+        "bass": "subbass",
+        "arp": "tremolo",
+        "drums": "perc",
+        "melody": "cello",
+        "counter": "horn",
+        "accents": "thunder",
+        "texture": "wind"
+      },
+      "parts": [
+        "pad",
+        "bass",
+        "drums",
+        "melody",
+        "counter",
+        "accents",
+        "texture"
+      ],
+      "rhythm": "storm",
+      "space": 0.55,
+      "fx": [
+        "circlePan"
+      ],
+      "why": "Саб-бас, гуркіт, литаври, тремоло струнних і вітер: спалахи — удари грому, щільність хмар — тремоло й вітер, обертання циклону — звук рухається по колу",
+      "kit": "orchestral"
     }
   },
   {
     "id": "vegetation",
-    "name": { "uk": "Рослинність (ліси, NDVI)", "en": "Vegetation (forests, NDVI)" },
-    "synonyms": {
-      "uk": ["рослинність", "ліси", "ліс", "зелень", "вегетація", "ndvi", "індекс рослинності", "врожай", "посіви", "фотосинтез", "біосфера", "вирубка лісів"],
-      "en": ["vegetation", "forest", "forests", "greenness", "ndvi", "plants", "crops", "photosynthesis", "biosphere", "deforestation"]
+    "name": {
+      "uk": "Рослинність (ліси, NDVI)",
+      "en": "Vegetation (forests, NDVI)"
     },
-    "units": { "uk": "індекс NDVI", "en": "NDVI" },
-    "more": { "uk": "більше зелені", "en": "greener" },
+    "synonyms": {
+      "uk": [
+        "рослинність",
+        "ліси",
+        "ліс",
+        "зелень",
+        "вегетація",
+        "ndvi",
+        "індекс рослинності",
+        "врожай",
+        "посіви",
+        "фотосинтез",
+        "біосфера",
+        "вирубка лісів"
+      ],
+      "en": [
+        "vegetation",
+        "forest",
+        "forests",
+        "greenness",
+        "ndvi",
+        "plants",
+        "crops",
+        "photosynthesis",
+        "biosphere",
+        "deforestation"
+      ]
+    },
+    "units": {
+      "uk": "індекс NDVI",
+      "en": "NDVI"
+    },
+    "more": {
+      "uk": "більше зелені",
+      "en": "greener"
+    },
     "preset": "vegetation",
     "soundProfile": {
-      "key": { "rule": "data" }, "modes": ["lydian", "ionian", "mixolydian", "dorian"], "bpm": [72, 104], "meter": "6/8",
-      "instruments": { "pad": "strings", "bass": "bassoon", "arp": "kalimba", "drums": "perc", "melody": "flute", "counter": "clarinet", "accents": "bells" },
-      "parts": ["pad", "bass", "arp", "drums", "melody", "counter", "accents"],
-      "rhythm": "pastoral", "space": 0.4, "fx": [],
-      "why": "Кларнет, флейта, фагот і калімба в пасторальному 6/8: зеленість — мажорність, сезонний цикл — форма"
+      "key": {
+        "rule": "data"
+      },
+      "modes": [
+        "lydian",
+        "ionian",
+        "mixolydian",
+        "dorian"
+      ],
+      "bpm": [
+        72,
+        104
+      ],
+      "meter": "6/8",
+      "instruments": {
+        "pad": "strings",
+        "bass": "bassoon",
+        "arp": "guitar",
+        "drums": "perc",
+        "melody": "flute",
+        "counter": "clarinet",
+        "accents": "bells"
+      },
+      "parts": [
+        "pad",
+        "bass",
+        "arp",
+        "drums",
+        "melody",
+        "counter",
+        "accents"
+      ],
+      "rhythm": "pastoral",
+      "space": 0.4,
+      "fx": [],
+      "why": "Кларнет, флейта, фагот і калімба в пасторальному 6/8: зеленість — мажорність, сезонний цикл — форма",
+      "kit": "earth"
     }
   },
   {
     "id": "nightlights",
-    "name": { "uk": "Нічні вогні (міста вночі)", "en": "Night lights (cities at night)" },
-    "synonyms": {
-      "uk": ["нічні вогні", "вогні міст", "земля вночі", "міста вночі", "нічна земля", "світлове забруднення", "освітлення", "black marble", "чорний мармур", "електрика"],
-      "en": ["night lights", "city lights", "earth at night", "black marble", "light pollution", "nighttime lights", "viirs"]
+    "name": {
+      "uk": "Нічні вогні (міста вночі)",
+      "en": "Night lights (cities at night)"
     },
-    "units": { "uk": "яскравість", "en": "radiance" },
-    "more": { "uk": "більше світла", "en": "more light" },
+    "synonyms": {
+      "uk": [
+        "нічні вогні",
+        "вогні міст",
+        "земля вночі",
+        "міста вночі",
+        "нічна земля",
+        "світлове забруднення",
+        "освітлення",
+        "black marble",
+        "чорний мармур",
+        "електрика"
+      ],
+      "en": [
+        "night lights",
+        "city lights",
+        "earth at night",
+        "black marble",
+        "light pollution",
+        "nighttime lights",
+        "viirs"
+      ]
+    },
+    "units": {
+      "uk": "яскравість",
+      "en": "radiance"
+    },
+    "more": {
+      "uk": "більше світла",
+      "en": "more light"
+    },
     "preset": null,
     "soundProfile": {
-      "key": { "rule": "data" }, "modes": ["dorian", "aeolian", "mixolydian", "lydian"], "bpm": [62, 92], "meter": "4/4",
-      "instruments": { "pad": "strings", "bass": "drone", "arp": "harp", "drums": "perc", "melody": "flute", "counter": "glockenspiel", "accents": "celesta", "stars": "celesta" },
-      "parts": ["pad", "bass", "arp", "drums", "melody", "counter", "accents", "stars"],
-      "rhythm": "sparse", "space": 0.6, "fx": [],
-      "why": "Дзвіночки, челеста й дрон: кількість вогнів — густота нот, нові вогні — нові ноти, темрява — дрон"
+      "key": {
+        "rule": "data"
+      },
+      "modes": [
+        "dorian",
+        "aeolian",
+        "mixolydian",
+        "lydian"
+      ],
+      "bpm": [
+        62,
+        92
+      ],
+      "meter": "4/4",
+      "instruments": {
+        "pad": "strings",
+        "bass": "drone",
+        "arp": "harp",
+        "drums": "perc",
+        "melody": "flute",
+        "counter": "xylophone",
+        "accents": "celesta",
+        "stars": "celesta"
+      },
+      "parts": [
+        "pad",
+        "bass",
+        "arp",
+        "drums",
+        "melody",
+        "counter",
+        "accents",
+        "stars"
+      ],
+      "rhythm": "sparse",
+      "space": 0.6,
+      "fx": [],
+      "why": "Дзвіночки, челеста й дрон: кількість вогнів — густота нот, нові вогні — нові ноти, темрява — дрон",
+      "kit": "ambient"
     }
   },
   {
     "id": "clouds",
-    "name": { "uk": "Хмари", "en": "Clouds" },
-    "synonyms": {
-      "uk": ["хмари", "хмарність", "хмарний покрив", "облачність", "туман", "водяна пара"],
-      "en": ["clouds", "cloud cover", "cloudiness", "cloud fraction", "fog", "water vapor"]
+    "name": {
+      "uk": "Хмари",
+      "en": "Clouds"
     },
-    "units": { "uk": "частка хмарності", "en": "cloud fraction" },
-    "more": { "uk": "більше хмар", "en": "cloudier" },
+    "synonyms": {
+      "uk": [
+        "хмари",
+        "хмарність",
+        "хмарний покрив",
+        "облачність",
+        "туман",
+        "водяна пара"
+      ],
+      "en": [
+        "clouds",
+        "cloud cover",
+        "cloudiness",
+        "cloud fraction",
+        "fog",
+        "water vapor"
+      ]
+    },
+    "units": {
+      "uk": "частка хмарності",
+      "en": "cloud fraction"
+    },
+    "more": {
+      "uk": "більше хмар",
+      "en": "cloudier"
+    },
     "preset": null,
     "soundProfile": {
-      "key": { "rule": "data" }, "modes": ["lydian", "ionian", "dorian", "aeolian"], "bpm": [50, 76], "meter": "3/4",
-      "instruments": { "pad": "choir", "bass": "drone", "arp": "harp", "drums": "perc", "melody": "choir", "counter": "flute", "accents": "fmbell", "texture": "air" },
-      "parts": ["pad", "bass", "arp", "melody", "counter", "accents", "texture"],
-      "rhythm": "none", "space": 0.8, "fx": [],
-      "why": "Педи, хор і повітряні текстури — плавно: хмарність — щільність педа"
+      "key": {
+        "rule": "data"
+      },
+      "modes": [
+        "lydian",
+        "ionian",
+        "dorian",
+        "aeolian"
+      ],
+      "bpm": [
+        50,
+        76
+      ],
+      "meter": "3/4",
+      "instruments": {
+        "pad": "choir",
+        "bass": "drone",
+        "arp": "harp",
+        "drums": "perc",
+        "melody": "choir",
+        "counter": "flute",
+        "accents": "fmbell",
+        "texture": "air"
+      },
+      "parts": [
+        "pad",
+        "bass",
+        "arp",
+        "melody",
+        "counter",
+        "accents",
+        "texture"
+      ],
+      "rhythm": "none",
+      "space": 0.8,
+      "fx": [],
+      "why": "Педи, хор і повітряні текстури — плавно: хмарність — щільність педа",
+      "kit": "ambient"
     }
   },
   {
     "id": "sea-level",
-    "name": { "uk": "Рівень моря", "en": "Sea level" },
-    "synonyms": {
-      "uk": ["рівень моря", "рівень океану", "підняття рівня моря", "підвищення рівня моря", "затоплення", "висота поверхні моря"],
-      "en": ["sea level", "sea level rise", "sea surface height", "ocean height", "flooding"]
+    "name": {
+      "uk": "Рівень моря",
+      "en": "Sea level"
     },
-    "units": { "uk": "мм", "en": "mm" },
-    "more": { "uk": "вищий рівень моря", "en": "higher sea level" },
+    "synonyms": {
+      "uk": [
+        "рівень моря",
+        "рівень океану",
+        "підняття рівня моря",
+        "підвищення рівня моря",
+        "затоплення",
+        "висота поверхні моря"
+      ],
+      "en": [
+        "sea level",
+        "sea level rise",
+        "sea surface height",
+        "ocean height",
+        "flooding"
+      ]
+    },
+    "units": {
+      "uk": "мм",
+      "en": "mm"
+    },
+    "more": {
+      "uk": "вищий рівень моря",
+      "en": "higher sea level"
+    },
     "preset": "sea-level",
     "soundProfile": {
-      "key": { "rule": "data" }, "modes": ["dorian", "aeolian", "phrygian"], "bpm": [54, 80], "meter": "4/4",
-      "instruments": { "pad": "strings", "bass": "contrabass", "arp": "harp", "drums": "perc", "melody": "cello", "counter": "horn", "accents": "bells", "texture": "waves" },
-      "parts": ["pad", "bass", "arp", "drums", "melody", "counter", "accents", "texture"],
-      "rhythm": "slow", "space": 0.5, "fx": [],
-      "why": "Віолончель, контрабас і хвилі: рівень — регістр, тренд — поступове «затоплення» басом"
+      "key": {
+        "rule": "data"
+      },
+      "modes": [
+        "dorian",
+        "aeolian",
+        "phrygian"
+      ],
+      "bpm": [
+        54,
+        80
+      ],
+      "meter": "4/4",
+      "instruments": {
+        "pad": "strings",
+        "bass": "contrabass",
+        "arp": "harp",
+        "drums": "perc",
+        "melody": "cello",
+        "counter": "horn",
+        "accents": "bells",
+        "texture": "waves"
+      },
+      "parts": [
+        "pad",
+        "bass",
+        "arp",
+        "drums",
+        "melody",
+        "counter",
+        "accents",
+        "texture"
+      ],
+      "rhythm": "slow",
+      "space": 0.5,
+      "fx": [],
+      "why": "Віолончель, контрабас і хвилі: рівень — регістр, тренд — поступове «затоплення» басом",
+      "kit": "orchestral"
     }
   },
   {
     "id": "ozone",
-    "name": { "uk": "Озон (озонова діра)", "en": "Ozone (ozone hole)" },
-    "synonyms": {
-      "uk": ["озон", "озонова діра", "озоновий шар", "озонова дірка", "ультрафіолет"],
-      "en": ["ozone", "ozone hole", "ozone layer", "stratospheric ozone", "uv"]
+    "name": {
+      "uk": "Озон (озонова діра)",
+      "en": "Ozone (ozone hole)"
     },
-    "units": { "uk": "одиниці Добсона", "en": "Dobson units" },
-    "more": { "uk": "більше озону", "en": "more ozone" },
+    "synonyms": {
+      "uk": [
+        "озон",
+        "озонова діра",
+        "озоновий шар",
+        "озонова дірка",
+        "ультрафіолет"
+      ],
+      "en": [
+        "ozone",
+        "ozone hole",
+        "ozone layer",
+        "stratospheric ozone",
+        "uv"
+      ]
+    },
+    "units": {
+      "uk": "одиниці Добсона",
+      "en": "Dobson units"
+    },
+    "more": {
+      "uk": "більше озону",
+      "en": "more ozone"
+    },
     "preset": null,
     "soundProfile": {
-      "key": { "rule": "data" }, "modes": ["lydian", "ionian", "dorian", "aeolian"], "bpm": [52, 76], "meter": "3/4",
-      "instruments": { "pad": "warmpad", "bass": "drone", "arp": "glass", "drums": "perc", "melody": "choir", "counter": "glass", "accents": "fmbell", "texture": "air" },
-      "parts": ["pad", "bass", "arp", "melody", "counter", "accents", "texture"],
-      "rhythm": "none", "space": 0.7, "fx": ["dip"],
-      "why": "Хор, скло й синтезований пед: діра в озоні — «провал» у спектрі звуку (фільтр закривається)"
+      "key": {
+        "rule": "data"
+      },
+      "modes": [
+        "lydian",
+        "ionian",
+        "dorian",
+        "aeolian"
+      ],
+      "bpm": [
+        52,
+        76
+      ],
+      "meter": "3/4",
+      "instruments": {
+        "pad": "warmpad",
+        "bass": "drone",
+        "arp": "glass",
+        "drums": "perc",
+        "melody": "choir",
+        "counter": "glass",
+        "accents": "fmbell",
+        "texture": "air"
+      },
+      "parts": [
+        "pad",
+        "bass",
+        "arp",
+        "melody",
+        "counter",
+        "accents",
+        "texture"
+      ],
+      "rhythm": "none",
+      "space": 0.7,
+      "fx": [
+        "dip"
+      ],
+      "why": "Хор, скло й синтезований пед: діра в озоні — «провал» у спектрі звуку (фільтр закривається)",
+      "kit": "ambient"
     }
   },
   {
     "id": "aerosols",
-    "name": { "uk": "Аерозолі (пил, дим)", "en": "Aerosols (dust, smoke)" },
-    "synonyms": {
-      "uk": ["аерозолі", "аерозоль", "пил", "пилові бурі", "дим", "смог", "забруднення повітря", "сажа", "сульфати", "серпанок"],
-      "en": ["aerosols", "aerosol", "dust", "dust storm", "smoke", "smog", "air pollution", "haze", "soot", "particulates"]
+    "name": {
+      "uk": "Аерозолі (пил, дим)",
+      "en": "Aerosols (dust, smoke)"
     },
-    "units": { "uk": "оптична товщина", "en": "optical depth" },
-    "more": { "uk": "каламутніше повітря", "en": "hazier air" },
+    "synonyms": {
+      "uk": [
+        "аерозолі",
+        "аерозоль",
+        "пил",
+        "пилові бурі",
+        "дим",
+        "смог",
+        "забруднення повітря",
+        "сажа",
+        "сульфати",
+        "серпанок"
+      ],
+      "en": [
+        "aerosols",
+        "aerosol",
+        "dust",
+        "dust storm",
+        "smoke",
+        "smog",
+        "air pollution",
+        "haze",
+        "soot",
+        "particulates"
+      ]
+    },
+    "units": {
+      "uk": "оптична товщина",
+      "en": "optical depth"
+    },
+    "more": {
+      "uk": "каламутніше повітря",
+      "en": "hazier air"
+    },
     "preset": null,
     "soundProfile": {
-      "key": { "rule": "data" }, "modes": ["mixolydian", "dorian", "aeolian", "phrygian"], "bpm": [60, 96], "meter": "5/4",
-      "instruments": { "pad": "warmpad", "bass": "drone", "arp": "piano", "drums": "perc", "melody": "flute", "counter": "clarinet", "accents": "bells", "texture": "granular" },
-      "parts": ["pad", "bass", "arp", "melody", "counter", "accents", "texture"],
-      "rhythm": "sparse", "space": 0.55, "fx": ["dip"],
-      "why": "Гранулярні текстури, шум і флейта: концентрація — «зернистість» і каламутність звуку"
+      "key": {
+        "rule": "data"
+      },
+      "modes": [
+        "mixolydian",
+        "dorian",
+        "aeolian",
+        "phrygian"
+      ],
+      "bpm": [
+        60,
+        96
+      ],
+      "meter": "5/4",
+      "instruments": {
+        "pad": "warmpad",
+        "bass": "drone",
+        "arp": "piano",
+        "drums": "perc",
+        "melody": "flute",
+        "counter": "clarinet",
+        "accents": "bells",
+        "texture": "granular"
+      },
+      "parts": [
+        "pad",
+        "bass",
+        "arp",
+        "melody",
+        "counter",
+        "accents",
+        "texture"
+      ],
+      "rhythm": "sparse",
+      "space": 0.55,
+      "fx": [
+        "dip"
+      ],
+      "why": "Гранулярні текстури, шум і флейта: концентрація — «зернистість» і каламутність звуку",
+      "kit": "electronic"
     }
   },
   {
     "id": "generic",
-    "name": { "uk": "Інше / не знаю", "en": "Other / unknown" },
-    "synonyms": { "uk": ["інше", "не знаю", "загальне", "карта"], "en": ["other", "unknown", "generic", "map"] },
-    "units": { "uk": "", "en": "" },
-    "more": { "uk": "більше значення", "en": "higher value" },
+    "name": {
+      "uk": "Інше / не знаю",
+      "en": "Other / unknown"
+    },
+    "synonyms": {
+      "uk": [
+        "інше",
+        "не знаю",
+        "загальне",
+        "карта"
+      ],
+      "en": [
+        "other",
+        "unknown",
+        "generic",
+        "map"
+      ]
+    },
+    "units": {
+      "uk": "",
+      "en": ""
+    },
+    "more": {
+      "uk": "більше значення",
+      "en": "higher value"
+    },
     "preset": null,
     "soundProfile": {
-      "key": { "rule": "data" }, "modes": ["lydian", "ionian", "mixolydian", "dorian", "aeolian", "phrygian"], "bpm": [66, 108], "meter": "4/4",
-      "instruments": { "pad": "strings", "bass": "contrabass", "arp": "piano", "drums": "perc", "melody": "violin", "counter": "horn", "accents": "bells", "stars": "celesta" },
-      "parts": ["pad", "bass", "arp", "drums", "melody", "counter", "accents"],
-      "rhythm": "steady", "space": 0.4, "fx": [],
-      "why": "Нейтральний оркестр: тема не вказана"
+      "key": {
+        "rule": "data"
+      },
+      "modes": [
+        "lydian",
+        "ionian",
+        "mixolydian",
+        "dorian",
+        "aeolian",
+        "phrygian"
+      ],
+      "bpm": [
+        66,
+        108
+      ],
+      "meter": "4/4",
+      "instruments": {
+        "pad": "strings",
+        "bass": "contrabass",
+        "arp": "piano",
+        "drums": "perc",
+        "melody": "violin",
+        "counter": "horn",
+        "accents": "bells",
+        "stars": "celesta"
+      },
+      "parts": [
+        "pad",
+        "bass",
+        "arp",
+        "drums",
+        "melody",
+        "counter",
+        "accents"
+      ],
+      "rhythm": "steady",
+      "space": 0.4,
+      "fx": [],
+      "why": "Нейтральний оркестр: тема не вказана",
+      "kit": "orchestral"
     }
   }
 ]

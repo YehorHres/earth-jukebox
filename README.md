@@ -24,7 +24,8 @@ python tools/serve.py
 ## Атрибуція
 - Відео: NASA/Goddard Space Flight Center Scientific Visualization Studio — ECCO2 (дані MIT/JPL) та
   «Rotating Earth at Night» (SVS 30082, дані Suomi NPP VIIRS, NASA Earth Observatory).
-- Семпли інструментів (фортепіано, скрипка, флейта, арфа, контрабас, валторна):
+- Семпли інструментів (фортепіано, скрипка, флейта, арфа, контрабас, валторна, туба, тромбон, труба,
+  саксофон, орган, фісгармонія, ксилофон, акустична й електрогітара):
   [nbrosowsky/tonejs-instruments](https://github.com/nbrosowsky/tonejs-instruments),
   ліцензія [CC-BY 3.0](https://creativecommons.org/licenses/by/3.0/). Деталі — `vendor/samples/README.md`.
 - Решта звуків (струнна група, челеста, дзвони, ударні) — власні синтезатори на Web Audio.
