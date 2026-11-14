@@ -6,7 +6,8 @@ export default {
   id: "accents",
   label: "Акценти подій",
   role: "Піки й рекорди — дзвони, перетин рекордного рівня — брас, зміна режиму — литаври, свел перед розділом",
-  active: (o, ctx) => ctx.bar.events.length > 0 || (ctx.bar.transition && ["build", "climax"].includes(ctx.bars[ctx.b + 1]?.section)),
+  // етап 16: подію позначає тільки ерікон — із граматикою звуку акценти не грають (не дублюють знак)
+  active: (o, ctx) => !ctx.grammar && (ctx.bar.events.length > 0 || (ctx.bar.transition && ["build", "climax"].includes(ctx.bars[ctx.b + 1]?.section))),
   render(ctx, out) {
     const { bar, h, rng, instr } = ctx;
     const pcs = chordPcs(h, { max: 3 });

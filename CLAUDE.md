@@ -47,7 +47,9 @@
 візуалізації, аудіолегенда («так звучить холодне / тепле»), mute/solo для партій.
 
 ## Поточний стан
-`index.html` + `src/` — версія 2 (етапи 1–15 і v5-A «граматика звуку» — `src/grammar.js`; стан — у `docs/plan-v2.md`).
+`index.html` + `src/` — версія 2 (етапи 1–16 і v5-A «граматика звуку» — `src/grammar.js`; стан — у `docs/plan-v2.md`).
+Етап 16: одночасно ≤ 6 партій (бюджет — `partsCap` / `partPriority` у `src/grammar.js`), голос даних = мелодія за сольфеджіо
+(`src/composer/parts/grammar-parts.js`), `melody` і `accents` грають лише без граматики (`compose(..., { grammar: false })`).
 Тема карти (`src/topics/topics.json`) задає тембр, дані — ноти. Галерея: 5 відео NASA з готовими аналізами
 (`samples/*.analysis.json`, перерахувати — `tools/precompute.html` після зміни `ANALYSIS_VERSION`).
 Автотести — `test.html`. `prototype/` — v1, запасне демо.

@@ -9,7 +9,8 @@ export function grammarSynths({ out, mtof }) {
       const g = ctx.createGain();
       g.gain.setValueAtTime(0.0001, t);
       g.gain.linearRampToValueAtTime(peak, t + 0.02);
-      g.gain.setTargetAtTime(peak * 0.85, t + 0.02, 0.08);
+      // fade — остання нота треку: тоніка з повільним загасанням
+      g.gain.setTargetAtTime(n.fade ? 0.0001 : peak * 0.85, t + (n.fade ? 0.25 : 0.02), n.fade ? n.dur / 3.5 : 0.08);
       g.gain.setTargetAtTime(0.0001, end, 0.05);
       const lp = ctx.createBiquadFilter(); lp.type = "lowpass"; lp.frequency.value = Math.min(9000, f * 7); lp.Q.value = 0.5;
       const fm = ctx.createBiquadFilter(); fm.type = "peaking"; fm.frequency.value = c.formant || 1400; fm.Q.value = 1.3; fm.gain.value = 8;

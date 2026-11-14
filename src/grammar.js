@@ -32,6 +32,29 @@ export const DEFAULT_TICK = { seconds: 10, strong: 4, label: "10 секунд" }
 /** Партії граматики (не супровід): звучать на повному рівні. */
 export const LEAD_PARTS = ["dataVoice", "soloists", "reference", "ticks", "earcons"];
 
+/** Етап 16 — бюджет партій: одночасно ≤ 6 (у вступі ≤ 3 + короткі знаки); знаки (тіки, ерікони) — завжди. */
+export const PARTS_MAX = 6;
+export const INTRO_PARTS_MAX = 3;
+export const SIGNAL_PARTS = ["earcons", "ticks"];
+/** Хто отримує місце в такті: спершу дані й знаки (і рідка фонова текстура теми), далі — супровід за розділом форми. */
+const PART_HEAD = ["dataVoice", "reference", "earcons", "ticks", "stars"];
+const PART_BY_SECTION = {
+  intro: ["pad", "texture", "bass", "arp"],
+  build: ["pad", "bass", "counter", "arp", "drums", "soloists", "texture"],
+  climax: ["bass", "pad", "drums", "counter", "soloists", "arp"],
+  development: ["pad", "bass", "soloists", "arp", "drums", "texture"],
+  resolution: ["pad", "arp", "bass", "texture", "soloists"],
+  theme: ["pad", "bass", "arp", "soloists", "texture", "drums"],
+};
+export const partPriority = section => [...PART_HEAD, ...(PART_BY_SECTION[section] || PART_BY_SECTION.theme)];
+/** Скільки партій (без знаків) дозволяють форма й дані: оркестровка + частка зон, що змінюються (тутті ↔ соло). */
+export function partsCap(bar, last = false) {
+  if (bar.section === "intro" || last) return INTRO_PARTS_MAX;
+  const o = bar.params.orchestration ?? 0.5, tu = bar.params.tutti ?? 0.5;
+  const c = (o < 0.35 ? 4 : o < 0.55 ? 5 : 6) + (tu > 0.6 ? 1 : tu < 0.15 ? -1 : 0);
+  return Math.max(3, Math.min(PARTS_MAX, c));
+}
+
 /** Полярність: +1 — більше значення ознаки = «більше» за змістом теми; −1 — навпаки (moreMeans: "down"). */
 export const polarity = topic => (topic?.moreMeans === "down" ? -1 : 1);
 export const orient = (v, pol) => (pol < 0 ? 1 - v : v);

@@ -171,8 +171,9 @@ SUITES.push(async function stage4() {
 SUITES.push(async function stage5() {
   const { compose } = await import("./composer/composer.js");
   const me = window.__mapEcco, md = window.__mapDark;
-  const s = compose(me, { seed: "ecco" });
-  const mel = s.notes.filter(n => n.part === "melody" && !n.motif);
+  // етап 16: партія melody грає лише без голосу даних (grammar: false) — її правила перевіряємо в цьому режимі
+  const s = compose(me, { seed: "ecco" }), sOld = compose(me, { seed: "ecco", grammar: false });
+  const mel = sOld.notes.filter(n => n.part === "melody" && !n.motif);
   // висота мелодії відповідає даним колонки (кореляція рангів)
   // крок мелодії з урахуванням «людського» зсуву (нота на 0-му кроці може прозвучати на мілісекунди раніше)
   const stepOf = n => { const g = Math.round(n.t / s.barDur * 16); return { b: Math.min(me.bars.length - 1, Math.floor(g / 16)), col: g % 16 }; };
@@ -188,10 +189,10 @@ SUITES.push(async function stage5() {
   for (const n of mel) { const { b, col } = stepOf(n); if (me.bars[b].params.contour[col] === null) restViol++; }
   check("Мелодія: на суші пауза", restViol === 0, `порушень ${restViol}`);
   const counterBars = new Set(s.notes.filter(n => n.part === "counter").map(n => me.bars[Math.min(me.bars.length - 1, Math.floor(n.t / s.barDur))].section));
-  check("Контрмелодія вступає з наростанням / кульмінацією", counterBars.size > 0 && !counterBars.has("intro"), [...counterBars].join(", ") || "не звучить");
-  const acc = s.notes.filter(n => n.part === "accents");
+  check("Контрмелодія — лише в наростанні й кульмінації", counterBars.size > 0 && [...counterBars].every(x => x === "build" || x === "climax"), [...counterBars].join(", ") || "не звучить");
+  const acc = sOld.notes.filter(n => n.part === "accents");
   const evBars = me.bars.filter(b => b.events.length).length;
-  check("Акценти: є на подіях, дзвони на кульмінації даних", acc.length > 0 && (acc.some(n => n.inst === "bells") || !me.bars.some(b => b.events.some(e => e.type === "globalMax"))), `${acc.length} нот акцентів у ${evBars} тактах з подіями; інструменти: ${[...new Set(acc.map(n => n.inst))].join(", ")}`);
+  check("Акценти: без голосу даних — на подіях (дзвони на кульмінації); з граматикою звуку — мовчать (подію позначає ерікон)", !s.notes.some(n => n.part === "accents") && acc.length > 0 && (acc.some(n => n.inst === "bells") || !me.bars.some(b => b.events.some(e => e.type === "globalMax"))), `${acc.length} нот акцентів у ${evBars} тактах з подіями; інструменти: ${[...new Set(acc.map(n => n.inst))].join(", ")}`);
   const sd = compose(md, { seed: "dark" });
   check("Нічна карта: «зоряний дощ», без брас-стабів", sd.notes.some(n => n.part === "stars") && !sd.notes.some(n => n.inst === "brass"), `зірок ${sd.notes.filter(n => n.part === "stars").length}`);
   check("Теплова карта: без «зоряного дощу»", !s.parts.some(p => p.id === "stars"), s.parts.map(p => p.id).join(", "));
@@ -613,6 +614,112 @@ SUITES.push(async function stageA() {
   // 7) граматика в UI й README
   const readme = await (await fetch("README.md")).text(), html = await (await fetch("index.html")).text();
   check("A: таблиця граматики (8 правил) — у src/grammar.js, UI й README", G.GRAMMAR.length === 8 && /## Граматика звуку/.test(readme) && /більше → вище/.test(readme) && /id="grammar-rows"/.test(html), `${G.GRAMMAR.length} правил`);
+});
+
+SUITES.push(async function stage16() {
+  // етап 16: бюджет партій, голос даних = мелодія за сольфеджіо, ударні як перкусія, артикуляція з даних
+  const G = await import("./grammar.js");
+  const { buildTrack } = await import("./audio/report.js");
+  const { BPM_CAP } = await import("./mapping/mapper.js");
+  const { compose } = await import("./composer/composer.js");
+  const { chordPcs } = await import("./composer/parts/common.js");
+  const { drumLevel } = await import("./composer/parts/drums.js");
+  const T = await import("./topics/topics.js");
+  const cat = (await (await fetch("samples/catalog.json")).json()).filter(i => i.kind === "video" && i.analysis);
+  const barOf = (s, n) => Math.min(s.bars.length - 1, Math.floor((n.t + (n.fixed ? 1e-6 : 0.03)) / s.barDur));
+  const stat = [];
+  for (const it of cat) {
+    const { mapping: m, score: s } = await buildTrack(it);
+    const per = s.bars.map(() => new Set());
+    for (const n of s.notes) per[barOf(s, n)].add(n.part);
+    const sust = per.map(x => [...x].filter(id => !G.SIGNAL_PARTS.includes(id)).length);
+    stat.push({ id: it.id.split("_")[0], item: it, m, s, per, sust, max: Math.max(...per.map(x => x.size)),
+      intro: Math.max(...sust.filter((_, b) => m.bars[b].section === "intro")) });
+  }
+
+  // 1) перевантаження
+  check("16: одночасно ≤ 6 партій на всіх треках галереї; у вступі ≤ 3 (+ короткі знаки: тік, ерікон)",
+    stat.length >= 4 && stat.every(x => x.max <= G.PARTS_MAX && x.intro <= G.INTRO_PARTS_MAX && x.s.bars.every(b => b.count <= G.PARTS_MAX)),
+    stat.map(x => `${x.id}: макс. ${x.max}, вступ ${x.intro}`).join(" · "));
+  check("16: голос даних і melody не звучать одночасно; події позначає тільки ерікон (accents мовчать)",
+    stat.every(x => !x.per.some(p => p.has("dataVoice") && p.has("melody")) && !x.s.notes.some(n => n.part === "accents" || n.part === "melody")) && stat.some(x => x.s.notes.some(n => n.part === "earcons")),
+    `еріконів: ${stat.map(x => x.s.notes.filter(n => n.part === "earcons").length).join(", ")}`);
+  const starBars = stat.map(x => x.per.filter(p => p.has("stars")));
+  check("16: «зоряний дощ» — лише фонова текстура nightlights, рідко (≤ кожен 4-й такт), не в такті з еріконом",
+    stat.every((x, i) => (!starBars[i].length || x.m.meta.topic === "nightlights") && starBars[i].length <= x.s.bars.length / 4 + 1 && !starBars[i].some(p => p.has("earcons"))),
+    stat.map((x, i) => `${x.id}: ${starBars[i].length} з ${x.s.bars.length} тактів`).join(" · "));
+  const ctrSec = new Set(stat.flatMap(x => x.s.notes.filter(n => n.part === "counter").map(n => x.m.bars[barOf(x.s, n)].section)));
+  const soloOk = stat.every(x => { const ci = new Set(x.s.notes.filter(n => n.part === "counter").map(n => n.inst)); return x.s.notes.filter(n => n.part === "soloists").every(n => !ci.has(n.inst)); });
+  check("16: контрмелодія — лише в наростанні й кульмінації; солісти зон — інший тембр", [...ctrSec].every(x => x === "build" || x === "climax") && soloOk,
+    `розділи контрмелодії: ${[...ctrSec].join(", ") || "не звучить"}; тембри солістів: ${[...new Set(stat.flatMap(x => x.s.notes.filter(n => n.part === "soloists").map(n => n.inst)))].join(", ") || "—"}`);
+
+  // 2) мелодія за сольфеджіо (голос даних)
+  let total = 0, notDia = 0, strongBad = 0, leapBad = 0, leaps = 0, steps = 0, moves = 0, half = 0, full = 0, cadBad = 0, finalBad = 0;
+  for (const x of stat) {
+    const v = x.s.notes.filter(n => n.part === "dataVoice"), H = x.s.harmony.bars;
+    v.forEach((n, i) => {
+      const bi = barOf(x.s, n), h = H[bi], triad = chordPcs(h, { max: 3 }), pc = n.midi % 12, inTriad = triad.includes(pc);
+      total++;
+      if (!h.mode.steps.includes((((n.midi - h.root) % 12) + 12) % 12) && !inTriad) notDia++;
+      if ((n.strong || n.cadence) && !inTriad) strongBad++;
+      if (n.cadence === "half") { half++; if (h.chords[0].chord.degree !== 4) cadBad++; }
+      if (n.cadence === "full") { full++; if (h.chords[0].chord.degree !== 0 || (bi > 0 && H[bi - 1].chords[0].chord.degree !== 4 && !x.m.bars[bi - 1].transition && x.m.bars[bi - 1].section !== "intro")) cadBad++; }
+      if (!i) return;
+      const d = n.midi - v[i - 1].midi, nx = v[i + 1];
+      moves++;
+      if (Math.abs(d) <= 2) steps++;
+      if (Math.abs(d) > 5) {
+        leaps++;
+        if (!inTriad) leapBad++;
+        else if (nx && !n.cadence && !nx.strong && !nx.cadence && !(Math.sign(nx.midi - n.midi) === -Math.sign(d) && Math.abs(nx.midi - n.midi) <= 2)) leapBad++;
+      }
+    });
+    const lastN = v[v.length - 1], hl = H[H.length - 1];
+    if (!lastN || lastN.cadence !== "final" || !lastN.fade || lastN.midi % 12 !== ((hl.root % 12) + 12) % 12 || hl.chords[0].chord.degree !== 0) finalBad++;
+  }
+  check("16: мелодія — діатоніка ладу; сильні долі й каденції — звуки акорду", total > 100 && notDia === 0 && strongBad === 0, `${total} нот; поза ладом ${notDia}; сильних долей не на звуці акорду ${strongBad}`);
+  check("16: переважно поступовий рух; стрибок понад кварту — лише на звук акорду й з поверненням кроком назад", steps / moves >= 0.5 && leapBad === 0 && leaps / moves <= 0.15,
+    `кроків (≤ секунда) ${(100 * steps / moves).toFixed(0)} %, стрибків понад кварту ${leaps} з ${moves}, порушень ${leapBad}`);
+  check("16: фрази 4 + 4 — напівкаденція (V) і повна (V → I); остання нота кожного треку — тоніка з загасанням", half > 0 && full > 0 && cadBad === 0 && finalBad === 0,
+    `напівкаденцій ${half}, повних ${full}, порушень ${cadBad}; треків без тоніки в кінці ${finalBad}`);
+
+  // 3) ударні — перкусія: без постійних шістнадцятих, у спокої тиша, на події брейк
+  let odd = 0, calmHits = 0, afterEvent = 0, drumBars = 0, quietBars = 0;
+  for (const x of stat) {
+    const meter = x.s.meter, step = x.s.barDur / meter.steps, r = T.getTopic(x.item.topic).soundProfile.rhythm;
+    for (const n of x.s.notes) {
+      if (n.part !== "drums" || n.fixed) continue;
+      const bi = barOf(x.s, n), bar = x.m.bars[bi], rel = (n.t - bar.t0) / step;
+      if (Math.round(rel) % 2 !== 0) odd++;
+      if (!n.build && drumLevel(bar.params, r) === 0) calmHits++;
+      if (bar.events.length && rel > Math.min(...bar.events.map(e => e.offset)) * meter.steps + 0.5) afterEvent++;
+    }
+    x.per.forEach(p => (p.has("drums") ? drumBars++ : quietBars++));
+  }
+  check("16: ударні — без постійних шістнадцятих; спокійні дані — тиша; у такті з подією — брейк", odd === 0 && calmHits === 0 && afterEvent === 0 && drumBars > 0 && quietBars > 0,
+    `ударів на шістнадцятих ${odd}, у спокої ${calmHits}, після події в такті ${afterEvent}; тактів з ударними ${drumBars}, без них ${quietBars}`);
+
+  // 4) артикуляція з даних (таблиця команди) — на треку галереї з підставленими параметрами
+  const m0 = stat[0].m, withP = o => ({ ...m0, bars: m0.bars.map(b => ({ ...b, params: { ...b.params, ...o } })) });
+  const dv = o => compose(withP(o), { seed: "art" }).notes.filter(n => n.part === "dataVoice");
+  const gapsOf = v => v.slice(0, -1).map((n, i) => n.dur / (v[i + 1].t - n.t)).filter((_, i) => !v[i].cadence);
+  const med = a => a.slice().sort((p, q) => p - q)[Math.floor(a.length / 2)];
+  const stac = dv({ staccato: 1 }), leg = dv({ staccato: 0, articulation: 0.1 });
+  const slope = v => { let up = 0, dn = 0; const by = {}; v.forEach(n => { if (!n.accent && !n.cadence) (by[Math.floor(n.t / m0.meta.barDur + 1e-6)] ||= []).push(n.vel); }); for (const a of Object.values(by)) if (a.length > 1) (a[a.length - 1] > a[0] ? up++ : a[a.length - 1] < a[0] ? dn++ : 0); return { up, dn }; };
+  const cr = slope(dv({ dynamics: 1 })), dim = slope(dv({ dynamics: 0 }));
+  const accN = stat.flatMap(x => x.s.notes.filter(n => n.part === "dataVoice" && n.accent)).length, evN = stat.reduce((q, x) => q + x.m.bars.filter(b => b.events.length).length, 0);
+  const capT = G.partsCap({ section: "build", params: { orchestration: 0.6, tutti: 0.9 } }), capS = G.partsCap({ section: "build", params: { orchestration: 0.6, tutti: 0.05 } });
+  check("16: артикуляція з даних — стакато ↔ легато, крещендо / димінуендо ← тренд, акцент ← подія, тутті / соло ← частка зон",
+    stac.every(n => !n.legato) && med(gapsOf(stac)) < 0.6 && med(gapsOf(leg)) > 0.9 && cr.up > 0 && cr.dn === 0 && dim.dn > 0 && dim.up === 0 && (accN > 0 || evN === 0) && capT > capS
+      && stat.every(x => x.m.bars.every(b => b.params.dynamics >= 0 && b.params.dynamics <= 1 && b.params.tutti >= 0 && b.params.tutti <= 1)),
+    `стакато: тривалість ${(100 * med(gapsOf(stac))).toFixed(0)} % кроку, легато ${(100 * med(gapsOf(leg))).toFixed(0)} %; крещендо в ${cr.up} тактах, димінуендо в ${dim.dn}; акцентованих нот ${accN} (тактів з подіями ${evN}); тутті ${capT} партій, соло ${capS}`);
+
+  // 5) темп, настрій, крапка
+  const darkBad = stat.filter(x => { const tm = T.getTopic(x.item.topic).soundProfile.modes || []; return tm.some(id => id !== "aeolian" && id !== "phrygian") && x.s.harmony.bars.some(h => h.level !== "tense" && ["aeolian", "phrygian"].includes(h.mode.id)); }).length;
+  const endOk = stat.every(x => { const r0 = x.m.bars.findIndex(b => b.section === "resolution"); return x.sust[x.sust.length - 1] <= G.INTRO_PARTS_MAX && (r0 < 0 || x.sust[x.sust.length - 1] <= x.sust[r0]); });
+  check("16: BPM ≤ 130 і один на трек; темні лади — лише на аномаліях (висока напруга); розв'язка знімає шари (у кінці ≤ 3 партії)",
+    stat.every(x => x.s.bpm <= BPM_CAP) && darkBad === 0 && endOk,
+    stat.map(x => `${x.id}: ${x.s.bpm} BPM, лади ${[...new Set(x.s.harmony.bars.map(h => h.mode.label))].join("/")}, у кінці ${x.sust[x.sust.length - 1]}`).join(" · "));
 });
 
 (async () => {

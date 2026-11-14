@@ -30,7 +30,8 @@ export default {
   id: "melody",
   label: "Мелодія",
   role: "Сканує кадр зліва направо: вище нота — більше значення (тепліше / світліше) в цій смузі; суша — пауза",
-  active: (o, ctx) => o > 0.32 && ctx.bar.section !== "intro" || (ctx.bar.section === "intro" && ctx.meta.still),
+  // етап 16: мелодія треку — голос даних; ця партія грає лише без нього (grammar: false), ніколи одночасно
+  active: (o, ctx) => !ctx.grammar && (o > 0.32 && ctx.bar.section !== "intro" || (ctx.bar.section === "intro" && ctx.meta.still)),
   render(ctx, out) {
     const { bar, h, rng, state, meta, b, meter, instr } = ctx;
     const p = bar.params, phrase = meta.phrase;

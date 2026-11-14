@@ -80,6 +80,12 @@ export function voiceLead(pcs, prev, lo, hi, root) {
   }
 }
 
+/** Сусідній ступінь ладу від midi в напрямку dir (+1 / −1) — поступовий рух. */
+export function stepInMode(midi, dir, root, mode) {
+  for (let m = midi + dir; Math.abs(m - midi) <= 3; m += dir) if (mode.steps.includes((((m - root) % 12) + 12) % 12)) return m;
+  return midi + dir;
+}
+
 /** Найближча нота ладу до midi. */
 export function snapToMode(midi, root, mode) {
   let best = midi, bd = 99;
