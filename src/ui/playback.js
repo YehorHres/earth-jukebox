@@ -159,8 +159,12 @@ export function setupPlayback(app, { timeline, mappingTable }) {
     const insts = [...new Set(app.score.notes.map(n => n.inst))];
     const decoder = new OfflineAudioContext(1, 1, 44100);
     const status = $("status"), base = status.textContent;
-    loadFor(decoder, insts, (d, n) => { status.textContent = `${base} Семпли інструментів: ${d}/${n}…`; })
+    // семпли вантажаться у фоні: якщо за цей час обрали інше відео чи тему, старий трек уже не актуальний
+    const score = app.score;
+    const current = () => app.score === score;
+    loadFor(decoder, insts, (d, n) => { if (current()) status.textContent = `${base} Семпли інструментів: ${d}/${n}…`; })
       .then(({ loaded, failed }) => {
+        if (!current()) return;
         status.textContent = `${base} ${loaded.length ? `Справжні інструменти: ${loaded.map(i => INSTRUMENT_LABEL[i]).join(", ")}.` : ""}${failed.length ? ` Синтезатор замість: ${failed.map(i => INSTRUMENT_LABEL[i]).join(", ")}.` : ""}`;
         renderParts();
       });
