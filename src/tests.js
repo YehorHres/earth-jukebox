@@ -101,6 +101,39 @@ SUITES.push(async function stage2() {
   window.__dark = a1;
 });
 
+SUITES.push(async function stage3() {
+  const { analyzeSource } = await import("./analysis/analyze.js");
+  const { loadPreset, mapAnalysis, PARAMS } = await import("./mapping/mapper.js");
+  const run = async (src, preset) => { const a = await analyzeSource(src); return { a, m: mapAnalysis(a, await loadPreset(preset)) }; };
+  const inRange = m => m.bars.every(b => PARAMS.every(p => Number.isFinite(b.params[p]) && b.params[p] >= (p === "pan" ? -1 : 0) && b.params[p] <= 1));
+  const order = m => m.meta.sections.map(s => s.id).join(" → ");
+
+  const { a: ad, m: md } = await run(openSynthetic("dark-lights"), "nightlights");
+  check("Мапінг (темне відео): параметри в межах, explain є", inRange(md) && md.bars.every(b => b.explain.energy.length), `${md.meta.nBars} тактів по ${md.meta.barDur.toFixed(2)} с, ${md.meta.bpm} BPM`);
+  const half = Math.floor(md.bars.length / 2);
+  const e1 = md.bars.slice(0, half).reduce((s, b) => s + b.params.energy, 0) / half, e2 = md.bars.slice(half).reduce((s, b) => s + b.params.energy, 0) / (md.bars.length - half);
+  check("Мапінг (темне відео): енергія зростає разом зі світлом міста", e2 > e1 + 0.05, `перша половина ${e1.toFixed(2)}, друга ${e2.toFixed(2)}`);
+  const cl = md.meta.sections.find(s => s.id === "climax");
+  check("Форма: вступ → … → кульмінація → розв'язка, кульмінація ближче до кінця", order(md).startsWith("intro") && order(md).endsWith("resolution") && cl && cl.b0 >= md.meta.nBars * 0.4, order(md));
+  check("Яскравість ладу темна для темної карти (abs)", md.bars.every(b => b.params.brightness < 0.5), `brightness ${Math.min(...md.bars.map(b => b.params.brightness)).toFixed(2)}…${Math.max(...md.bars.map(b => b.params.brightness)).toFixed(2)}`);
+
+  const { m: ms } = await run(openSynthetic("static-dark"), "nightlights");
+  const eS = ms.bars.map(b => b.params.energy), tS = ms.bars.map(b => b.params.tension);
+  check("Статичне відео: без акцентів і кульмінації, спокійні параметри", ms.bars.every(b => b.params.accent === 0) && !ms.meta.sections.some(s => s.id === "climax") && Math.max(...eS) - Math.min(...eS) < 0.1 && Math.max(...tS) < 0.4,
+    `${order(ms)}; енергія ${Math.min(...eS).toFixed(2)}…${Math.max(...eS).toFixed(2)}, напруга ≤ ${Math.max(...tS).toFixed(2)}`);
+
+  const { m: mi } = await run(window.__still.source, "heatmap");
+  check("Фото: 8 тактів сканування, контур мелодії з даних", mi.bars.length === 8 && mi.bars[0].params.contour.filter(v => v !== null).length >= 8, `контур: ${mi.bars[0].params.contour.map(v => v === null ? "·" : Math.round(v * 9)).join("")}`);
+
+  const ecco = window.__ecco;
+  const ae = await analyzeSource(ecco.source);
+  const me = mapAnalysis(ae, await loadPreset("heatmap"));
+  const acc = me.bars.filter(b => b.params.accent > 0).length;
+  check("ECCO2: мапінг, акценти подій (не в кожному такті), суша = паузи в контурі", inRange(me) && acc > 0 && acc <= me.bars.length * 0.6 && me.bars.some(b => b.params.contour.includes(null)),
+    `${me.meta.nBars} тактів, ${me.meta.bpm} BPM, тактів з акцентами ${acc}; ${order(me)}; контур такту 5: ${me.bars[5].params.contour.map(v => v === null ? "·" : Math.round(v * 9)).join("")}`);
+  window.__mapEcco = me; window.__mapDark = md;
+});
+
 (async () => {
   for (const s of SUITES) {
     try { await s(); }

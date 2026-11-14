@@ -4,6 +4,8 @@ import { analyzeSource } from "./analysis/analyze.js";
 import { describeProfile, SCALE_LABEL } from "./a11y/describe.js";
 import { initAnnouncer, announce, prefs, stopVoice } from "./a11y/announcer.js";
 import { createTimeline } from "./ui/timeline.js";
+import { loadPreset, mapAnalysis, presetForScene } from "./mapping/mapper.js";
+import { createMappingTable } from "./ui/mapping-table.js";
 
 const $ = id => document.getElementById(id);
 const NO_CACHE = new URLSearchParams(location.search).has("nocache");   // ?nocache — завжди аналізувати заново
@@ -12,8 +14,15 @@ window.jukebox = app; // для налагодження й автотестів
 
 initAnnouncer($("live"));
 const timeline = createTimeline($("timeline"), $("tl-legend"), {
-  onSeek: t => { if (app.source?.kind === "video") app.source.el.currentTime = t; app.seekTo?.(t); timeline.setCursor(t); },
+  onSeek: t => {
+    if (app.seekTo) return app.seekTo(t);
+    if (app.source?.kind === "video") app.source.el.currentTime = t;
+    timeline.setCursor(t);
+    if (app.mapping) mappingTable.update(Math.floor(t / app.mapping.meta.barDur));
+  },
 });
+const mappingTable = createMappingTable($("mapping"));
+let onMapped = null;   // етап 4: підготовка музики після мапінгу
 const setStatus = s => ($("status").textContent = s);
 const setProgress = p => ($("progress").firstElementChild.style.width = `${Math.round(p * 100)}%`);
 
@@ -52,7 +61,8 @@ async function loadSource(title, open, item) {
   if (app.busy) return;
   app.busy = true;
   stopVoice();
-  app.profile = app.analysis = null;
+  app.profile = app.analysis = app.mapping = null;
+  $("mapping-wrap").hidden = true;
   ["play", "legendBtn", "exportBtn"].forEach(id => ($(id).disabled = true));
   $("card").hidden = true;
   $("timeline-wrap").hidden = true;
@@ -88,6 +98,16 @@ async function loadSource(title, open, item) {
     renderCard();
     $("timeline-wrap").hidden = false;     // спершу показати — інакше canvas має ширину 0
     timeline.set(app.analysis);
+
+    // шар 2: мапінг
+    app.preset = await loadPreset(item?.preset || presetForScene(app.profile.sceneType));
+    app.mapping = mapAnalysis(app.analysis, app.preset);
+    timeline.setSections(app.mapping.meta.sections.map(s => ({
+      label: s.label, t0: s.b0 * app.mapping.meta.barDur, t1: s.b1 * app.mapping.meta.barDur,
+    })));
+    $("mapping-wrap").hidden = false;
+    mappingTable.set(app.mapping, app.preset, app.analysis);
+    await onMapped?.();
     $("exportBtn").disabled = false;
     drawMasks();
   } catch (e) {

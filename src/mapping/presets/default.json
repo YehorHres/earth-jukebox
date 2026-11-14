@@ -1,0 +1,43 @@
+{
+  "id": "default",
+  "title": "Універсальний (графіки й змішані візуалізації)",
+  "tempo": { "feature": "frameDiff", "channel": "abs", "agg": "videoMean", "in": [0.02, 0.4], "bpm": [72, 108],
+             "why": "Що більше руху на кадрі, то швидший темп" },
+  "params": {
+    "energy": { "base": 0.15, "sources": [
+        { "feature": "activeMass", "channel": "rel", "weight": 0.35, "curve": "smooth" },
+        { "feature": "brightness", "channel": "rel", "weight": 0.2, "curve": "linear" },
+        { "feature": "hotspot1", "channel": "rel", "weight": 0.2, "curve": "smooth" }
+      ], "why": "Більше даних на кадрі — гучніше й більше інструментів" },
+    "density": { "base": 0.1, "sources": [
+        { "feature": "edgeDensity", "channel": "rel", "weight": 0.4, "curve": "linear" },
+        { "feature": "frameDiff", "channel": "rel", "weight": 0.35, "curve": "linear" }
+      ], "why": "Складність і рух — дрібніший ритм" },
+    "tension": { "base": 0.15, "sources": [
+        { "feature": "brightness", "channel": "trend40", "weight": 0.3, "curve": "linear" },
+        { "feature": "outliers", "channel": "rel", "weight": 0.25, "curve": "exp" },
+        { "feature": "entropy", "channel": "rel", "weight": 0.2, "curve": "linear" }
+      ], "why": "Зростання, викиди й хаос — напруга" },
+    "brightness": { "base": 0.0, "sources": [
+        { "feature": "warmth", "channel": "abs", "in": [0.3, 0.85], "weight": 0.6, "curve": "smooth", "invert": true },
+        { "feature": "brightness", "channel": "abs", "in": [0.1, 0.8], "weight": 0.4, "curve": "linear" }
+      ], "why": "Холодні й світлі кольори — світлий лад; теплі й темні — темний" },
+    "register": { "base": 0.15, "sources": [
+        { "feature": "centerY", "channel": "abs", "in": [0.3, 0.7], "weight": 0.7, "curve": "linear" }
+      ], "why": "Активність угорі кадру — вищий регістр" },
+    "pan": { "base": 0.0, "range": [-1, 1], "sources": [
+        { "feature": "balanceLR", "channel": "abs", "in": [-0.5, 0.5], "weight": 1.0, "curve": "linear" }
+      ], "why": "Ліва частина кадру — лівий канал, права — правий" },
+    "motion": { "base": 0.05, "sources": [
+        { "feature": "frameDiff", "channel": "rel", "weight": 0.6, "curve": "linear" }
+      ], "why": "Рух — рухливість партій" },
+    "articulation": { "base": 0.2, "sources": [
+        { "feature": "brightness", "channel": "accel20", "weight": 0.5, "curve": "exp", "abs": true }
+      ], "why": "Різкі зміни — стакато" },
+    "space": { "base": 0.3, "sources": [
+        { "feature": "brightness", "channel": "abs", "in": [0.1, 0.6], "weight": 0.4, "curve": "linear", "invert": true }
+      ], "why": "Темніше — більше простору" }
+  },
+  "contour": { "zone": "cols", "channel": "rel", "why": "Мелодія сканує кадр зліва направо: вище нота — більше значення в цій колонці" },
+  "accent": { "events": ["peak", "thresholdCross", "changePoint", "globalMax", "returnOfState"], "why": "Події — акценти" }
+}

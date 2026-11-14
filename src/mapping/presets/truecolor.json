@@ -1,0 +1,43 @@
+{
+  "id": "truecolor",
+  "title": "Супутниковий знімок у справжніх кольорах",
+  "tempo": { "feature": "frameDiff", "channel": "abs", "agg": "videoMean", "in": [0.02, 0.4], "bpm": [70, 104],
+             "why": "Швидкість руху хмар задає темп" },
+  "params": {
+    "energy": { "base": 0.15, "sources": [
+        { "feature": "whiteness", "channel": "rel", "weight": 0.3, "curve": "smooth" },
+        { "feature": "frameDiff", "channel": "rel", "weight": 0.3, "curve": "linear" },
+        { "feature": "hotspot1", "channel": "rel", "weight": 0.2, "curve": "smooth" }
+      ], "why": "Більше хмар і руху — гучніше" },
+    "density": { "base": 0.1, "sources": [
+        { "feature": "frameDiff", "channel": "rel", "weight": 0.4, "curve": "linear" },
+        { "feature": "edgeDensity", "channel": "rel", "weight": 0.3, "curve": "linear" }
+      ], "why": "Рух і складність хмар — дрібніший ритм" },
+    "tension": { "base": 0.15, "sources": [
+        { "feature": "whiteness", "channel": "trend40", "weight": 0.3, "curve": "linear" },
+        { "feature": "greenness", "channel": "trend40", "weight": -0.3, "curve": "linear" },
+        { "feature": "outliers", "channel": "rel", "weight": 0.2, "curve": "exp" }
+      ], "why": "Рослинність зменшується або хмар стає більше — напруга" },
+    "brightness": { "base": 0.1, "sources": [
+        { "feature": "greenness", "channel": "abs", "in": [0.0, 0.4], "weight": 0.5, "curve": "linear" },
+        { "feature": "brightness", "channel": "abs", "in": [0.2, 0.7], "weight": 0.4, "curve": "linear" }
+      ], "why": "Зелень і світло — світлий лад" },
+    "register": { "base": 0.2, "sources": [
+        { "feature": "centerY", "channel": "abs", "in": [0.3, 0.7], "weight": 0.6, "curve": "linear" }
+      ], "why": "Активність на півночі — вищий регістр" },
+    "pan": { "base": 0.0, "range": [-1, 1], "sources": [
+        { "feature": "balanceLR", "channel": "abs", "in": [-0.5, 0.5], "weight": 1.0, "curve": "linear" }
+      ], "why": "Захід — ліворуч, схід — праворуч" },
+    "motion": { "base": 0.05, "sources": [
+        { "feature": "frameDiff", "channel": "rel", "weight": 0.6, "curve": "linear" }
+      ], "why": "Рух хмар — рухливість партій" },
+    "articulation": { "base": 0.2, "sources": [
+        { "feature": "whiteness", "channel": "accel20", "weight": 0.5, "curve": "exp", "abs": true }
+      ], "why": "Різкі зміни — стакато" },
+    "space": { "base": 0.3, "sources": [
+        { "feature": "waterBlue", "channel": "abs", "in": [0.0, 0.5], "weight": 0.4, "curve": "linear" }
+      ], "why": "Більше океану — більше простору" }
+  },
+  "contour": { "zone": "cols", "channel": "rel", "why": "Мелодія сканує кадр зліва направо: вище нота — яскравіше" },
+  "accent": { "events": ["peak", "thresholdCross", "changePoint", "globalMax", "returnOfState"], "why": "Події — акценти" }
+}
