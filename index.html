@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="uk">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Earth Jukebox</title>
+<meta name="description" content="Earth Jukebox: візуалізації NASA перетворюються на музику для незрячих і слабозорих слухачів.">
+<link rel="icon" href="data:,">
+<link rel="stylesheet" href="src/style.css">
+</head>
+<body>
+<header>
+  <h1>🌍🎵 Earth Jukebox</h1>
+  <p>Двигун спершу «дивиться» все відео NASA, розуміє, що в ньому відбувається, а потім пише до нього музику.</p>
+</header>
+
+<main>
+  <section class="panel stack" aria-labelledby="stage-title">
+    <h2 id="stage-title" class="sr-only">Візуалізація</h2>
+    <div class="row" id="gallery" role="group" aria-label="Галерея візуалізацій"></div>
+    <div id="drop">
+      <label for="file">Або перетягніть сюди своє відео / фото, чи виберіть файл: </label>
+      <input type="file" id="file" accept="video/*,image/*">
+    </div>
+    <div class="viewer" id="viewer">
+      <div class="placeholder" id="placeholder">Оберіть візуалізацію в галереї вище.</div>
+      <canvas id="overlay" aria-hidden="true"></canvas>
+    </div>
+    <div>
+      <div id="progress" aria-hidden="true"><div></div></div>
+      <p id="status" role="status">Файл не завантажено.</p>
+    </div>
+
+    <section class="card" id="card" aria-labelledby="card-title" hidden tabindex="-1">
+      <h2 id="card-title">Що двигун зрозумів про відео</h2>
+      <div class="tags" id="card-tags"></div>
+      <ul id="card-lines"></ul>
+    </section>
+
+    <section id="timeline-wrap" hidden aria-labelledby="tl-title">
+      <h2 id="tl-title">Таймлайн ознак і подій</h2>
+      <canvas id="timeline" class="timeline" role="img" aria-label="Графік ознак у часі"></canvas>
+      <div class="legend-row" id="tl-legend" aria-hidden="true"></div>
+    </section>
+
+    <details>
+      <summary>Технічні дані аналізу (для розробників)</summary>
+      <div class="row" style="margin-top:8px">
+        <label class="opt"><input type="checkbox" id="showMasks"> Показати маски на кадрі (суша — зелений, фон — синій, підписи — пурпурний)</label>
+        <button id="exportBtn" disabled>⬇ Аналіз у JSON</button>
+      </div>
+      <pre class="debug" id="debug"></pre>
+    </details>
+  </section>
+
+  <aside class="panel stack" aria-label="Керування">
+    <div class="row">
+      <button id="play" class="primary" disabled aria-keyshortcuts="Space">▶ Грати</button>
+      <button id="legendBtn" disabled aria-keyshortcuts="L">🔊 Аудіолегенда</button>
+    </div>
+
+    <fieldset id="parts-wrap" hidden>
+      <legend>Партії оркестру</legend>
+      <div class="parts" id="parts" role="group" aria-label="Партії: увімкнути, вимкнути, соло"></div>
+    </fieldset>
+
+    <fieldset>
+      <legend>Зараз звучить</legend>
+      <dl class="readout" id="readout"><dt>—</dt><dd>Аналіз ще не виконано</dd></dl>
+    </fieldset>
+
+    <section id="mapping-wrap" hidden aria-labelledby="map-title">
+      <h2 id="map-title">Таблиця мапінгу: дані → музика</h2>
+      <div id="mapping"></div>
+    </section>
+
+    <fieldset>
+      <legend>Доступність</legend>
+      <label class="opt"><input type="checkbox" id="announce" checked> Повідомляти події для скрінрідера</label>
+      <label class="opt"><input type="checkbox" id="voice"> Озвучувати голосом</label>
+    </fieldset>
+
+    <p class="keys">
+      <kbd>Space</kbd> грати/пауза · <kbd>L</kbd> аудіолегенда · <kbd>D</kbd> прочитати картку ·
+      <kbd>1</kbd>–<kbd>9</kbd> вимкнути/увімкнути партію · <kbd>Shift</kbd>+<kbd>1</kbd>–<kbd>9</kbd> соло ·
+      <kbd>←</kbd>/<kbd>→</kbd> ±5 с
+    </p>
+  </aside>
+</main>
+
+<div id="live" class="sr-only" aria-live="polite"></div>
+<script type="module" src="src/main.js"></script>
+</body>
+</html>

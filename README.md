@@ -5,12 +5,18 @@ NASA Space Apps Challenge 2026 · челендж "Earth Jukebox"
 щоб науку про Землю могли "побачити вухами" незрячі та слабозорі люди.
 
 - `CLAUDE.md` — архітектура, рішення, правила (читати першим)
-- `prototype/` — v1, робочий прототип
-- `samples/` — тестові візуалізації NASA
+- `docs/plan-v2.md` — план v2 і стан етапів; `docs/PROMPT-v2-engine.md` — ТЗ двигуна
+- `index.html` + `src/` — версія 2 (двигун «спершу зрозуміти все відео, потім писати музику»)
+- `test.html` — автотести двигуна (розділ 8 ТЗ)
+- `prototype/` — v1, запасне демо
+- `samples/` — тестові візуалізації NASA і `catalog.json` галереї
 - `docs/` — умова челенджу та банк ідей
 
 ## Запуск
 ```
-python -m http.server 8000
+python tools/serve.py
 ```
-→ відкрити http://localhost:8000/prototype/ у Chrome.
+→ http://localhost:8000/ (застосунок), http://localhost:8000/test.html (автотести).
+
+`tools/serve.py` — як `python -m http.server`, але з підтримкою Range (перемотування відео)
+і без кешу. Звичайний `python -m http.server` теж працює: відео з галереї завантажується в пам'ять цілком.
