@@ -15,6 +15,8 @@ export function hueRampValue(h) {
   return (240 - h) / 240;
 }
 
+import { frameBackground } from "./region-dynamic.js";
+
 /** Розтягнути маску (mw×mh) на сітку w×h методом найближчого сусіда. */
 export function resampleMask(mask, mw, mh, w, h) {
   if (!mask) return null;
@@ -53,6 +55,12 @@ export function scaleValue(refs, r, g, b) {
  */
 export function buildContext(data, w, h, masks = null, prevLuma = null, sceneType = "mixed") {
   const n = w * h;
+  // v4-15: рухомий фон (камера, наближення) — шукаємо фон у цьому кадрі й виключаємо його з області даних
+  if (masks?.dynamicBg) {
+    const bg = frameBackground(data, w, h), base = masks.regionMask, inside = new Uint8Array(n);
+    for (let i = 0; i < n; i++) inside[i] = (!base || base[i]) && !bg[i] ? 1 : 0;
+    masks = { ...masks, regionMask: inside };
+  }
   const hue = new Float32Array(n), sat = new Float32Array(n), val = new Float32Array(n), luma = new Float32Array(n);
   const ramp = new Float32Array(n);          // значення за шкалою (знайденою в кадрі або синій→червоний), -1 = немає
   const isData = new Uint8Array(n);          // піксель несе дані (не фон, не суша, не статика, в області даних)

@@ -5,6 +5,7 @@
 // Нормалізацію, часові ознаки й події робить analyze.js.
 import { grab, analysisSize } from "../media/frames.js";
 import { buildContext } from "./frame-context.js";
+import { smallLuma, estimateCamera } from "./region-dynamic.js";
 
 /** Вирізати bbox маски (сітка mw×mh) і розтягнути до w×h (найближчий сусід). */
 function cropResample(mask, mw, mh, bb, w, h) {
@@ -76,15 +77,17 @@ function makeProcessor(init) {
 }
 
 function inlineProcessor(init) {
-  let prevLuma = null;
+  let prevLuma = null, prevSmall = null;
   return {
     kind: "inline",
     ready: Promise.resolve(true),
     async process(index, time, imageData, continuous) {
       const ctx = buildContext(imageData.data, init.w, init.h, init.masks, continuous ? prevLuma : null, init.sceneType);
       const r = computeFrame(ctx, true);
-      prevLuma = ctx.luma;
-      return { index, time, ...r };
+      const small = smallLuma(ctx.luma, init.w, init.h);
+      const cam = prevSmall && continuous ? estimateCamera(prevSmall, small) : { scale: 1, dx: 0, dy: 0, gain: 0, motion: 0 };
+      prevSmall = small; prevLuma = ctx.luma;
+      return { index, time, ...r, cam, inside: ctx.insideCount / ctx.n };
     },
     close() {},
   };
@@ -101,6 +104,7 @@ export async function passB(source, profile, { onProgress = () => {}, signal, pa
   for (const k of ["staticMask", "landMask", "bgMask", "overlayMask", "regionMask"])
     if (profile[k]) masks[k] = cropResample(profile[k], mw, mh, bb, w, h);
   masks.scaleRefs = profile.scale?.found ? Float32Array.from(profile.scale.refs.flat()) : null;
+  masks.dynamicBg = !!profile.dynamicBg;
   if (reg?.disk) {
     const kx = w / (bb.x1 - bb.x0 + 1), ky = h / (bb.y1 - bb.y0 + 1);
     masks.disk = { cx: (reg.disk.cx - bb.x0) * kx, cy: (reg.disk.cy - bb.y0) * ky, r: reg.disk.r * kx };
@@ -132,7 +136,7 @@ export async function passB(source, profile, { onProgress = () => {}, signal, pa
         const img = grab(await reader.seek(timeOf(i)), w, h, crop);
         // поки Worker рахує цей кадр, відрізок уже перемотує на наступний
         inflight.push(proc.process(i, timeOf(i), img, true).then(r => {
-          frames[r.index] = { time: r.time, features: r.features, zones: r.zones };
+          frames[r.index] = { time: r.time, features: r.features, zones: r.zones, cam: r.cam, inside: r.inside };
           done++;
           if (done % 8 === 0 || done === count) onProgress(done / count, done, count);
         }));

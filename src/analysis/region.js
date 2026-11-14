@@ -5,7 +5,7 @@
 // Усі координати — у сітці маски (w×h); у профіль кладемо також нормовані 0..1.
 
 /** Зв'язні компоненти (4-сусідство) для маски; повертає мітки й розміри. */
-function components(mask, w, h) {
+export function components(mask, w, h) {
   const lab = new Int32Array(w * h).fill(-1), sizes = [], stack = [];
   for (let i = 0; i < w * h; i++) {
     if (!mask[i] || lab[i] >= 0) continue;
@@ -25,7 +25,7 @@ function components(mask, w, h) {
 }
 
 /** Заливка від рамки по пікселях, де pass(i) = true. */
-function floodFromBorder(pass, w, h) {
+export function floodFromBorder(pass, w, h) {
   const seen = new Uint8Array(w * h), stack = [];
   const push = i => { if (!seen[i] && pass(i)) { seen[i] = 1; stack.push(i); } };
   for (let x = 0; x < w; x++) { push(x); push((h - 1) * w + x); }
@@ -69,7 +69,15 @@ export function detectRegion({ w, h, meanRGB, mVal, pxStd, still, staticThr }) {
   let bgQ = null, bgN = 0;
   for (const [k, v] of hist) if (v > bgN) { bgN = v; bgQ = k; }
   let bgRGB = null;
-  if (bgN / border >= 0.4) bgRGB = [((bgQ >> 10) & 31) / 31, ((bgQ >> 5) & 31) / 31, (bgQ & 31) / 31];
+  if (bgN / border >= 0.4) {
+    bgRGB = [((bgQ >> 10) & 31) / 31, ((bgQ >> 5) & 31) / 31, (bgQ & 31) / 31];
+    // однотонний НЕ чорний фон — лише якщо він на всіх чотирьох сторонах (білі полярні смуги — це лід, дані)
+    const nearBg = i => (meanRGB[3 * i] - bgRGB[0]) ** 2 + (meanRGB[3 * i + 1] - bgRGB[1]) ** 2 + (meanRGB[3 * i + 2] - bgRGB[2]) ** 2 < 0.004;
+    const side = idx => idx.reduce((c, i) => c + (nearBg(i) ? 1 : 0), 0) / idx.length;
+    const xs = Array.from({ length: w }, (_, x) => x), ys = Array.from({ length: h }, (_, y) => y);
+    const all4 = [xs, xs.map(x => (h - 1) * w + x), ys.map(y => y * w), ys.map(y => y * w + w - 1)].every(s => side(s) >= 0.3);
+    if (Math.max(...bgRGB) >= 0.08 && !all4) bgRGB = null;
+  }
   const bgLike = i => {
     if (!isStatic(i)) return false;
     if (mVal[i] < 0.07) return true;                       // чорні смуги, космос

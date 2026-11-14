@@ -7,6 +7,7 @@ import { buildContext, hueRampValue, DATA_MIN_SAT } from "./frame-context.js";
 import { computeFrame, MAIN_FEATURE, listFeatures } from "../features/index.js";
 import { describeRange, median, percentile, autocorr, clamp } from "../util/stats.js";
 import { detectRegion, detectScale } from "./region.js";
+import { frameBackground, regionFromFrames, detectDynamicText } from "./region-dynamic.js";
 
 const N_SAMPLES = 32, N_NOISE_PAIRS = 4, MASK_W = 160;
 
@@ -40,6 +41,7 @@ export async function passA(source, { onProgress = () => {}, sceneOverride = nul
   const sR = new Float32Array(n), sG = new Float32Array(n), sB = new Float32Array(n);
   const qR = new Float32Array(n), qG = new Float32Array(n), qB = new Float32Array(n);
   const mSat = new Float32Array(n), mVal = new Float32Array(n), maxSat = new Float32Array(n);
+  const maxVal = new Float32Array(n), minSat = new Float32Array(n).fill(1);
   for (const d of frames) {
     for (let i = 0, p = 0; i < n; i++, p += 4) {
       const r = d[p] / 255, g = d[p + 1] / 255, b = d[p + 2] / 255;
@@ -47,6 +49,8 @@ export async function passA(source, { onProgress = () => {}, sceneOverride = nul
       const max = Math.max(r, g, b), min = Math.min(r, g, b), s = max > 0.08 ? (max - min) / max : 0;
       mVal[i] += max; mSat[i] += s;
       if (s > maxSat[i]) maxSat[i] = s;
+      if (max > maxVal[i]) maxVal[i] = max;
+      if (s < minSat[i]) minSat[i] = s;
     }
   }
   const F = frames.length, pxStd = new Float32Array(n);
@@ -92,11 +96,25 @@ export async function passA(source, { onProgress = () => {}, sceneOverride = nul
   const meanRGB = new Float32Array(3 * n);
   for (let i = 0; i < n; i++) { meanRGB[3 * i] = sR[i] / F; meanRGB[3 * i + 1] = sG[i] / F; meanRGB[3 * i + 2] = sB[i] / F; }
   let scale = detectScale({ w, h, meanRGB, mSat, mVal, pxStd, still: colorOnly, staticThr });
-  const region = source.scan ? fullRegion(w, h) : detectRegion({ w, h, meanRGB, mVal, pxStd, still: isStill, staticThr });
+  let region = source.scan ? fullRegion(w, h) : detectRegion({ w, h, meanRGB, mVal, pxStd, still: isStill, staticThr });
+  // v4-15: фон у КОЖНОМУ кадрі огляду. Якщо він рухається (камера, наближення) — область = об'єднання «не фону»,
+  // а прохід B шукатиме фон у кожному кадрі окремо.
+  let dynamicBg = false;
+  if (!isStill && !source.scan) {
+    const bgCount = new Uint16Array(n);
+    for (const d of frames) { const bg = frameBackground(d, w, h); for (let i = 0; i < n; i++) bgCount[i] += bg[i]; }
+    let sometimes = 0;
+    for (let i = 0; i < n; i++) if (bgCount[i] > 0.1 * F && bgCount[i] < 0.9 * F) sometimes++;
+    dynamicBg = sometimes / n > 0.04;
+    if (dynamicBg) region = regionFromFrames(bgCount, F, w, h);
+  }
+  // дата / змінний текст у кутах — службовий елемент навіть тоді, коли він не статичний
+  const text = isStill || source.scan ? { mask: new Uint8Array(n), boxes: [] } : detectDynamicText({ w, h, pxStd, maxVal, minSat });
   // сканування: шкалу шукали на всьому фото (вікно її не бачить) — беремо звідти
   if (!scale.found && scaleHint?.found) scale = { ...scaleHint, mask: new Uint8Array(n) };
   const regionMask = region.mask;
   if (scale.found) for (let i = 0; i < n; i++) if (scale.mask[i]) regionMask[i] = 0;
+  for (let i = 0; i < n; i++) if (text.mask[i]) regionMask[i] = 0;
   const inRegion = i => regionMask[i] === 1;
   const regionArea = Math.max(1, regionMask.reduce((s, v) => s + v, 0));
   // поза областю — не суша, не фон даних (це рамка/космос), щоб не плутати частки
@@ -188,6 +206,7 @@ export async function passA(source, { onProgress = () => {}, sceneOverride = nul
     sceneType, sceneDetected: scene.type, confidence: sceneOverride ? 1 : scene.confidence, sceneScores: scene.scores, sceneStats: scene.stats,
     maskW: w, maskH: h, staticMask, landMask, bgMask, overlayMask, regionMask,
     region: { shape: region.shape, area: region.area, full: region.full, bbox: region.bbox, disk: region.disk, norm: region.norm },
+    dynamicBg, textBoxes: text.boxes,
     scale: scale.found ? { found: true, orientation: scale.orientation, refs: scale.refs, norm: scale.norm } : { found: false },
     shares: { static: share(staticMask), land: share(landMask), bg: share(bgMask), overlay: share(overlayMask) },
     ranges, featureNoise, noiseFloor, noiseCell, mainFeature, changeRatio, changeScale, changeAmp, changeArea,

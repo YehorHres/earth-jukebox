@@ -502,6 +502,40 @@ SUITES.push(async function stage14() {
   check("Уривок «урагану» зі збереженим мастером: пік ≤ −1 dBFS", M.measure(ex.buffer).peakDb <= -1, `пік ${M.measure(ex.buffer).peakDb.toFixed(2)} dBFS`);
 });
 
+SUITES.push(async function stage15() {
+  const { SCENES } = await import("./media/synthetic-scenes.js");
+  const { analyzeSource } = await import("./analysis/analyze.js");
+  const { serializeAnalysis, deserializeAnalysis } = await import("./analysis/serialize.js");
+  const at = (p, sc, x, y) => p.regionMask[Math.floor(y * p.maskH / sc.h) * p.maskW + Math.floor(x * p.maskW / sc.w)];
+  const iou = (p, sc) => {
+    const { maskW: w, maskH: h, regionMask: m } = p; let inter = 0, uni = 0;
+    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+      const t = sc.truth((x + 0.5) * sc.w / w, (y + 0.5) * sc.h / h) ? 1 : 0, r = m[y * w + x];
+      if (t && r) inter++; if (t || r) uni++;
+    }
+    return inter / uni;
+  };
+  // 1) letterbox + шкала + дата: смуги — фон, шкала й дата — поза областю
+  let sc = SCENES["letterbox-date"], a = await analyzeSource(openSynthetic("letterbox-date"), { useCache: false }), p = a.profile;
+  const bars = at(p, sc, 320, 10) + at(p, sc, 320, 350) + at(p, sc, 320, 338), dateIn = at(p, sc, 40, 58) + at(p, sc, 100, 58);
+  check("Етап 15: letterbox + шкала + дата — смуги, шкала й дата поза областю", iou(p, sc) >= 0.85 && !bars && !dateIn && p.textBoxes?.length > 0,
+    `IoU ${iou(p, sc).toFixed(3)}, рамок тексту ${p.textBoxes?.length || 0}, пікселів смуг/дати в області ${bars}/${dateIn}`);
+  // 2) карта країни на чорному з наближенням: рух камери знайдено, у цей час подій немає, чорна рамка — не дані
+  sc = SCENES["country-zoom"]; a = await analyzeSource(openSynthetic("country-zoom"), { useCache: false }); p = a.profile;
+  const [z0, z1] = sc.zoom, segOk = a.camera.segments.some(s => s.time <= z0 + 0.6 && s.endTime >= z1 - 0.6);
+  const inZoom = a.events.filter(e => e.time > z0 && e.time <= z1 + 0.3);
+  const corners = at(p, sc, 4, 4) + at(p, sc, 476, 4) + at(p, sc, 4, 266) + at(p, sc, 476, 266);
+  check("Етап 15: наближення камери знайдено, подій під час руху немає, кути-рамка поза областю",
+    p.dynamicBg && segOk && !inZoom.length && !corners && iou(p, sc) >= 0.8,
+    `рухомий фон ${p.dynamicBg}, рух камери ${a.camera.segments.map(s => `${s.time.toFixed(1)}–${s.endTime.toFixed(1)} с`).join(", ") || "—"}, подій у русі ${inZoom.length}, IoU ${iou(p, sc).toFixed(3)}`);
+  const rt = deserializeAnalysis(JSON.parse(JSON.stringify(serializeAnalysis(a))));
+  check("Етап 15: дані про рух камери переживають збереження аналізу", rt.camera?.segments?.length === a.camera.segments.length);
+  // 3) білі полярні смуги — лід, тобто дані; камера стоїть
+  sc = SCENES["polar-white"]; a = await analyzeSource(openSynthetic("polar-white"), { useCache: false }); p = a.profile;
+  check("Етап 15: білі полярні смуги — дані (не фон), руху камери немає", iou(p, sc) >= 0.95 && a.camera.movingShare < 0.05,
+    `IoU ${iou(p, sc).toFixed(3)}, частка «руху камери» ${(a.camera.movingShare * 100).toFixed(0)} %`);
+});
+
 (async () => {
   for (const s of SUITES) {
     try { await s(); }
