@@ -212,7 +212,8 @@ function playSample(eng, dest, n, t, s, inst) {
   src.start(t);
   src.stop(t + Math.min(best.buffer.duration / src.playbackRate.value, n.dur + rel * 2.5) + 0.05);
 }
-const SAMPLE_LEVEL = { piano: 0.55, harp: 0.6, strings: 0.22, violin: 0.32, cello: 0.4, contrabass: 0.7, flute: 0.45, horn: 0.4, xylophone: 0.4 };
+// рівні вирівняно з синтезаторами (RMS однієї ноти, vel 0.6): заміна синтезатора на семпл не змінює баланс
+const SAMPLE_LEVEL = { piano: 0.37, harp: 0.47, violin: 0.39, contrabass: 0.82, flute: 0.5, horn: 0.48 };
 
 /** Зіграти ноту: семпл, якщо є, інакше синтезатор (музика ніколи не мовчить). */
 export function playNote(eng, dest, inst, n, t) {

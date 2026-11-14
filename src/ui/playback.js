@@ -3,7 +3,8 @@
 import { compose } from "../composer/composer.js";
 import { Engine } from "../audio/engine.js";
 import { Player } from "../audio/player.js";
-import { INSTRUMENT_LABEL } from "../audio/instruments.js";
+import { INSTRUMENT_LABEL, hasSampler } from "../audio/instruments.js";
+import { loadSamples } from "../audio/samples.js";
 import { announce, setMinGap, stopVoice } from "../a11y/announcer.js";
 import { fmtTime } from "../a11y/describe.js";
 import { noteName } from "../composer/theory.js";
@@ -92,7 +93,9 @@ export function setupPlayback(app, { timeline, mappingTable }) {
     root.replaceChildren();
     app.score.parts.forEach((p, k) => {
       const st = engine.getPart(p.id);
-      const name = Object.assign(document.createElement("span"), { textContent: `${k + 1}. ${p.label}`, className: st.mute ? "off" : "on", title: `${INSTRUMENT_LABEL[p.instrument] || p.instrument}. ${p.role}` });
+      const instr = `${INSTRUMENT_LABEL[p.instrument] || p.instrument}${hasSampler(p.instrument) ? "" : p.id === "drums" || p.id === "accents" ? "" : ", синтезатор"}`;
+      const name = Object.assign(document.createElement("span"), { className: st.mute ? "off" : "on", title: p.role });
+      name.append(`${k + 1}. ${p.label} `, Object.assign(document.createElement("small"), { className: "keys", textContent: `(${instr})` }));
       const mute = Object.assign(document.createElement("button"), { textContent: st.mute ? "Увімк." : "Вимк." });
       mute.setAttribute("aria-label", `${st.mute ? "Увімкнути" : "Вимкнути"} партію ${p.label}`);
       mute.setAttribute("aria-pressed", st.mute ? "true" : "false");
@@ -123,6 +126,15 @@ export function setupPlayback(app, { timeline, mappingTable }) {
     onBar(0, true);
     $("play").disabled = false;
     $("legendBtn").disabled = false;
+    // семпли — у фоні; грати можна одразу (поки що синтезатори)
+    const insts = [...new Set(app.score.notes.map(n => n.inst))];
+    const decoder = new OfflineAudioContext(1, 1, 44100);
+    const status = $("status"), base = status.textContent;
+    loadSamples(decoder, insts, (d, n) => { status.textContent = `${base} Семпли інструментів: ${d}/${n}…`; })
+      .then(({ loaded, failed }) => {
+        status.textContent = `${base} ${loaded.length ? `Справжні інструменти: ${loaded.map(i => INSTRUMENT_LABEL[i]).join(", ")}.` : ""}${failed.length ? ` Синтезатор замість: ${failed.map(i => INSTRUMENT_LABEL[i]).join(", ")}.` : ""}`;
+        renderParts();
+      });
   }
 
   app.seekTo = t => { if (app.score) player.seek(t); };

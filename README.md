@@ -20,3 +20,10 @@ python tools/serve.py
 
 `tools/serve.py` — як `python -m http.server`, але з підтримкою Range (перемотування відео)
 і без кешу. Звичайний `python -m http.server` теж працює: відео з галереї завантажується в пам'ять цілком.
+
+## Атрибуція
+- Відео: NASA/Goddard Space Flight Center Scientific Visualization Studio, дані ECCO2 (MIT/JPL).
+- Семпли інструментів (фортепіано, скрипка, флейта, арфа, контрабас, валторна):
+  [nbrosowsky/tonejs-instruments](https://github.com/nbrosowsky/tonejs-instruments),
+  ліцензія [CC-BY 3.0](https://creativecommons.org/licenses/by/3.0/). Деталі — `vendor/samples/README.md`.
+- Решта звуків (струнна група, челеста, дзвони, ударні) — власні синтезатори на Web Audio.

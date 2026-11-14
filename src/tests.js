@@ -194,6 +194,28 @@ SUITES.push(async function stage5() {
   window.__score = s;
 });
 
+SUITES.push(async function stage6() {
+  const S = await import("./audio/samples.js");
+  const I = await import("./audio/instruments.js");
+  const { renderOffline } = await import("./audio/render.js");
+  const s = window.__score, me = window.__mapEcco;
+  const insts = [...new Set(s.notes.map(n => n.inst))];
+  const r = await S.loadSamples(new OfflineAudioContext(1, 1, 44100), insts);
+  check("Семпли: завантажено для інструментів треку", r.loaded.length >= 3 && !r.failed.length, `семпли: ${r.loaded.join(", ")}; синтезатор: ${insts.filter(i => !I.hasSampler(i)).join(", ")}`);
+  const out = await renderOffline(s, me, { from: me.meta.duration * 0.45, seconds: 12 });
+  check("Звук із семплами: є сигнал, без перевантаження", out.rms > 0.005 && out.peak <= 1, `RMS ${out.rms.toFixed(3)}, пік ${out.peak.toFixed(3)}`);
+  // запасний варіант: семплів немає → синтезатор, музика не мовчить
+  S.SAMPLE_SETS.cello = ["C3"];
+  const rc = await S.loadSamples(new OfflineAudioContext(1, 1, 44100), ["cello"]);
+  const ctx = new OfflineAudioContext(2, 44100, 44100);
+  const { Engine } = await import("./audio/engine.js");
+  const e = new Engine(); await e.init(ctx);
+  I.playNote(e, e.bus("t"), "cello", { midi: 48, dur: 0.5, vel: 0.7, pan: 0 }, 0.01);
+  const b = await ctx.startRendering(); let m = 0; for (const v of b.getChannelData(0)) m = Math.max(m, Math.abs(v));
+  check("Немає семплів → синтезатор (музика не мовчить)", rc.failed.includes("cello") && m > 0.01, `статус: ${S.sampleStatus.cello}, пік ${m.toFixed(3)}`);
+  delete S.SAMPLE_SETS.cello;
+});
+
 (async () => {
   for (const s of SUITES) {
     try { await s(); }
