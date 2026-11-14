@@ -100,11 +100,19 @@ export async function openVideo(srcOrFile, opts = {}) {
   const duration = await ensureDuration(video);
   const fps = opts.fps || await estimateFps(video);
   await seekVideo(video, 0);
+  const clamp = t => Math.max(0, Math.min(duration - 0.02, t));
   return {
     kind: "video", name, el: video, duration, fps, isStatic: false,
     width: video.videoWidth, height: video.videoHeight,
     key: `${name}|${size}|${duration.toFixed(2)}`,
-    async seek(t) { await seekVideo(video, Math.max(0, Math.min(duration - 0.02, t))); return video; },
+    async seek(t) { await seekVideo(video, clamp(t)); return video; },
+    /** Незалежна копія з власним декодером — для паралельного аналізу. */
+    async fork() {
+      const v2 = document.createElement("video");
+      v2.muted = true; v2.playsInline = true; v2.preload = "auto";
+      await loadVideoSrc(v2, video.currentSrc || video.src);
+      return { async seek(t) { await seekVideo(v2, clamp(t)); return v2; }, close() { v2.removeAttribute("src"); v2.load(); } };
+    },
   };
 }
 
@@ -185,5 +193,6 @@ export function openSynthetic(id = "dark-lights", opts = {}) {
     width: cfg.w, height: cfg.h, key: `synthetic:${id}`,
     async seek(t) { return render(t); },
     frameAt: render,
+    async fork() { const f = openSynthetic(id, opts); return { seek: f.seek, close() {} }; },
   };
 }

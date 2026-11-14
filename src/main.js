@@ -1,14 +1,19 @@
 // Earth Jukebox v2 — склеює шари та інтерфейс.
 import { openVideo, openImage, openSynthetic } from "./media/sources.js";
-import { passA } from "./analysis/pass-a.js";
-import { describeProfile, SCENE_LABEL, SCALE_LABEL } from "./a11y/describe.js";
+import { analyzeSource } from "./analysis/analyze.js";
+import { describeProfile, SCALE_LABEL } from "./a11y/describe.js";
 import { initAnnouncer, announce, prefs, stopVoice } from "./a11y/announcer.js";
+import { createTimeline } from "./ui/timeline.js";
 
 const $ = id => document.getElementById(id);
+const NO_CACHE = new URLSearchParams(location.search).has("nocache");   // ?nocache — завжди аналізувати заново
 const app = { source: null, profile: null, analysis: null, catalogItem: null, busy: false };
 window.jukebox = app; // для налагодження й автотестів
 
 initAnnouncer($("live"));
+const timeline = createTimeline($("timeline"), $("tl-legend"), {
+  onSeek: t => { if (app.source?.kind === "video") app.source.el.currentTime = t; app.seekTo?.(t); timeline.setCursor(t); },
+});
 const setStatus = s => ($("status").textContent = s);
 const setProgress = p => ($("progress").firstElementChild.style.width = `${Math.round(p * 100)}%`);
 
@@ -50,6 +55,7 @@ async function loadSource(title, open, item) {
   app.profile = app.analysis = null;
   ["play", "legendBtn", "exportBtn"].forEach(id => ($(id).disabled = true));
   $("card").hidden = true;
+  $("timeline-wrap").hidden = true;
   setProgress(0);
   try {
     setStatus(`Відкриваю «${title}»…`);
@@ -59,14 +65,29 @@ async function loadSource(title, open, item) {
     announce(`Відкрито «${title}». ${item?.desc ?? ""} Аналізую відео, зачекайте.`, { force: true });
 
     const t0 = performance.now();
-    app.profile = await passA(src, {
+    let lastSpoken = -1;
+    app.analysis = await analyzeSource(src, {
       sceneOverride: item?.sceneType || null,
-      onProgress: (p, msg) => { setProgress(p); setStatus(msg); },
+      precomputedUrl: NO_CACHE ? null : item?.analysis || null,
+      useCache: !NO_CACHE,
+      onProgress: (stage, p, msg, profile) => {
+        if (stage === "A") { setProgress(p * 0.15); setStatus(msg); }
+        if (stage === "A-done") { app.profile = profile; renderCard(false); drawMasks(); }
+        if (stage === "B") {
+          setProgress(0.15 + 0.85 * p); setStatus(msg);
+          const q = Math.floor(p * 4);                       // скрінрідеру — раз на 25 %
+          if (q > lastSpoken && q < 4) { lastSpoken = q; announce(msg, { throttle: false }); }
+        }
+      },
     });
+    app.profile = app.analysis.profile;
     const dt = ((performance.now() - t0) / 1000).toFixed(1);
     setProgress(1);
-    setStatus(`Огляд відео завершено за ${dt} с.`);
+    const how = app.analysis.fromCache ? "узято з кешу" : app.analysis.fromPrecomputed ? "завантажено готовий" : `виконано за ${dt} с`;
+    setStatus(`Аналіз ${how}: ${app.analysis.count} кадрів, подій: ${app.analysis.events.length}.`);
     renderCard();
+    $("timeline-wrap").hidden = false;     // спершу показати — інакше canvas має ширину 0
+    timeline.set(app.analysis);
     $("exportBtn").disabled = false;
     drawMasks();
   } catch (e) {
@@ -87,9 +108,10 @@ function showMedia(src) {
 }
 
 /* ---------------- картка «що зрозумів» ---------------- */
-function renderCard() {
+function renderCard(speak = true) {
   const p = app.profile;
   const lines = describeProfile(p, app.source, app.analysis);
+  if (!app.analysis) lines.push("Детальний аналіз кожного кадру триває…");
   $("card-lines").replaceChildren(...lines.map(t => Object.assign(document.createElement("li"), { textContent: t })));
   const tags = [
     [p.sceneType, true],
@@ -99,13 +121,19 @@ function renderCard() {
   ].filter(Boolean);
   $("card-tags").replaceChildren(...tags.map(([t, hi]) => Object.assign(document.createElement("span"), { className: "tag" + (hi ? " hi" : ""), textContent: t })));
   $("card").hidden = false;
-  announce("Що двигун зрозумів про відео. " + lines.join(" "), { force: true });
-  $("debug").textContent = JSON.stringify(debugProfile(p), null, 1);
+  if (speak) announce("Що двигун зрозумів про відео. " + lines.join(" "), { force: true });
+  const a = app.analysis;
+  $("debug").textContent = JSON.stringify({
+    profile: debugProfile(p),
+    ...(a && { rate: a.rate, count: a.count, processor: a.processor, seconds: a.seconds, passBSeconds: a.passBSeconds,
+      norm: round(a.norm), events: round(a.events), period: a.period, climax: round(a.climax), cuts: a.cuts,
+      hotspots: a.hotspots.map(h => ({ label: h.label, spread: +h.spread.toFixed(3) })) }),
+  }, null, 1);
 }
 
+const round = o => JSON.parse(JSON.stringify(o, (k, v) => (typeof v === "number" ? +v.toPrecision(4) : v)));
 function debugProfile(p) {
   const { staticMask, landMask, bgMask, overlayMask, ...rest } = p;
-  const round = o => JSON.parse(JSON.stringify(o, (k, v) => (typeof v === "number" ? +v.toPrecision(4) : v)));
   return round(rest);
 }
 
@@ -127,7 +155,7 @@ $("showMasks").addEventListener("change", drawMasks);
 
 /* ---------------- експорт ---------------- */
 $("exportBtn").addEventListener("click", () => {
-  const data = { profile: debugProfile(app.profile), analysis: app.analysis };
+  const data = JSON.parse($("debug").textContent || "{}");
   const a = document.createElement("a");
   a.href = URL.createObjectURL(new Blob([JSON.stringify(data)], { type: "application/json" }));
   a.download = `earth-jukebox-${app.source?.name || "analysis"}.json`;

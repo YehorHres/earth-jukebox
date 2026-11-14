@@ -1,0 +1,128 @@
+// Прохід B — «детальний»: кожен кадр (адаптивна частота), пікселі обробляють Web Worker-и.
+// Швидкість: відео ділимо на K відрізків; кожен має власну копію відео (власний декодер) і власний
+// Worker. Результат детермінований: кадри беруться перемоткою на точні моменти, а перший кадр
+// кожного відрізка «підготовлює» попередній кадр для frameDiff — як при послідовному проході.
+// Нормалізацію, часові ознаки й події робить analyze.js.
+import { grab, analysisSize } from "../media/frames.js";
+import { resampleMask, buildContext } from "./frame-context.js";
+import { computeFrame } from "../features/index.js";
+
+const ANALYSIS_W = 270;
+
+/**
+ * Скільки кадрів аналізувати: 300–800, щонайменше 4 кадри/с, не більше за fps відео.
+ * Ціль — 400: перемотка відео коштує ~50–100 мс на кадр (декодер стартує з ключового кадру),
+ * а для музики 6+ кадрів/с більш ніж досить (такт ≈ 2–3 с).
+ */
+export function planSampling(source) {
+  if (source.isStatic || !source.duration) return { rate: 1, count: 1 };
+  const dur = source.duration, fps = source.fps || 30;
+  const all = Math.floor(dur * fps);
+  if (all <= 400) return { rate: fps, count: Math.max(1, all) };       // коротке відео — кожен кадр
+  const rate = Math.min(fps, Math.max(4, 400 / dur));
+  return { rate, count: Math.max(1, Math.floor(dur * rate)) };
+}
+
+/** Обробник кадрів: Worker, а якщо він недоступний — у основному потоці. */
+function makeProcessor(init) {
+  let worker = null;
+  try { worker = new Worker(new URL("./worker.js", import.meta.url), { type: "module" }); }
+  catch { worker = null; }
+  if (worker) {
+    const pending = new Map();
+    let readyRes, failed = null;
+    const ready = new Promise(r => (readyRes = r));
+    worker.onmessage = e => {
+      const m = e.data;
+      if (m.type === "ready") return readyRes(true);
+      const p = pending.get(m.index);
+      if (!p) return;
+      pending.delete(m.index);
+      m.type === "error" ? p.rej(new Error(m.message)) : p.res(m);
+    };
+    worker.onerror = e => {
+      failed = new Error(e.message || "помилка Worker");
+      readyRes(false);
+      for (const p of pending.values()) p.rej(failed);
+      pending.clear();
+    };
+    worker.postMessage({ type: "init", ...init });
+    return {
+      kind: "worker",
+      ready,
+      process(index, time, imageData, continuous) {
+        if (failed) return Promise.reject(failed);
+        return new Promise((res, rej) => {
+          pending.set(index, { res, rej });
+          const buffer = imageData.data.buffer;
+          worker.postMessage({ type: "frame", index, time, buffer, continuous }, [buffer]);
+        });
+      },
+      close() { worker.terminate(); },
+    };
+  }
+  return inlineProcessor(init);
+}
+
+function inlineProcessor(init) {
+  let prevLuma = null;
+  return {
+    kind: "inline",
+    ready: Promise.resolve(true),
+    async process(index, time, imageData, continuous) {
+      const ctx = buildContext(imageData.data, init.w, init.h, init.masks, continuous ? prevLuma : null, init.sceneType);
+      const r = computeFrame(ctx, true);
+      prevLuma = ctx.luma;
+      return { index, time, ...r };
+    },
+    close() {},
+  };
+}
+
+export async function passB(source, profile, { onProgress = () => {}, signal, parallel } = {}) {
+  const { w, h } = analysisSize(source, ANALYSIS_W);
+  const masks = {};
+  for (const k of ["staticMask", "landMask", "bgMask", "overlayMask"])
+    masks[k] = resampleMask(profile[k], profile.maskW, profile.maskH, w, h);
+  const { rate, count } = planSampling(source);
+  const init = { w, h, masks, sceneType: profile.sceneType };
+  const timeOf = i => (source.isStatic ? 0 : Math.min(source.duration - 0.02, i / rate));
+
+  // скільки паралельних відрізків
+  const cores = navigator.hardwareConcurrency || 4;
+  const K = source.fork && count >= 64 ? Math.max(1, Math.min(parallel ?? 4, Math.floor(cores / 2) || 1, Math.floor(count / 32))) : 1;
+  const frames = new Array(count);
+  let done = 0;
+  const t0 = performance.now();
+  let kind = "worker";
+
+  async function runSegment(k) {
+    const s0 = Math.floor(k * count / K), s1 = Math.floor((k + 1) * count / K);
+    const reader = k === 0 ? { seek: t => source.seek(t), close() {} } : await source.fork();
+    let proc = makeProcessor(init);
+    if (!(await proc.ready)) { proc.close(); proc = inlineProcessor(init); }
+    if (proc.kind === "inline") kind = "inline";
+    const inflight = [];
+    try {
+      // попередній кадр відрізка лише «підготовлює» prevLuma
+      if (s0 > 0) await proc.process(-1, timeOf(s0 - 1), grab(await reader.seek(timeOf(s0 - 1)), w, h), true);
+      for (let i = s0; i < s1; i++) {
+        if (signal?.aborted) throw new DOMException("скасовано", "AbortError");
+        const img = grab(await reader.seek(timeOf(i)), w, h);
+        // поки Worker рахує цей кадр, відрізок уже перемотує на наступний
+        inflight.push(proc.process(i, timeOf(i), img, true).then(r => {
+          frames[r.index] = { time: r.time, features: r.features, zones: r.zones };
+          done++;
+          if (done % 8 === 0 || done === count) onProgress(done / count, done, count);
+        }));
+        if (inflight.length >= 3) await inflight.shift();
+      }
+      await Promise.all(inflight);
+    } finally {
+      proc.close(); reader.close();
+    }
+  }
+
+  await Promise.all(Array.from({ length: K }, (_, k) => runSegment(k)));
+  return { frames, rate, count, w, h, processor: `${kind}×${K}`, seconds: (performance.now() - t0) / 1000 };
+}

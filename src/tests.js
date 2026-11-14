@@ -65,6 +65,42 @@ SUITES.push(async function stage1() {
   window.__still = { source: img, profile: pi };
 });
 
+SUITES.push(async function stage2() {
+  const { analyzeSource } = await import("./analysis/analyze.js");
+  const { cacheGet } = await import("./analysis/cache.js");
+  // темне відео: прохід B, підсилення, події
+  const dark = openSynthetic("dark-lights");
+  const t0 = performance.now();
+  const a1 = await analyzeSource(dark, { useCache: false });
+  const dt = (performance.now() - t0) / 1000;
+  const lf = a1.leadFeature, ln = lf && a1.norm[lf];
+  check("Темне відео: прохід B у Worker", a1.processor.startsWith("worker"), `${a1.processor}, ${a1.count} кадрів за ${dt.toFixed(1)} с`);
+  check("Темне відео: зміни значущі й підсилені (gain > 1)", ln && ln.significant && ln.gain > 1, ln ? `${a1.labels[lf]}: розмах ${(ln.spread * 100).toFixed(2)} %, gain ×${ln.gain.toFixed(1)}, шкала ${ln.scale}` : "провідної ознаки немає");
+  const relSpan = lf ? Math.max(...a1.rel[lf]) - Math.min(...a1.rel[lf]) : 0;
+  check("Темне відео: rel розтягнуто на більшу частину шкали", relSpan > 0.6, `розмах rel = ${relSpan.toFixed(2)}`);
+  check("Темне відео: є кульмінація (місто найяскравіше ближче до кінця)", a1.climax && a1.climax.time > dark.duration * 0.6, a1.climax ? `${a1.climax.time.toFixed(1)} с` : "немає");
+  // детермінованість
+  const a2 = await analyzeSource(openSynthetic("dark-lights"), { useCache: false });
+  let same = a1.count === a2.count;
+  for (const k in a1.abs) for (let i = 0; same && i < a1.count; i++) if (a1.abs[k][i] !== a2.abs[k][i]) same = false;
+  check("Детермінованість: однаковий файл → однаковий аналіз", same && a1.events.length === a2.events.length, `${a1.count} кадрів, подій ${a1.events.length} / ${a2.events.length}`);
+  // кеш
+  await analyzeSource(openSynthetic("dark-lights"));
+  const hit = await analyzeSource(openSynthetic("dark-lights"));
+  check("Кеш IndexedDB: повторний аналіз миттєвий", hit.fromCache === true, hit.fromCache ? "узято з кешу" : "кеш не спрацював");
+  // статичне відео — без фальшивих подій
+  const as = await analyzeSource(openSynthetic("static-dark"), { useCache: false });
+  const sig = Object.entries(as.norm).filter(([, v]) => v.significant).map(([k]) => k);
+  check("Статичне відео: жодної значущої ознаки, подій немає", !sig.length && !as.events.length && !as.climax, `значущі: ${sig.join(", ") || "немає"}; подій ${as.events.length}`);
+  const tr = Math.max(...Array.from(as.temporal["lightLog.trend40"], Math.abs));
+  check("Статичне відео: тренд ≈ 0", tr < 0.35, `max |trend40| = ${tr.toFixed(2)}`);
+  // фото
+  const img = await openImage(makeHeatmapImage(), { name: "test-heatmap.png" });
+  const ai = await analyzeSource(img, { useCache: false });
+  check("Фото: 1 кадр, часові ознаки = 0", ai.count === 1 && ai.temporal["warmth.trend40"][0] === 0 && ai.zones[0].cols.length === 16, `кадрів ${ai.count}, колонок ${ai.zones[0].cols.length}`);
+  window.__dark = a1;
+});
+
 (async () => {
   for (const s of SUITES) {
     try { await s(); }

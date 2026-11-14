@@ -32,7 +32,7 @@ export function describeProfile(p, source, analysis = null) {
   lines.push(`${SCENE_LABEL[p.sceneType]}${conf}.`);
   if (p.isStill) lines.push("Одне зображення: музика сканує кадр зліва направо, часових змін немає.");
   else {
-    const frames = analysis ? `${analysis.frames.length} кадрів аналізу, ` : "";
+    const frames = analysis ? `${analysis.count} кадрів аналізу (${analysis.rate.toFixed(analysis.rate % 1 ? 1 : 0)} за секунду), ` : "";
     lines.push(`${frames}${p.durationSec.toFixed(1)} с, ${Math.round(p.fps)} кадрів/с у відео.`);
   }
   if (!p.isStill) {
@@ -44,9 +44,12 @@ export function describeProfile(p, source, analysis = null) {
       s = `${capital(SCALE_LABEL[p.changeScale])}: у найактивнішій зоні ${what} змінюється до ${(p.changeAmp * 100).toFixed(1)} % шкали; ` +
         `це в ${p.changeRatio.toFixed(0)}× більше за шум, тобто зміни справжні. Змінюється ${pct(p.changeArea)} зон кадру.`;
     lines.push(s);
-    const g = analysis?.norm?.[p.mainFeature];
-    if (g && g.gain > 1.5 && p.changeScale !== "none")
-      lines.push(`Зміни в цьому відео малі (±${(g.spread * 50).toFixed(1)} %), тому їх підсилено ×${g.gain.toFixed(1)}${g.scale === "log" ? ", лог-шкала" : ""}.`);
+    const lf = analysis?.leadFeature, g = lf && analysis.norm[lf];
+    if (g && g.gain > 1.5)
+      lines.push(`Головна ознака для музики — «${analysis.labels[lf]}». Вона змінюється мало (±${(g.spread * 50).toFixed(1)} % шкали), ` +
+        `тому для руху в музиці зміни підсилено ×${g.gain.toFixed(g.gain < 10 ? 1 : 0)}${g.scale === "log" ? " (лог-шкала)" : ""}. Настрій музики лишається за абсолютним значенням.`);
+    else if (g) lines.push(`Головна ознака для музики — «${analysis.labels[lf]}» (розмах ±${(g.spread * 50).toFixed(1)} % шкали, без підсилення).`);
+    if (analysis?.hotspots?.length) lines.push(`Найактивніші зони — «солісти» оркестру: ${analysis.hotspots.map(h => h.label).join("; ")}.`);
   }
   if (analysis?.climax) {
     const c = analysis.climax;
@@ -56,8 +59,9 @@ export function describeProfile(p, source, analysis = null) {
   if (per) lines.push(`Знайдено повторюваний цикл ~${per.seconds.toFixed(0)} с — він стане мотивом, що повертається.`);
   else if (!p.isStill && p.changeScale !== "none") lines.push("Повторюваного циклу не знайдено.");
   if (analysis?.events) {
-    const n = analysis.events.filter(e => e.type === "peak" || e.type === "changePoint").length;
-    if (n) lines.push(`Помітних подій (піки, зміни режиму): ${n}.`);
+    const n = analysis.events.filter(e => (e.type === "peak" || e.type === "changePoint") && e.strength >= 0.5).length;
+    if (n) lines.push(`Помітних подій (сильні піки, зміни режиму): ${n} — вони стануть акцентами в музиці.`);
+    else if (p.changeScale !== "none") lines.push("Різких подій немає — зміни плавні.");
   }
   const excl = [];
   if (p.shares.land > 0.01) excl.push(`суша (${pct(p.shares.land)} кадру)`);
@@ -65,8 +69,10 @@ export function describeProfile(p, source, analysis = null) {
   else if (p.shares.bg > 0.01) excl.push(`статичний фон (${pct(p.shares.bg)})`);
   if (p.shares.overlay > 0.002) excl.push(`підписи, легенда та інші статичні елементи (${pct(p.shares.overlay)})`);
   if (excl.length) lines.push(`Виключено з аналізу динаміки: ${excl.join(", ")}. Суша й фон звучать як пауза в мелодії.`);
-  const cuts = analysis?.cuts?.length ?? 0, svc = p.serviceTimes.length;
-  if (cuts || svc) lines.push(`Службові кадри/склейки: ${cuts + svc} — їх пропускаємо.`);
+  const cuts = (analysis?.cuts ?? []).filter(c => !c.edge), edge = (analysis?.cuts ?? []).filter(c => c.edge);
+  if (cuts.length) lines.push(`Склейки або переходи між частинами відео: ${cuts.map(c => fmtTime(c.time)).join(", ")} — у музиці там межі розділів.`);
+  if (edge.length) lines.push("Перехідні кадри на початку чи в кінці відео (затемнення, титри) пропускаємо.");
+  if (p.serviceTimes.length) lines.push(`Службові кадри (чорні/однотонні): ${p.serviceTimes.length} — їх пропускаємо.`);
   return lines;
 }
 
