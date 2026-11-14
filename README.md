@@ -22,7 +22,8 @@ python tools/serve.py
 і без кешу. Звичайний `python -m http.server` теж працює: відео з галереї завантажується в пам'ять цілком.
 
 ## Атрибуція
-- Відео: NASA/Goddard Space Flight Center Scientific Visualization Studio, дані ECCO2 (MIT/JPL).
+- Відео: NASA/Goddard Space Flight Center Scientific Visualization Studio — ECCO2 (дані MIT/JPL) та
+  «Rotating Earth at Night» (SVS 30082, дані Suomi NPP VIIRS, NASA Earth Observatory).
 - Семпли інструментів (фортепіано, скрипка, флейта, арфа, контрабас, валторна):
   [nbrosowsky/tonejs-instruments](https://github.com/nbrosowsky/tonejs-instruments),
   ліцензія [CC-BY 3.0](https://creativecommons.org/licenses/by/3.0/). Деталі — `vendor/samples/README.md`.

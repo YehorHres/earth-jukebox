@@ -30,8 +30,8 @@ const STORY = {
   mixed: { feature: "brightness", text: "найяскравіший момент" },
 };
 
-export async function analyzeSource(source, { sceneOverride = null, onProgress = () => {}, useCache = true, precomputedUrl = null } = {}) {
-  const key = `v${ANALYSIS_VERSION}|${source.key}|${sceneOverride || ""}`;
+export async function analyzeSource(source, { sceneOverride = null, projection = "equirect", onProgress = () => {}, useCache = true, precomputedUrl = null } = {}) {
+  const key = `v${ANALYSIS_VERSION}|${source.key}|${sceneOverride || ""}|${projection}`;
   if (useCache) {
     const hit = await cacheGet(key);
     if (hit) { onProgress("cache", 1, "Аналіз узято з кешу"); return { ...hit, fromCache: true }; }
@@ -42,6 +42,8 @@ export async function analyzeSource(source, { sceneOverride = null, onProgress =
   }
   const t0 = performance.now();
   const profile = await passA(source, { sceneOverride, onProgress: (p, msg) => onProgress("A", p, msg) });
+  // проєкція: «equirect» — плоска карта світу (колонки = довгота, рядки = широта); «globe» / «other» — ні
+  profile.projection = projection;
   onProgress("A-done", 1, "Огляд завершено", profile);
   const pb = await passB(source, profile, { onProgress: (p, i, n) => onProgress("B", p, `Аналізую кадр ${i} з ${n}`) });
   const analysis = buildAnalysis(profile, pb);
@@ -211,6 +213,15 @@ function findHotspots(zones, profile, times) {
     const lon = -180 + (x + 0.5) * 22.5;
     const lonText = Math.abs(lon) < 12 ? "нульовий меридіан" : `≈${Math.round(Math.abs(lon))}° ${lon < 0 ? "зх." : "сх."} д.`;
     const series = Float32Array.from(zones, z => (z.grid[c.cell] ?? NaN));
+    if (profile.projection && profile.projection !== "equirect") {
+      // не плоска карта (глобус, графік): географічні підписи були б неправдою — кажемо, де в кадрі
+      const v = y < 3 ? "угорі" : y > 4 ? "унизу" : "посередині", hz = x < 5 ? "ліворуч" : x > 10 ? "праворуч" : "в центрі";
+      let label = `${v} ${hz} кадру`;
+      if (picked.some(p => p.label.startsWith(label))) label += ` (${x < 8 ? "лівіше" : "правіше"}, ${y < 4 ? "вище" : "нижче"})`;
+      picked.push({ cell: c.cell, col: x, row: y, spread: c.spread, label, series });
+      if (picked.length === 3) break;
+      continue;
+    }
     picked.push({ cell: c.cell, col: x, row: y, spread: c.spread, label: `${band.label}, ${lonText}`, series });
     if (picked.length === 3) break;
   }

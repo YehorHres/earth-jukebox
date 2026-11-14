@@ -82,6 +82,7 @@ async function loadSource(title, open, item) {
     let lastSpoken = -1;
     app.analysis = await analyzeSource(src, {
       sceneOverride: item?.sceneType || null,
+      projection: projectionOf(src, item),
       precomputedUrl: NO_CACHE ? null : item?.analysis || null,
       useCache: !NO_CACHE,
       onProgress: (stage, p, msg, profile) => {
@@ -123,6 +124,13 @@ async function loadSource(title, open, item) {
   } finally {
     app.busy = false;
   }
+}
+
+/** Плоска карта світу має пропорцію ~2:1; глобус і графіки — ні (тоді без широт/довгот у підписах). */
+export function projectionOf(src, item) {
+  if (item?.projection) return item.projection;
+  const r = src.width && src.height ? src.width / src.height : 0;
+  return r > 1.9 && r < 2.1 ? "equirect" : "other";
 }
 
 function showMedia(src) {
