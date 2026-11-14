@@ -49,7 +49,7 @@ export function computeZones(ctx) {
     for (let y = 0; y < ROWS; y++) { const c = y * COLS + x; s += gSum[c]; n += gCnt[c]; }
     const cover = n / (cellArea * ROWS);
     colsCover.push(cover);
-    cols.push(n && cover > 0.04 ? s / n : null);   // суша/фон = тиша (пауза в мелодії)
+    cols.push(n ? s / n : null);   // паузи (суша/фон) вирішує мапер за colsCover відносно всього відео
   }
   const bands = {};
   BANDS.forEach((b, k) => (bands[b.id] = bCnt[k] ? bSum[k] / bCnt[k] : null));

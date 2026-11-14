@@ -164,6 +164,36 @@ SUITES.push(async function stage4() {
   window.__score = s1;
 });
 
+SUITES.push(async function stage5() {
+  const { compose } = await import("./composer/composer.js");
+  const me = window.__mapEcco, md = window.__mapDark;
+  const s = compose(me, { seed: "ecco" });
+  const mel = s.notes.filter(n => n.part === "melody" && !n.motif);
+  // висота мелодії відповідає даним колонки (кореляція рангів)
+  // крок мелодії з урахуванням «людського» зсуву (нота на 0-му кроці може прозвучати на мілісекунди раніше)
+  const stepOf = n => { const g = Math.round(n.t / s.barDur * 16); return { b: Math.min(me.bars.length - 1, Math.floor(g / 16)), col: g % 16 }; };
+  const pairs = mel.map(n => { const { b, col } = stepOf(n); return [me.bars[b].params.contour[col], n.midi, col, n.pan]; }).filter(p => p[0] !== null);
+  const rank = arr => { const idx = arr.map((v, i) => [v, i]).sort((a, b) => a[0] - b[0]); const r = new Array(arr.length); idx.forEach(([, i], k) => (r[i] = k)); return r; };
+  const corr = (x, y) => { const n = x.length, mx = x.reduce((a, b) => a + b) / n, my = y.reduce((a, b) => a + b) / n; let sxy = 0, sxx = 0, syy = 0; for (let i = 0; i < n; i++) { sxy += (x[i] - mx) * (y[i] - my); sxx += (x[i] - mx) ** 2; syy += (y[i] - my) ** 2; } return sxy / Math.sqrt(sxx * syy); };
+  const rho = pairs.length > 5 ? corr(rank(pairs.map(p => p[0])), rank(pairs.map(p => p[1]))) : 0;
+  check("Мелодія: висота відповідає даним колонки", mel.length > 20 && rho > 0.4, `${mel.length} нот, кореляція рангів ρ = ${rho.toFixed(2)}`);
+  const panOk = pairs.every(p => Math.abs(p[3] - (-0.7 + 1.4 * p[2] / 15)) < 0.15);
+  check("Мелодія: панорама = колонка кадру (захід ліворуч, схід праворуч)", panOk, "");
+  // паузи там, де даних немає
+  let restViol = 0;
+  for (const n of mel) { const { b, col } = stepOf(n); if (me.bars[b].params.contour[col] === null) restViol++; }
+  check("Мелодія: на суші пауза", restViol === 0, `порушень ${restViol}`);
+  const counterBars = new Set(s.notes.filter(n => n.part === "counter").map(n => me.bars[Math.min(me.bars.length - 1, Math.floor(n.t / s.barDur))].section));
+  check("Контрмелодія вступає з наростанням / кульмінацією", counterBars.size > 0 && !counterBars.has("intro"), [...counterBars].join(", ") || "не звучить");
+  const acc = s.notes.filter(n => n.part === "accents");
+  const evBars = me.bars.filter(b => b.events.length).length;
+  check("Акценти: є на подіях, дзвони на кульмінації даних", acc.length > 0 && (acc.some(n => n.inst === "bells") || !me.bars.some(b => b.events.some(e => e.type === "globalMax"))), `${acc.length} нот акцентів у ${evBars} тактах з подіями; інструменти: ${[...new Set(acc.map(n => n.inst))].join(", ")}`);
+  const sd = compose(md, { seed: "dark" });
+  check("Нічна карта: «зоряний дощ», без брас-стабів", sd.notes.some(n => n.part === "stars") && !sd.notes.some(n => n.inst === "brass"), `зірок ${sd.notes.filter(n => n.part === "stars").length}`);
+  check("Теплова карта: без «зоряного дощу»", !s.parts.some(p => p.id === "stars"), s.parts.map(p => p.id).join(", "));
+  window.__score = s;
+});
+
 (async () => {
   for (const s of SUITES) {
     try { await s(); }

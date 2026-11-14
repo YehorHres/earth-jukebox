@@ -13,7 +13,7 @@ import { listFeatures, getFeature, MAIN_FEATURE } from "../features/index.js";
 import { BANDS } from "../features/zones.js";
 import { median, percentile, smooth, autocorr, std, mean } from "../util/stats.js";
 
-export const ANALYSIS_VERSION = 7;
+export const ANALYSIS_VERSION = 8;
 
 export const KEY_FEATURES = {
   heatmap: ["warmth", "hotShare", "coldShare", "activeMass", "centerY"],

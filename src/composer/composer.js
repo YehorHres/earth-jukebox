@@ -9,8 +9,13 @@ import bass from "./parts/bass.js";
 import pad from "./parts/pad.js";
 import arp from "./parts/arp.js";
 import drums from "./parts/drums.js";
+import melody from "./parts/melody.js";
+import counter from "./parts/counter.js";
+import accents from "./parts/accents.js";
+import stars from "./parts/stars.js";
 
-export const PARTS = [pad, bass, arp, drums];
+// порядок = номери клавіш 1–9 для mute/solo
+export const PARTS = [pad, bass, arp, drums, melody, counter, accents, stars];
 
 /** Додати партію (етап 5+: мелодія, контрмелодія, акценти…) — без зміни решти. */
 export function registerPart(part, index = PARTS.length) { if (!PARTS.some(p => p.id === part.id)) PARTS.splice(index, 0, part); }
@@ -57,6 +62,7 @@ export function compose(mapping, { seed = "earth-jukebox" } = {}) {
   return {
     bpm: meta.bpm, barDur: meta.barDur, duration: bars.length * meta.barDur, scene,
     key: harmony.keyName, harmony, notes, bars: barInfo,
-    parts: PARTS.map(p => ({ id: p.id, label: p.label, instrument: instr[p.id] || "perc", role: p.role })),
+    // партії, які взагалі звучать у цьому треку (напр. «зоряний дощ» — лише для нічних карт)
+    parts: PARTS.filter(p => byPart[p.id]).map(p => ({ id: p.id, label: p.label, instrument: instr[p.id] || "perc", role: p.role })),
   };
 }

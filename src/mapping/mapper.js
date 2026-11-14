@@ -102,7 +102,8 @@ export function mapAnalysis(a, preset) {
   }
   const c5 = percentile(colVals, 5), c95 = percentile(colVals, 95), cSpan = Math.max(c95 - c5, 1e-6);
   // колонка, де даних помітно менше, ніж зазвичай (суша, фон), — пауза в мелодії
-  const restCover = Math.max(0.04, 0.65 * percentile(colCov, 50));
+  // (нижня межа мала: на нічних картах дані — рідкі вогні, кожна колонка має лише кілька відсотків «даних»)
+  const restCover = Math.max(0.002, 0.65 * percentile(colCov, 50));
   // акценти — лише від сильних подій провідних ознак
   const accentFeatures = new Set([a.leadFeature, ...a.keyFeatures.slice(0, 2), "hotspot1"].filter(Boolean));
   const minStrength = preset.accent.minStrength ?? 0.5;

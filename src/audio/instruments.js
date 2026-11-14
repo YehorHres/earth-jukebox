@@ -7,7 +7,7 @@ export const mtof = m => 440 * Math.pow(2, (m - 69) / 12);
 export const INSTRUMENT_LABEL = {
   strings: "струнні (легато)", contrabass: "контрабас pizz.", cello: "віолончель", drone: "глибокий дрон", piano: "фортепіано",
   harp: "арфа", celesta: "челеста", glockenspiel: "глокеншпіль", bells: "дзвони", violin: "скрипка", flute: "флейта",
-  horn: "валторна", brass: "брас-стаб", perc: "перкусія (шейкер, литаври)", shaker: "шейкер", kick: "м'який барабан", timpani: "литаври",
+  horn: "валторна", brass: "брас-стаб", swell: "свел (як тарілка)", perc: "перкусія (шейкер, литаври)", shaker: "шейкер", kick: "м'який барабан", timpani: "литаври",
 };
 
 function out(eng, dest, t, pan) {
@@ -145,6 +145,15 @@ const SYNTH = {
     const g = ctx.createGain(); g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(0.12 * n.vel, t + 0.006); g.gain.setTargetAtTime(0.0001, t + 0.01, 0.025);
     s.connect(hp).connect(g).connect(out(eng, dest, t, (n.pan || 0) + 0.25));
     s.start(t, (t * 7.3) % 1.5); s.stop(t + 0.12);
+  },
+  swell(eng, dest, n, t) {
+    // «тарілка-свел»: шум, що наростає до межі розділу
+    const ctx = eng.ctx;
+    const s = ctx.createBufferSource(); s.buffer = eng.noise; s.loop = true;
+    const bp = ctx.createBiquadFilter(); bp.type = "highpass"; bp.frequency.setValueAtTime(2500, t); bp.frequency.exponentialRampToValueAtTime(7000, t + n.dur);
+    const g = ctx.createGain(); g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.09 * n.vel, t + n.dur); g.gain.setTargetAtTime(0.0001, t + n.dur, 0.06);
+    s.connect(bp).connect(g).connect(out(eng, dest, t, 0.15));
+    s.start(t, (t * 1.7) % 1); s.stop(t + n.dur + 0.4);
   },
   kick(eng, dest, n, t) {
     const ctx = eng.ctx;
