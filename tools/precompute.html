@@ -28,7 +28,7 @@ async function run() {
       const src = it.kind === "image" ? await openImage("../" + it.src[0], { name: it.title }) : await openVideo(it.src.map(s => "../" + s), { name: it.id, fps: it.fps });
       const a = await analyzeSource(src, { useCache: false, sceneOverride: it.sceneType || null, projection: it.projection || "equirect", onProgress: (st, p, msg) => (li.textContent = `${it.title}: ${msg}`) });
       const body = JSON.stringify(serializeAnalysis(a));
-      const res = await fetch(`/__save/${it.analysis}`, { method: "POST", body });
+      const res = await fetch(`../__save/${it.analysis}`, { method: "POST", body });
       li.textContent = `${it.title}: ${res.ok ? "✔ збережено" : "✘ " + res.status} (${(body.length / 1024).toFixed(0)} КБ, аналіз ${a.seconds.toFixed(1)} с, подій ${a.events.length})`;
     } catch (e) { li.textContent = `${it.title}: ✘ ${e.message}`; console.error(e); }
   }
