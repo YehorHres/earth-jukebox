@@ -7,6 +7,8 @@ import { INSTRUMENT_LABEL, hasSampler } from "../audio/instruments.js";
 import { loadFor } from "../audio/library/index.js";
 import { loadStyle, loadStyles } from "../styles/index.js";
 import { renderOffline, toWav } from "../audio/render.js";
+import { calibrate } from "../audio/master.js";
+import { scoreHash } from "../audio/report.js";
 import { legendItems, playItem, playLegend, playIntro, stopIntro } from "../a11y/legend.js";
 import { announce, setMinGap, stopVoice, prefs } from "../a11y/announcer.js";
 import { fmtTime } from "../a11y/describe.js";
@@ -167,7 +169,25 @@ export function setupPlayback(app, { timeline, mappingTable }) {
         if (!current()) return;
         status.textContent = `${base} ${loaded.length ? `Справжні інструменти: ${loaded.map(i => INSTRUMENT_LABEL[i]).join(", ")}.` : ""}${failed.length ? ` Синтезатор замість: ${failed.map(i => INSTRUMENT_LABEL[i]).join(", ")}.` : ""}`;
         renderParts();
-      });
+      })
+      .then(() => applyMaster(score, current));
+    // до калібрування — типове підсилення галереї (щоб перший звук не був голоснішим за ціль)
+    score.master = { gainDb: -2.5, balanceDb: 0 };
+    engine.setMaster(score.master);
+  }
+
+  /** Мастер треку: з готового звіту галереї (якщо партитура та сама) або фонове калібрування. */
+  let storedReport = null;
+  async function applyMaster(score, current) {
+    try {
+      storedReport ??= await fetch("renders/audio-report.json").then(r => (r.ok ? r.json() : { rows: [] })).catch(() => ({ rows: [] }));
+      const row = storedReport.rows.find(r => r.id === app.catalogItem?.id && r.hash === scoreHash(score));
+      const cal = row ? { gainDb: row.gainDb, balanceDb: row.calBalanceDb }
+        : await calibrate(score, app.mapping, { passes: 1, sampleRate: 22050, key: scoreHash(score) + (app.style?.id || "") });
+      if (!current()) return;
+      score.master = { gainDb: cal.gainDb, balanceDb: cal.balanceDb };
+      engine.setMaster(score.master);
+    } catch (e) { console.warn("Калібрування гучності не вдалося:", e.message); }
   }
 
   /* ---- аудіолегенда ---- */

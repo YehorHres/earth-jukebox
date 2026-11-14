@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="uk">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Аудіозвіт галереї</title>
+<link rel="icon" href="data:,">
+<link rel="stylesheet" href="../src/style.css">
+<style>
+  body { padding: 16px 24px; }
+  table { border-collapse: collapse; width: 100%; font-size: 13.5px; font-variant-numeric: tabular-nums; }
+  td, th { border-bottom: 1px solid var(--line); padding: 5px 8px; text-align: right; }
+  td:first-child, th:first-child { text-align: left; }
+  .bad { color: #f85149; font-weight: 700; } .good { color: var(--ok); }
+</style>
+</head>
+<body>
+<h1>Аудіозвіт: 5 треків галереї</h1>
+<p>Рендерить кожен трек офлайн так само, як застосунок, і міряє пік, гучність (LUFS, BS.1770), частки енергії по смугах
+і баланс L/R. Критерії: пік ≤ −1 dBFS; різниця гучності між треками ≤ 1 LU; енергія &lt; 60 Гц ≤ 25 %
+(шторми в кульмінації ≤ 40 %); |L−R| ≤ 0.5 дБ. З <code>python tools/serve.py</code> треки й звіт зберігаються в <code>renders/</code>.</p>
+<button id="go" class="primary">Перерендерити й виміряти</button>
+<p id="status" role="status" aria-live="polite"></p>
+<table><caption class="sr-only">Виміри треків</caption><thead id="head"></thead><tbody id="rows"></tbody></table>
+<ul id="problems"></ul>
+<div id="links" class="row"></div>
+<script type="module">
+import { galleryReport } from "../src/audio/report.js";
+import { toWav } from "../src/audio/render.js";
+const $ = id => document.getElementById(id);
+async function run() {
+  $("go").disabled = true;
+  const t0 = performance.now();
+  const q = new URLSearchParams(location.search), fast = q.has("fast");
+  const rep = await galleryReport({ root: "../", keepBuffers: !fast, fast, only: q.get("only")?.split(",") || null, onProgress: t => ($("status").textContent = t) });
+  $("head").innerHTML = `<tr><th scope="col">Трек</th><th scope="col">Пік, dBFS</th><th scope="col">LUFS</th><th scope="col">L−R, дБ</th>${rep.bands.map(b => `<th scope="col">${b} Гц, %</th>`).join("")}<th scope="col">&lt;60 у кульм., %</th><th scope="col">Підсил., дБ</th></tr>`;
+  $("rows").replaceChildren(...rep.rows.map(r => {
+    const tr = document.createElement("tr");
+    const cls = (bad) => (bad ? "bad" : "good");
+    tr.innerHTML = `<td></td><td class="${cls(r.peakDb > -1)}">${r.peakDb.toFixed(2)}</td><td>${r.lufs.toFixed(2)}</td><td class="${cls(Math.abs(r.balanceDb) > 0.5)}">${r.balanceDb.toFixed(2)}</td>` +
+      r.bands.map((b, k) => `<td class="${k === 0 ? cls(b > 0.25) : ""}">${(b * 100).toFixed(1)}</td>`).join("") +
+      `<td>${r.climaxSub60 === null ? "—" : (r.climaxSub60 * 100).toFixed(1)}</td><td>${r.gainDb.toFixed(1)}</td>`;
+    tr.cells[0].textContent = `${r.title} (${r.topic})`;
+    return tr;
+  }));
+  $("problems").replaceChildren(...(rep.problems.length ? rep.problems : [`Усі критерії виконано. Різниця гучності між треками ${rep.spread.toFixed(2)} LU.`])
+    .map(t => Object.assign(document.createElement("li"), { textContent: t, className: rep.problems.length ? "bad" : "good" })));
+  // зберегти WAV і звіт у renders/ (лише з tools/serve.py); завжди — посилання для завантаження
+  const json = { createdAt: new Date().toISOString(), target: rep.target, ok: rep.ok, problems: rep.problems, spread: rep.spread, bands: rep.bands,
+    rows: rep.rows.map(({ buffer, ...r }) => r) };
+  let saved = 0;
+  window.__report = json;
+  if (fast || q.has("only")) { $("status").textContent = "Швидкий/частковий прогін — файли не зберігаю."; window.__done = true; $("go").disabled = false; return; }
+  for (const r of rep.rows) {
+    const wav = toWav(r.buffer);
+    const a = Object.assign(document.createElement("a"), { href: URL.createObjectURL(wav), download: `${r.id}.wav`, textContent: `⬇ ${r.id}.wav` });
+    $("links").appendChild(a);
+    try { if ((await fetch(`../__save/renders/${r.id}.wav`, { method: "POST", body: wav })).ok) saved++; } catch { /* статичний хостинг — лише посилання */ }
+  }
+  try { await fetch("../__save/renders/audio-report.json", { method: "POST", body: JSON.stringify(json, null, 1) }); } catch { /* те саме */ }
+  $("status").textContent = `Готово за ${((performance.now() - t0) / 1000).toFixed(0)} с. ${saved ? `Збережено в renders/: ${saved} WAV і audio-report.json.` : "Файли доступні за посиланнями нижче."}`;
+  window.__report = json; window.__done = true;
+  $("go").disabled = false;
+}
+$("go").addEventListener("click", run);
+if (new URLSearchParams(location.search).has("run")) run();
+</script>
+</body>
+</html>

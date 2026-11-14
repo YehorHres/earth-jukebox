@@ -28,11 +28,11 @@ export function topicSynths({ out, env, osc, vibrato, mtof, bell }) {
     /* ---------- тембри (ноти) ---------- */
     subbass(eng, dest, n, t) {
       const ctx = eng.ctx, f = mtof(n.midi);
-      const { g, stop } = env(ctx, t, { a: 0.08, d: 0.5, s: 0.9, r: 0.8, dur: n.dur, peak: 0.55 * n.vel });
-      const lp = ctx.createBiquadFilter(); lp.type = "lowpass"; lp.frequency.value = 160;
+      const { g, stop } = env(ctx, t, { a: 0.08, d: 0.5, s: 0.9, r: 0.8, dur: n.dur, peak: 0.36 * n.vel });
+      const lp = ctx.createBiquadFilter(); lp.type = "lowpass"; lp.frequency.value = 260;
       lp.connect(g).connect(out(eng, dest, t, 0));
       osc(ctx, "sine", f, t, stop).connect(lp);
-      const o2 = osc(ctx, "triangle", f * 2, t, stop), g2 = ctx.createGain(); g2.gain.value = 0.2; o2.connect(g2).connect(lp);
+      const o2 = osc(ctx, "triangle", f * 2, t, stop), g2 = ctx.createGain(); g2.gain.value = 0.55; o2.connect(g2).connect(lp);
     },
     tuba(eng, dest, n, t) {
       const ctx = eng.ctx, f = mtof(n.midi);
@@ -143,14 +143,14 @@ export function topicSynths({ out, env, osc, vibrato, mtof, bell }) {
       // грім: низький шум, що «котиться» (кілька спадів), + саб-удар
       const ctx = eng.ctx, dur = Math.max(1.5, n.dur), stop = t + dur + 0.5;
       const s = noiseSrc(eng, t, stop);
-      const lp = ctx.createBiquadFilter(); lp.type = "lowpass"; lp.frequency.setValueAtTime(900, t); lp.frequency.exponentialRampToValueAtTime(90, t + dur);
+      const lp = ctx.createBiquadFilter(); lp.type = "lowpass"; lp.frequency.setValueAtTime(1400, t); lp.frequency.exponentialRampToValueAtTime(160, t + dur);
       const g = ctx.createGain(); g.gain.setValueAtTime(0.0001, t);
       g.gain.linearRampToValueAtTime(0.9 * n.vel, t + 0.02); g.gain.setTargetAtTime(0.35 * n.vel, t + 0.05, 0.15);
       g.gain.linearRampToValueAtTime(0.6 * n.vel, t + dur * 0.35); g.gain.setTargetAtTime(0.0001, t + dur * 0.4, dur / 4);
       const dst = out(eng, dest, t, n.pan);
       s.connect(lp).connect(g).connect(dst);
-      const o = ctx.createOscillator(); o.type = "sine"; o.frequency.setValueAtTime(70, t); o.frequency.exponentialRampToValueAtTime(30, t + 0.6);
-      const og = ctx.createGain(); og.gain.setValueAtTime(0.0001, t); og.gain.linearRampToValueAtTime(0.6 * n.vel, t + 0.01); og.gain.setTargetAtTime(0.0001, t + 0.05, 0.25);
+      const o = ctx.createOscillator(); o.type = "sine"; o.frequency.setValueAtTime(95, t); o.frequency.exponentialRampToValueAtTime(48, t + 0.6);
+      const og = ctx.createGain(); og.gain.setValueAtTime(0.0001, t); og.gain.linearRampToValueAtTime(0.35 * n.vel, t + 0.01); og.gain.setTargetAtTime(0.0001, t + 0.05, 0.25);
       o.connect(og).connect(dst); o.start(t); o.stop(t + 1.5);
     },
 

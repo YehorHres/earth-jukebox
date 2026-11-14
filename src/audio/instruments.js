@@ -78,12 +78,12 @@ const SYNTH = {
   },
   drone(eng, dest, n, t) {
     const ctx = eng.ctx, f = mtof(n.midi);
-    const { g, stop } = env(ctx, t, { a: 1.2, d: 1, s: 0.9, r: 2.2, dur: n.dur, peak: 0.28 * n.vel });
+    const { g, stop } = env(ctx, t, { a: 1.2, d: 1, s: 0.9, r: 2.2, dur: n.dur, peak: 0.2 * n.vel });
     const lp = ctx.createBiquadFilter(); lp.type = "lowpass"; lp.frequency.value = 500;
     lp.connect(g).connect(out(eng, dest, t, n.pan));
     osc(ctx, "sine", f, t, stop).connect(lp);
     const o2 = osc(ctx, "triangle", f * 1.5, t, stop, 4), g2 = ctx.createGain(); g2.gain.value = 0.25; o2.connect(g2).connect(lp);
-    const o3 = osc(ctx, "sine", f / 2, t, stop), g3 = ctx.createGain(); g3.gain.value = 0.5; o3.connect(g3).connect(lp);
+    const o3 = osc(ctx, "sine", f * 2, t, stop), g3 = ctx.createGain(); g3.gain.value = 0.3; o3.connect(g3).connect(lp);   // октава вгору: дрон чути й на малих колонках
   },
   piano(eng, dest, n, t) {
     const ctx = eng.ctx, f = mtof(n.midi);

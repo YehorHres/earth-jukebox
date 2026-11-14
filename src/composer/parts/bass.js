@@ -14,13 +14,13 @@ export default {
     const p = bar.params;
     const sixteenth = beat / 4;
     const rootPc = chordRootPc(h);
-    const lo = instr.bass === "subbass" ? 26 : 33;
+    const lo = instr.bass === "subbass" ? 31 : 33;      // саб-бас не нижче G1 (49 Гц): нижче — лише гул, якого не чути
     const root = nearest(rootPc, state.last ?? 40, lo, lo + 17);
     state.last = root;
     const vel = 0.45 + 0.4 * p.energy;
     if (instr.bass === "drone" || instr.bass === "subbass") {
       // дрон / саб-бас: одна довга нота на такт, легато
-      out.push({ t: bar.t0, midi: root - 12 >= 24 ? root - 12 : root, dur: bar.dur * 1.05, vel: 0.35 + 0.3 * p.energy, legato: true });
+      out.push({ t: bar.t0, midi: root, dur: bar.dur * 1.05, vel: 0.35 + 0.3 * p.energy, legato: true });
       return;
     }
     const sustained = SUSTAINED.has(instr.bass);

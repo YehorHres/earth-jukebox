@@ -164,7 +164,7 @@ SUITES.push(async function stage4() {
   const r = await renderOffline(s1, me, { from: 0, seconds: 12 });
   check("Звук (офлайн-рендер 12 с ECCO2): є сигнал, без перевантаження", r.rms > 0.005 && r.peak <= 1.0, `RMS ${r.rms.toFixed(3)}, пік ${r.peak.toFixed(3)}`);
   const rd = await renderOffline(sd, md, { from: md.meta.duration * 0.6, seconds: 10 });
-  check("Звук (темне відео): тихіший за ECCO2, але не тиша", rd.rms > 0.002 && rd.rms < r.rms, `RMS ${rd.rms.toFixed(3)} (ECCO2 ${r.rms.toFixed(3)}), пік ${rd.peak.toFixed(3)}`);
+  check("Звук (темне відео): не тиша, без перевантаження", rd.rms > 0.002 && rd.peak <= 1, `RMS ${rd.rms.toFixed(3)}, пік ${rd.peak.toFixed(3)}`);
   window.__score = s1;
 });
 
@@ -459,6 +459,47 @@ SUITES.push(async function stage13() {
   check("Голосовий вступ: пункти теми (що означає «більше», тембр)", intro.length === 2 && /більше льоду/.test(intro[0].text) && /Тембр теми/.test(intro[1].text), intro.map(i => i.text).join(" / "));
   const readme = await (await fetch("README.md")).text();
   check("README: як працює, звук ← дані, ліцензії й автори", /Як це працює/.test(readme) && /Звук ← дані/.test(readme) && /CC-BY 3\.0/.test(readme) && real.every(i => readme.includes(i.card.source.replace("https://", "").replace(/\/$/, "").split("/").pop() || "svs")), "");
+});
+
+SUITES.push(async function stage14() {
+  const M = await import("./audio/measure.js");
+  const { Engine, levelFor, CEILING, PART_EQ } = await import("./audio/engine.js");
+  const { renderOffline } = await import("./audio/render.js");
+  const { buildTrack, scoreHash, CRITERIA } = await import("./audio/report.js");
+  const I = await import("./audio/instruments.js");
+  // вимірювач: відомі сигнали
+  const fs = 44100, N = fs * 3, tone = (f, a) => Float32Array.from({ length: N }, (_, i) => a * Math.sin(2 * Math.PI * f * i / fs));
+  const l1k = M.lufs(tone(1000, 0.1), tone(1000, 0.1), fs);
+  const b40 = M.bandShares(tone(40, 0.3), tone(40, 0.3), fs), b1k = M.bandShares(tone(1000, 0.3), tone(1000, 0.3), fs);
+  check("Вимірювач: LUFS синуса 1 кГц −20 dBFS ≈ −20; смуги 40 Гц і 1 кГц", Math.abs(l1k + 20) < 0.4 && b40[0] > 0.95 && b1k[3] > 0.95, `LUFS ${l1k.toFixed(2)}; 40 Гц → «<60» ${(b40[0] * 100).toFixed(0)} %; 1 кГц → «500–2k» ${(b1k[3] * 100).toFixed(0)} %`);
+  // стеля −1 dBFS: навмисно перевантажений вхід
+  const ctx = new OfflineAudioContext(2, fs * 2, fs), e = new Engine();
+  e.masterCal = { gainDb: 24, balanceDb: 0 }; await e.init(ctx);
+  for (let k = 0; k < 12; k++) I.playNote(e, e.bus("melody"), "brass", { midi: 48 + k * 2, dur: 1.5, vel: 1, pan: 0 }, 0.05);
+  const hot = M.measure(await ctx.startRendering());
+  check("Мастер: стеля −1 dBFS навіть при перевантаженні +24 дБ", hot.peakDb <= -1 && hot.peakDb > -3, `пік ${hot.peakDb.toFixed(2)} dBFS (стеля ${(20 * Math.log10(CEILING)).toFixed(2)})`);
+  // баланс L/R: зсунутий сигнал вирівнюється калібруванням
+  const pan = async bal => { const c = new OfflineAudioContext(2, fs, fs), g = new Engine(); g.masterCal = { gainDb: 0, balanceDb: bal }; await g.init(c); I.playNote(g, g.bus("melody"), "piano", { midi: 60, dur: 0.8, vel: 0.7, pan: -0.6 }, 0.02); return M.measure(await c.startRendering()).balanceDb; };
+  const off = await pan(0), fixed = await pan(off);
+  check("Мастер: автоматичне вирівнювання L/R до ±0.5 дБ", Math.abs(off) > 2 && Math.abs(fixed) <= 0.5, `до ${off.toFixed(2)} дБ → після ${fixed.toFixed(2)} дБ`);
+  // рівень від даних: лише ±4 дБ і від відносної енергії (наближення камери не робить гучніше)
+  const m = window.__mapEcco, lv = m.bars.map((_, b) => 20 * Math.log10(levelFor(m, b)));
+  const zoomed = { ...m, bars: m.bars.map(b => ({ ...b, params: { ...b.params, level: 1 } })) };
+  check("Динаміка від даних у межах ±4 дБ, не залежить від абсолютної яскравості/площі", Math.max(...lv) <= 4.01 && Math.min(...lv) >= -4.01 && zoomed.bars.every((_, b) => levelFor(zoomed, b) === levelFor(m, b)), `${Math.min(...lv).toFixed(1)}…${Math.max(...lv).toFixed(1)} дБ`);
+  check("EQ партій: HPF усім, крім басу; бас — LPF і HPF 32 Гц; виріз 350 Гц у педів і арпеджіо", PART_EQ.bass.lp && PART_EQ.bass.hp <= 35 && PART_EQ.pad.hp >= 150 && PART_EQ.pad.cut[1] < 0 && PART_EQ.arp.cut[1] < 0 && ["melody", "counter", "texture", "stars"].every(p => PART_EQ[p].hp >= 100), "");
+  // збережений звіт 5 треків галереї: критерії + актуальність (партитура та сама, що дає композитор зараз)
+  const rep = await (await fetch("renders/audio-report.json")).json();
+  const cat = (await (await fetch("samples/catalog.json")).json()).filter(i => i.kind === "video");
+  const stale = [];
+  for (const it of cat) { const row = rep.rows.find(r => r.id === it.id); const tr = await buildTrack(it); if (!row || row.hash !== scoreHash(tr.score)) stale.push(it.id); }
+  check("Аудіозвіт галереї актуальний (перерендерено після останніх змін композитора)", !stale.length, stale.length ? `застарів для: ${stale.join(", ")} — запустіть tools/audio-report.html?run` : `${rep.rows.length} треків, ${rep.createdAt.slice(0, 16)}`);
+  const lu = rep.rows.map(r => r.lufs);
+  check("Аудіозвіт: пік ≤ −1 dBFS; різниця гучності ≤ 1 LU; < 60 Гц ≤ 25 % (шторми в кульмінації ≤ 40 %); |L−R| ≤ 0.5 дБ", rep.ok && !rep.problems.length && Math.max(...lu) - Math.min(...lu) <= CRITERIA.lufsSpread,
+    rep.problems.join("; ") || rep.rows.map(r => `${r.id.split("_")[0]}: ${r.lufs.toFixed(1)} LUFS, пік ${r.peakDb.toFixed(1)}, <60 Гц ${(r.bands[0] * 100).toFixed(0)} %`).join(" · "));
+  // живий контроль: уривок одного треку зі збереженим мастером — пік під стелею
+  const tr = await buildTrack(cat.find(i => i.id === "hurricane_beryl")), row = rep.rows.find(r => r.id === "hurricane_beryl");
+  const ex = await renderOffline(tr.score, tr.mapping, { from: tr.mapping.meta.duration * 0.3, seconds: 8, master: { gainDb: row.gainDb, balanceDb: row.calBalanceDb } });
+  check("Уривок «урагану» зі збереженим мастером: пік ≤ −1 dBFS", M.measure(ex.buffer).peakDb <= -1, `пік ${M.measure(ex.buffer).peakDb.toFixed(2)} dBFS`);
 });
 
 (async () => {

@@ -1,6 +1,6 @@
 {
   "version": "0.0.1",
   "configurations": [
-    { "name": "jukebox", "runtimeExecutable": "python", "runtimeArgs": ["tools/serve.py", "8000"], "port": 8000 }
+    { "name": "jukebox", "runtimeExecutable": "python", "runtimeArgs": ["tools/serve.py"], "port": 8000 }
   ]
 }

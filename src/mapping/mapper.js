@@ -9,7 +9,7 @@ import { meterOf } from "../composer/meter.js";
 
 export const PARAMS = ["level", "energy", "density", "tension", "brightness", "register", "pan", "motion", "articulation", "space"];
 export const PARAM_LABEL = {
-  level: "Загальна гучність (abs)", energy: "Енергія (гучність, к-сть інструментів)", density: "Густота ритму", tension: "Напруга (гармонія, дисонанс)",
+  level: "Наповненість кадру (abs; гучність треку нормована до −16 LUFS)", energy: "Енергія (гучність, к-сть інструментів)", density: "Густота ритму", tension: "Напруга (гармонія, дисонанс)",
   brightness: "Світлість ладу", register: "Регістр мелодії", pan: "Панорама (захід ↔ схід)", motion: "Рухливість",
   articulation: "Артикуляція (легато ↔ стакато)", space: "Простір (реверберація)", accent: "Акценти подій",
   orchestration: "Оркестровка", contour: "Контур мелодії",

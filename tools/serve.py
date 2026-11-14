@@ -51,16 +51,17 @@ class Handler(http.server.SimpleHTTPRequestHandler):
 
     def do_POST(self):
         """Лише для tools/precompute.html: зберегти готовий аналіз у samples/<id>.analysis.json."""
-        m = re.fullmatch(r"/__save/samples/([\w.-]+\.analysis\.json)", self.path)
+        m = re.fullmatch(r"/__save/(samples)/([\w.-]+\.analysis\.json)", self.path) or             re.fullmatch(r"/__save/(renders)/([\w.-]+\.(?:wav|json))", self.path)
         if not m:
-            self.send_error(403, "only samples/*.analysis.json")
+            self.send_error(403, "only samples/*.analysis.json and renders/*.wav|json")
             return
         length = int(self.headers.get("Content-Length", 0))
-        if length > 20 * 1024 * 1024:
+        if length > 80 * 1024 * 1024:
             self.send_error(413)
             return
         data = self.rfile.read(length)
-        target = os.path.join(os.getcwd(), "samples", m.group(1))
+        os.makedirs(os.path.join(os.getcwd(), m.group(1)), exist_ok=True)
+        target = os.path.join(os.getcwd(), m.group(1), m.group(2))
         with open(target, "wb") as f:
             f.write(data)
         self.send_response(200)
@@ -86,7 +87,7 @@ class Handler(http.server.SimpleHTTPRequestHandler):
 
 
 if __name__ == "__main__":
-    port = int(sys.argv[1]) if len(sys.argv) > 1 else 8000
+    port = int(sys.argv[1]) if len(sys.argv) > 1 else int(os.environ.get("PORT", 8000))
     os.chdir(os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
     print(f"Earth Jukebox: http://localhost:{port}/")
     http.server.ThreadingHTTPServer(("", port), Handler).serve_forever()

@@ -89,7 +89,7 @@ export class Player {
       this.lastBar = bar;
       const at = Math.max(this.eng.ctx.currentTime, this.startCtx + (bar * this.score.barDur - this.pos));
       this.eng.setSpace(this.mapping.bars[bar].params.space, at);
-      this.eng.setLevel(levelFor(this.mapping.bars[bar].params), at);
+      this.eng.setLevel(levelFor(this.mapping, bar), at);
       this.eng.setDip(dipFor(this.mapping, bar), at);
       this.cb.onBar(bar, false);
     }
