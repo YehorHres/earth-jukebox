@@ -141,6 +141,7 @@ export function setupPlayback(app, { timeline, mappingTable }) {
     $("play").disabled = false;
     $("legendBtn").disabled = false;
     $("wavBtn").disabled = false;
+    $("exploreBtn").disabled = false;
     // семпли — у фоні; грати можна одразу (поки що синтезатори)
     const insts = [...new Set(app.score.notes.map(n => n.inst))];
     const decoder = new OfflineAudioContext(1, 1, 44100);
@@ -223,8 +224,8 @@ export function setupPlayback(app, { timeline, mappingTable }) {
   $("play").addEventListener("click", toggle);
 
   document.addEventListener("keydown", e => {
-    if (e.target.matches("input, select, textarea") || e.ctrlKey || e.metaKey || e.altKey || !app.score) return;
-    if (e.key === " " && !e.target.matches("button")) { e.preventDefault(); toggle(); }
+    if (e.target?.matches?.("input, select, textarea") || e.ctrlKey || e.metaKey || e.altKey || !app.score) return;
+    if (e.key === " " && !e.target?.matches?.("button")) { e.preventDefault(); toggle(); }
     else if (e.code === "KeyL") { e.preventDefault(); legend(); }
     else if (e.code === "KeyM") {
       const b = Math.min(app.mapping.bars.length - 1, Math.floor(player.time / app.score.barDur));

@@ -60,6 +60,8 @@ table.mapping th, table.mapping td { border-bottom: 1px solid var(--line); paddi
 table.mapping th { color: var(--muted); font-weight: 600; }
 table.mapping td.num { font-variant-numeric: tabular-nums; white-space: nowrap; }
 .bar { display: inline-block; height: 6px; background: var(--accent); border-radius: 3px; vertical-align: middle; }
+.viewer.exploring { touch-action: none; cursor: crosshair; outline: 2px solid var(--accent); }
+.explore-readout { margin: 6px 0 0; padding: 6px 10px; border-left: 3px solid var(--accent); background: var(--panel-2); font-size: 14px; }
 .topic-box { display: grid; gap: 6px; font-size: 14px; }
 .topic-box input { flex: 1 1 240px; min-width: 0; background: #0b0f14; color: var(--text); border: 1px solid var(--line); border-radius: 6px; padding: 8px 10px; font: inherit; }
 .topic-box .keys { margin: 0; }

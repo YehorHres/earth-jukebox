@@ -21,8 +21,11 @@ export class Engine {
   }
 
   /** @param {BaseAudioContext} [given] — напр. OfflineAudioContext для тестів і експорту в WAV */
-  async init(given = null) {
-    if (this.ctx) { if (this.ctx.state !== "running" && this.ctx.resume) await this.ctx.resume(); return this.ctx; }
+  async init(given = null, { waitResume = true } = {}) {
+    if (this.ctx) {
+      if (this.ctx.state !== "running" && this.ctx.resume) { const p = this.ctx.resume(); if (waitResume) await p; }
+      return this.ctx;
+    }
     const ctx = given || new (window.AudioContext || window.webkitAudioContext)({ latencyHint: "interactive" });
     this.ctx = ctx;
     // мастер: компресор (склеює мікс) → лімітер (нічого не хрипить)
@@ -48,7 +51,7 @@ export class Engine {
     const d = this.noise.getChannelData(0);
     let s = 12345;
     for (let i = 0; i < d.length; i++) { s = (s * 1103515245 + 12345) & 0x7fffffff; d[i] = s / 0x3fffffff - 1; }
-    if (!given && ctx.state !== "running") await ctx.resume();
+    if (!given && ctx.state !== "running") { const p = ctx.resume(); if (waitResume) await p; }
     return ctx;
   }
 

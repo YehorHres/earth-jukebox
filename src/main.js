@@ -9,6 +9,7 @@ import { loadTopics, getTopic } from "./topics/topics.js";
 import { setupTopicInput } from "./ui/topic-input.js";
 import { createMappingTable } from "./ui/mapping-table.js";
 import { setupPlayback } from "./ui/playback.js";
+import { setupExplore } from "./ui/explore.js";
 
 const $ = id => document.getElementById(id);
 const NO_CACHE = new URLSearchParams(location.search).has("nocache");   // ?nocache — завжди аналізувати заново
@@ -25,7 +26,8 @@ const timeline = createTimeline($("timeline"), $("tl-legend"), {
 });
 const mappingTable = createMappingTable($("mapping"));
 const playback = setupPlayback(app, { timeline, mappingTable });
-const onMapped = playback.onMapped;   // шар 3: партитура й плеєр після мапінгу
+const onMapped = playback.onMapped;
+const explore = setupExplore(app, { engine: app.engine });   // шар 3: партитура й плеєр після мапінгу
 const setStatus = s => ($("status").textContent = s);
 const setProgress = p => ($("progress").firstElementChild.style.width = `${Math.round(p * 100)}%`);
 
@@ -68,7 +70,8 @@ async function loadSource(title, open, item) {
   app.profile = app.analysis = app.mapping = app.score = null;
   $("mapping-wrap").hidden = true;
   $("parts-wrap").hidden = true;
-  ["play", "legendBtn", "exportBtn", "wavBtn"].forEach(id => ($(id).disabled = true));
+  explore.setOn(false);
+  ["play", "legendBtn", "exportBtn", "wavBtn", "exploreBtn"].forEach(id => ($(id).disabled = true));
   $("legend-wrap").hidden = true;
   $("card").hidden = true;
   $("timeline-wrap").hidden = true;
@@ -76,11 +79,13 @@ async function loadSource(title, open, item) {
   try {
     setStatus(`Відкриваю «${title}»…`);
     let src = await open(), scaleHint = null;
+    app.stillProfile = null;
     // фото → режим сканування: лінія йде по карті (із заходу на схід або з півночі на південь)
     if (src.kind === "image" && !src.scan) {
       setStatus("Огляд зображення: область даних і шкала кольорів…");
       const prep = await prepareImageScan(src, app.scanDir);
       src = prep.source; scaleHint = prep.scaleHint;
+      app.stillProfile = prep.stillProfile;          // область і шкала всього фото — для режиму дослідження
     }
     $("scanDir").hidden = !src.scan;
     $("scanDir").textContent = app.scanDir === "we" ? "↔ Сканування: захід → схід" : "↕ Сканування: північ → південь";
@@ -231,7 +236,7 @@ $("exportBtn").addEventListener("click", () => {
 $("announce").addEventListener("change", e => (prefs.announce = e.target.checked));
 $("voice").addEventListener("change", e => (prefs.voice = e.target.checked));
 document.addEventListener("keydown", e => {
-  if (e.target.matches("input, select, textarea") || e.ctrlKey || e.metaKey || e.altKey) return;
+  if (e.target?.matches?.("input, select, textarea") || e.ctrlKey || e.metaKey || e.altKey) return;
   const k = e.key.toLowerCase();
   if (e.code === "KeyD" && app.profile) {
     announce("Що двигун зрозумів про відео. " + describeProfile(app.profile, app.source, app.analysis).join(" "), { force: true });

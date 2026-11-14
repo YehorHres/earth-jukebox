@@ -387,6 +387,53 @@ SUITES.push(async function stage11() {
     `електронний: ${[...el].join(",")}; оркестровий: ${[...orch].join(",")}`);
 });
 
+SUITES.push(async function stage12() {
+  const X = await import("./ui/explore.js");
+  // місце на плоскій карті й на диску
+  const flat = { projection: "equirect", region: { shape: "rect", full: true, norm: { bbox: { x0: 0, y0: 0, x1: 1, y1: 1 } } } };
+  const a = X.placeOf(0.5, 0.5, flat), b = X.placeOf(0.25, 0.25, flat);
+  check("Зонд: широта/довгота на плоскій карті", a.lat === 0 && a.lon === 0 && b.lat === 45 && b.lon === -90, `${a.text} · ${b.text}`);
+  const globe = { maskW: 160, maskH: 90, region: { shape: "disk", norm: { disk: { cx: 0.5, cy: 0.5, r: 0.2 } } } };
+  const c = X.placeOf(0.5, 0.5 - 0.2 * (160 / 90) * 0.9, globe), d = X.placeOf(0.05, 0.5, globe);
+  check("Зонд: глобус — частина диска, космос — поза диском", c.inside && /північ диска/.test(c.text) && !d.inside, `${c.text} · ${d.text}`);
+  // значення з пікселів: тепле, холодне, суша, нічні вогні
+  const px = (rgb, n = 25) => { const a = new Uint8ClampedArray(n * 4); for (let i = 0; i < n; i++) a.set([...rgb, 255], i * 4); return a; };
+  const warm = X.valueFromPixels(px([240, 30, 20])), cold = X.valueFromPixels(px([20, 40, 240])), land = X.valueFromPixels(px([95, 95, 95]));
+  const lit = X.valueFromPixels(px([200, 170, 110]), { sceneType: "nightlights" }), dark = X.valueFromPixels(px([4, 5, 9]), { sceneType: "nightlights" });
+  check("Зонд: значення — тепле > холодне, суша, вогні > темрява", warm.value > 0.9 && cold.value < 0.1 && land.kind === "land" && lit.value > dark.value,
+    `тепле ${warm.value.toFixed(2)}, холодне ${cold.value.toFixed(2)}, сіре: ${land.kind}, вогні ${lit.value.toFixed(2)} / темрява ${dark.value.toFixed(2)}`);
+  const vt = X.valueText({ value: 0.5, kind: "data" }, { range: { min: 0, max: 30, units: "°C" } });
+  check("Зонд: одиниці лише якщо діапазон відомий", /15\.0 °C/.test(vt) && !/°C/.test(X.valueText({ value: 0.5, kind: "data" })), vt);
+
+  // повний сценарій лише з клавіатури (застосунок в iframe)
+  const fr = document.createElement("iframe");
+  fr.style.cssText = "width:900px;height:700px;position:absolute;left:-2000px";
+  fr.src = "index.html";
+  document.body.appendChild(fr);
+  await new Promise(r => fr.addEventListener("load", r, { once: true }));
+  const w = fr.contentWindow, doc = fr.contentDocument;
+  w.addEventListener("error", e => errors.push("застосунок: " + e.message));  // помилки обробників у iframe теж рахуємо
+  for (let i = 0; i < 40 && !w.jukebox?.catalog; i++) await new Promise(r => setTimeout(r, 250));
+  const key = (k, o = {}) => doc.body.dispatchEvent(new w.KeyboardEvent("keydown", { key: k, code: o.code || (k.length === 1 ? "Key" + k.toUpperCase() : k), shiftKey: !!o.shift, bubbles: true, cancelable: true }));
+  await w.jukebox.loadItem(w.jukebox.catalog[0]);
+  const log = [];
+  key("e"); await new Promise(r => setTimeout(r, 1400));
+  const st = w.jukebox.explore;
+  log.push(`E → ${st.on ? "увімкнено" : "ні"}`);
+  const x0 = st.x;
+  key("ArrowRight"); key("ArrowRight", { shift: true });
+  log.push(`→, Shift+→: x ${x0.toFixed(2)} → ${st.x.toFixed(2)}`);
+  const movedOk = Math.abs(st.x - x0 - 0.12) < 1e-6 && w.jukebox.player.time === 0;
+  key("Home"); const homeOk = Math.abs(st.x - x0) < 1e-6;
+  key("Enter"); await new Promise(r => setTimeout(r, 100));
+  const live = doc.getElementById("live").textContent;
+  log.push(`Enter → «${live.slice(0, 60)}…»`);
+  key("Escape"); await new Promise(r => setTimeout(r, 100));
+  log.push(`Esc → ${st.on ? "увімкнено" : "вимкнено"}`);
+  check("Сценарій лише з клавіатури: E, стрілки (Shift — більший крок), Home, Enter, Esc; трек не перемотується", movedOk && homeOk && /пн\.|пд\./.test(live) && !st.on, log.join("; "));
+  fr.remove();
+});
+
 (async () => {
   for (const s of SUITES) {
     try { await s(); }

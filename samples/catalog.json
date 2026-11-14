@@ -7,6 +7,7 @@
     "src": ["samples/ecco2_sst_flow.webm", "samples/ecco2_sst_flow.mp4"],
     "analysis": "samples/ecco2_sst_flow.analysis.json",
     "projection": "equirect",
+    "colorMore": "тепліша вода",
     "desc": "Течії поверхні Світового океану за моделлю ECCO2. Колір ліній — температура води: синій холодний, зелений і жовтий помірні, червоний теплий. Сіре — суша. Карта світу в рівнокутній проєкції: захід ліворуч, схід праворуч, північ угорі.",
     "legend": { "cold": "холодна вода (синій)", "warm": "тепла вода (червоний)" },
     "credit": "NASA/Goddard Space Flight Center Scientific Visualization Studio, дані ECCO2 (MIT/JPL)"
@@ -19,6 +20,7 @@
     "src": ["samples/night_lights_rotating.webm", "samples/night_lights_rotating.mp4"],
     "analysis": "samples/night_lights_rotating.analysis.json",
     "projection": "globe",
+    "colorMore": "більше світла",
     "desc": "Земна куля обертається; видно нічну сторону планети. Яскраві золотисті точки — вогні міст і доріг, темні області — океани, пустелі, ліси й малозаселені землі. Дані супутника Suomi NPP (прилад VIIRS, канал день/ніч), 2012 рік.",
     "credit": "NASA Earth Observatory / NASA Goddard Space Flight Center Scientific Visualization Studio, дані Suomi NPP VIIRS (SVS 30082)"
   },

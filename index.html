@@ -45,6 +45,7 @@
     <div>
       <div id="progress" aria-hidden="true"><div></div></div>
       <p id="status" role="status">Файл не завантажено.</p>
+      <p id="explore-readout" class="explore-readout" hidden></p>
     </div>
 
     <section class="card" id="card" aria-labelledby="card-title" hidden tabindex="-1">
@@ -74,6 +75,7 @@
       <button id="play" class="primary" disabled aria-keyshortcuts="Space">▶ Грати</button>
       <button id="legendBtn" disabled aria-keyshortcuts="L">🔊 Аудіолегенда</button>
       <button id="wavBtn" disabled>⬇ Трек у WAV</button>
+      <button id="exploreBtn" disabled aria-pressed="false" aria-keyshortcuts="E">🖐 Дослідити карту</button>
     </div>
 
     <label class="opt" for="style">Стиль звучання:
@@ -109,7 +111,7 @@
 
     <p class="keys">
       <kbd>Space</kbd> грати/пауза · <kbd>L</kbd> аудіолегенда · <kbd>D</kbd> прочитати картку ·
-      <kbd>M</kbd> що зараз керує музикою ·
+      <kbd>M</kbd> що зараз керує музикою · <kbd>E</kbd> дослідити карту (стрілки, <kbd>Shift</kbd> — більший крок, <kbd>Esc</kbd> — вийти) ·
       <kbd>1</kbd>–<kbd>9</kbd> вимкнути/увімкнути партію · <kbd>Shift</kbd>+<kbd>1</kbd>–<kbd>9</kbd> соло ·
       <kbd>←</kbd>/<kbd>→</kbd> ±5 с
     </p>
