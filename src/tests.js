@@ -434,6 +434,33 @@ SUITES.push(async function stage12() {
   fr.remove();
 });
 
+SUITES.push(async function stage13() {
+  const { deserializeAnalysis } = await import("./analysis/serialize.js");
+  const { ANALYSIS_VERSION } = await import("./analysis/analyze.js");
+  const T = await import("./topics/topics.js"); await T.loadTopics();
+  const { legendItems } = await import("./a11y/legend.js");
+  const cat = await (await fetch("samples/catalog.json")).json();
+  const real = cat.filter(i => i.kind === "video");
+  const topics = new Set(real.map(i => i.topic));
+  const bad = [];
+  for (const it of real) {
+    const c = it.card || {};
+    if (!["variable", "units", "region", "years", "authors", "source"].every(k => c[k])) bad.push(`${it.id}: неповна картка`);
+    if (!T.getTopic(it.topic) || T.getTopic(it.topic).id !== it.topic) bad.push(`${it.id}: тема ${it.topic}`);
+    try {
+      const a = deserializeAnalysis(await (await fetch(it.analysis)).json());
+      if (a.version !== ANALYSIS_VERSION) bad.push(`${it.id}: застаріла версія аналізу ${a.version}`);
+    } catch (e) { bad.push(`${it.id}: аналіз ${e.message}`); }
+    for (const src of it.src) { const r = await fetch(src, { method: "HEAD" }); if (!r.ok) bad.push(`${src}: HTTP ${r.status}`); }
+  }
+  check("Галерея: ≥ 4 справжні відео NASA різних тем, картки, готові аналізи, webm + mp4", real.length >= 4 && topics.size >= 4 && !bad.length,
+    bad.join("; ") || `${real.length} відео, теми: ${[...topics].join(", ")}`);
+  const intro = legendItems("heatmap", { topic: T.getTopic("ice"), colorMore: "більше льоду" }).filter(i => i.intro);
+  check("Голосовий вступ: пункти теми (що означає «більше», тембр)", intro.length === 2 && /більше льоду/.test(intro[0].text) && /Тембр теми/.test(intro[1].text), intro.map(i => i.text).join(" / "));
+  const readme = await (await fetch("README.md")).text();
+  check("README: як працює, звук ← дані, ліцензії й автори", /Як це працює/.test(readme) && /Звук ← дані/.test(readme) && /CC-BY 3\.0/.test(readme) && real.every(i => readme.includes(i.card.source.replace("https://", "").replace(/\/$/, "").split("/").pop() || "svs")), "");
+});
+
 (async () => {
   for (const s of SUITES) {
     try { await s(); }

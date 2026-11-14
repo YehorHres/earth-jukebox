@@ -180,6 +180,8 @@ function showMedia(src) {
 function renderCard(speak = true) {
   const p = app.profile;
   const lines = describeProfile(p, app.source, app.analysis);
+  const card = app.catalogItem?.card;
+  if (card) lines.unshift(`Дані: ${card.variable}. Одиниці: ${card.units}. Регіон: ${card.region}. Період: ${card.years}. Автори: ${card.authors}.`);
   if (app.catalogItem?.desc) lines.unshift(`Що на відео: ${app.catalogItem.desc}`);
   if (!app.analysis) lines.push("Детальний аналіз кожного кадру триває…");
   $("card-lines").replaceChildren(...lines.map(t => Object.assign(document.createElement("li"), { textContent: t })));
@@ -235,6 +237,7 @@ $("exportBtn").addEventListener("click", () => {
 /* ---------------- доступність і клавіатура ---------------- */
 $("announce").addEventListener("change", e => (prefs.announce = e.target.checked));
 $("voice").addEventListener("change", e => (prefs.voice = e.target.checked));
+$("intro").addEventListener("change", e => (prefs.intro = e.target.checked));
 document.addEventListener("keydown", e => {
   if (e.target?.matches?.("input, select, textarea") || e.ctrlKey || e.metaKey || e.altKey) return;
   const k = e.key.toLowerCase();

@@ -43,7 +43,64 @@ const SCENES = {
   ],
 };
 
-export function legendItems(scene) { return [...(SCENES[scene] || SCENES.heatmap), ...COMMON]; }
+/**
+ * Пункти легенди: спершу — тема цієї карти (що означає «більше» і як звучить тема), далі — тип сцени й загальні.
+ * @param ctx { topic, colorMore, score } — необов'язково
+ */
+export function legendItems(scene, ctx = {}) {
+  const items = [];
+  const { topic, colorMore, score } = ctx;
+  if (topic && topic.id !== "generic") {
+    const mel = score?.parts.find(p => p.id === "melody")?.instrument || "violin";
+    const pad = score?.parts.find(p => p.id === "pad")?.instrument || "strings";
+    const more = colorMore || topic.more?.uk || "більше значення";
+    items.push({ intro: true, text: `${topic.name.uk}: ${more} — вищі ноти, менше — нижчі.`, notes: () => seq(mel, [60, 64, 67, 72, 76], 0.35, { vel: 0.6 }) });
+    items.push({ intro: true, text: `Тембр теми: ${topic.soundProfile.why}.`, notes: () => [...chord(pad, [48, 55, 60, 64], 0, 2.6, 0.45), ...seq(mel, [67, 72], 0.6, { vel: 0.5 }).map(n => ({ ...n, t: n.t + 0.6 }))] });
+  }
+  return [...items, ...(SCENES[scene] || SCENES.heatmap), ...COMMON];
+}
+
+/** Сказати голосом (speechSynthesis) і дочекатися кінця; без синтезу — aria-live і пауза за довжиною тексту. */
+export function say(text, lang = "uk-UA") {
+  const st = document.getElementById("status");
+  if (st) st.textContent = text;                          // видимий текст вступу
+  // голос є — говоримо ним (без aria-live, щоб скрінрідер не дублював); немає — aria-live
+  // голос є і він говорить цією мовою — говоримо ним (без aria-live, щоб скрінрідер не дублював);
+  // інакше — aria-live (скрінрідер), а не чужомовний голос
+  const voices = window.speechSynthesis ? speechSynthesis.getVoices() : [];
+  const hasLang = voices.length === 0 || voices.some(v => v.lang?.toLowerCase().startsWith(lang.slice(0, 2)));
+  if (!window.speechSynthesis || !prefs.introVoice || !hasLang) { announce(text, { force: true }); return wait(Math.min(6000, 600 + text.length * 45)); }
+  return new Promise(res => {
+    const u = new SpeechSynthesisUtterance(text);
+    u.lang = lang; u.rate = 1.05;
+    const done = () => { clearTimeout(t); res(); };
+    const t = setTimeout(done, 1500 + text.length * 120);   // підстраховка, якщо голос не відповів
+    u.onend = done; u.onerror = done;
+    speechSynthesis.speak(u);
+  });
+}
+
+let introCancel = null;
+/**
+ * Голосовий вступ перед треком (етап 13): тема й роки, потім пункти теми з аудіолегенди.
+ * Повертає true, якщо вступ дограв до кінця (не перерваний).
+ */
+export async function playIntro(engine, { title, years, items }) {
+  introCancel?.();
+  let stopped = false;
+  introCancel = () => { stopped = true; if (window.speechSynthesis) speechSynthesis.cancel(); };
+  await engine.init();
+  engine.fade(0.9, 0.02);
+  await say(`${title}${years ? ", " + years : ""}.`);
+  for (const it of items) {
+    if (stopped) return false;
+    await say(it.text);
+    if (stopped) return false;
+    await wait(playItem(engine, it) * 1000);
+  }
+  return !stopped;
+}
+export function stopIntro() { introCancel?.(); }
 
 /** Зіграти один пункт легенди (engine вже ініціалізований жестом користувача). */
 export function playItem(engine, item, at = engine.ctx.currentTime + 0.05) {
@@ -54,13 +111,13 @@ export function playItem(engine, item, at = engine.ctx.currentTime + 0.05) {
 
 let cancel = null;
 /** Уся легенда підряд: текст (скрінрідер / голос) → звук → наступний пункт. */
-export async function playLegend(engine, scene, onItem = () => {}) {
+export async function playLegend(engine, scene, onItem = () => {}, ctx = {}) {
   cancel?.();
   let stopped = false;
   cancel = () => (stopped = true);
   await engine.init();
   engine.fade(0.9, 0.02);
-  const items = legendItems(scene);
+  const items = legendItems(scene, ctx);
   announce("Аудіолегенда.", { force: true });
   await wait(900);
   for (let k = 0; k < items.length && !stopped; k++) {

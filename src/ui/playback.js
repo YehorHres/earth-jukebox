@@ -7,8 +7,8 @@ import { INSTRUMENT_LABEL, hasSampler } from "../audio/instruments.js";
 import { loadFor } from "../audio/library/index.js";
 import { loadStyle, loadStyles } from "../styles/index.js";
 import { renderOffline, toWav } from "../audio/render.js";
-import { legendItems, playItem, playLegend } from "../a11y/legend.js";
-import { announce, setMinGap, stopVoice } from "../a11y/announcer.js";
+import { legendItems, playItem, playLegend, playIntro, stopIntro } from "../a11y/legend.js";
+import { announce, setMinGap, stopVoice, prefs } from "../a11y/announcer.js";
 import { fmtTime } from "../a11y/describe.js";
 import { noteName } from "../composer/theory.js";
 
@@ -34,9 +34,21 @@ export function setupPlayback(app, { timeline, mappingTable }) {
 
   async function toggle() {
     if (!app.score) return;
-    if (player.playing) { player.pause(); setPlayUI(false); stopVoice(); }
-    else { await player.play(); setPlayUI(true); }
+    if (introRunning) { stopIntro(); return; }                      // повторне натискання — пропустити вступ
+    if (player.playing) { player.pause(); setPlayUI(false); stopVoice(); return; }
+    // голосовий вступ перед першим відтворенням треку (вимикається)
+    if (prefs.intro && !introDone && player.time === 0) {
+      introDone = true; introRunning = true;
+      $("play").textContent = "⏭ Пропустити вступ";
+      const c = app.catalogItem?.card;
+      const items = legendItems(app.mapping.meta.preset, ctxLegend()).filter(it => it.intro);
+      await playIntro(engine, { title: app.topic && app.topic.id !== "generic" ? app.topic.name.uk : (app.catalogItem?.title || "Ваша карта"), years: c?.years, items });
+      introRunning = false;
+    }
+    await player.play(); setPlayUI(true);
   }
+  let introDone = false, introRunning = false;
+  const ctxLegend = () => ({ topic: app.topic, colorMore: app.catalogItem?.colorMore, score: app.score });
 
   /* ---- курсор сканування: колонка кадру, яку зараз «грає» мелодія ---- */
   function mediaRect() {
@@ -129,6 +141,7 @@ export function setupPlayback(app, { timeline, mappingTable }) {
   /* ---- після мапінгу: пишемо партитуру ---- */
   async function onMapped() {
     player.stop(); setPlayUI(false);
+    stopIntro(); introRunning = false; introDone = false;
     // seed = відео + тема: те саме відео з тією самою темою — той самий трек
     app.score = compose(app.mapping, { seed: `${app.catalogItem?.id || app.source.name}|${app.mapping.meta.topic}`, style: app.style || null });
     player.load(app.score, app.mapping, app.source);
@@ -155,7 +168,7 @@ export function setupPlayback(app, { timeline, mappingTable }) {
 
   /* ---- аудіолегенда ---- */
   function renderLegend() {
-    const items = legendItems(app.mapping.meta.preset);
+    const items = legendItems(app.mapping.meta.preset, ctxLegend());
     $("legend-list").replaceChildren(...items.map((it, k) => {
       const li = document.createElement("li");
       const b = Object.assign(document.createElement("button"), { textContent: `▶ ${it.text}` });
@@ -173,7 +186,7 @@ export function setupPlayback(app, { timeline, mappingTable }) {
     if (!app.mapping) return;
     if (player.playing) { player.pause(); setPlayUI(false); }
     const btns = [...$("legend-list").querySelectorAll("button")];
-    await playLegend(engine, app.mapping.meta.preset, k => btns.forEach((b, i) => b.classList.toggle("now", i === k)));
+    await playLegend(engine, app.mapping.meta.preset, k => btns.forEach((b, i) => b.classList.toggle("now", i === k)), ctxLegend());
   }
   $("legendBtn").addEventListener("click", legend);
 

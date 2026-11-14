@@ -4,25 +4,119 @@
     "topic": "ocean-currents",
     "title": "Течії та температура океану (ECCO2)",
     "kind": "video",
-    "src": ["samples/ecco2_sst_flow.webm", "samples/ecco2_sst_flow.mp4"],
+    "src": [
+      "samples/ecco2_sst_flow.webm",
+      "samples/ecco2_sst_flow.mp4"
+    ],
     "analysis": "samples/ecco2_sst_flow.analysis.json",
     "projection": "equirect",
     "colorMore": "тепліша вода",
     "desc": "Течії поверхні Світового океану за моделлю ECCO2. Колір ліній — температура води: синій холодний, зелений і жовтий помірні, червоний теплий. Сіре — суша. Карта світу в рівнокутній проєкції: захід ліворуч, схід праворуч, північ угорі.",
-    "legend": { "cold": "холодна вода (синій)", "warm": "тепла вода (червоний)" },
-    "credit": "NASA/Goddard Space Flight Center Scientific Visualization Studio, дані ECCO2 (MIT/JPL)"
+    "legend": {
+      "cold": "холодна вода (синій)",
+      "warm": "тепла вода (червоний)"
+    },
+    "credit": "NASA/Goddard Space Flight Center Scientific Visualization Studio, дані ECCO2 (MIT/JPL)",
+    "card": {
+      "variable": "температура поверхні океану й течії (модель ECCO2)",
+      "units": "колір — відносна шкала температури (у відео немає легенди)",
+      "region": "Світовий океан, рівнокутна проєкція",
+      "years": "фрагмент модельного року",
+      "source": "https://svs.gsfc.nasa.gov/",
+      "authors": "NASA Goddard Scientific Visualization Studio; дані ECCO2 (MIT/JPL)"
+    }
   },
   {
     "id": "night_lights_rotating",
     "topic": "nightlights",
     "title": "Земля вночі: вогні міст (Suomi NPP)",
     "kind": "video",
-    "src": ["samples/night_lights_rotating.webm", "samples/night_lights_rotating.mp4"],
+    "src": [
+      "samples/night_lights_rotating.webm",
+      "samples/night_lights_rotating.mp4"
+    ],
     "analysis": "samples/night_lights_rotating.analysis.json",
     "projection": "globe",
     "colorMore": "більше світла",
     "desc": "Земна куля обертається; видно нічну сторону планети. Яскраві золотисті точки — вогні міст і доріг, темні області — океани, пустелі, ліси й малозаселені землі. Дані супутника Suomi NPP (прилад VIIRS, канал день/ніч), 2012 рік.",
-    "credit": "NASA Earth Observatory / NASA Goddard Space Flight Center Scientific Visualization Studio, дані Suomi NPP VIIRS (SVS 30082)"
+    "credit": "NASA Earth Observatory / NASA Goddard Space Flight Center Scientific Visualization Studio, дані Suomi NPP VIIRS (SVS 30082)",
+    "card": {
+      "variable": "нічне світло (канал день/ніч приладу VIIRS)",
+      "units": "яскравість (відносна)",
+      "region": "уся Земля, обертовий глобус",
+      "years": "2012",
+      "source": "https://svs.gsfc.nasa.gov/30082/",
+      "authors": "NASA Earth Observatory / NASA Goddard SVS; дані Suomi NPP VIIRS"
+    }
+  },
+  {
+    "id": "hurricane_beryl",
+    "topic": "storms",
+    "kind": "video",
+    "src": [
+      "samples/hurricane_beryl.webm",
+      "samples/hurricane_beryl.mp4"
+    ],
+    "analysis": "samples/hurricane_beryl.analysis.json",
+    "projection": "other",
+    "colorMore": "вища яскравісна температура в мікрохвильовому каналі",
+    "title": "Ураган Берил очима супутників TROPICS (2024)",
+    "desc": "Анімація починається з орбіт сузір'я малих супутників TROPICS; коли з'являється ураган Берил, камера наближається, і кожен прохід супутника додає смугу вимірювань — видно, як шторм розвивається. Смуги кольору — яскравісна температура в мікрохвильовому каналі 12, під ними — карта Карибського басейну.",
+    "credit": "NASA Goddard Scientific Visualization Studio, місія TROPICS (SVS 5331)",
+    "card": {
+      "variable": "яскравісна температура (мікрохвильовий канал 12, TROPICS)",
+      "units": "колір — відносна шкала (легенди в кадрі немає)",
+      "region": "Атлантика й Карибський басейн",
+      "years": "липень 2024",
+      "source": "https://svs.gsfc.nasa.gov/5331/",
+      "authors": "NASA Goddard Scientific Visualization Studio; місія TROPICS"
+    }
+  },
+  {
+    "id": "co2_oco2_year",
+    "topic": "co2",
+    "kind": "video",
+    "src": [
+      "samples/co2_oco2_year.webm",
+      "samples/co2_oco2_year.mp4"
+    ],
+    "analysis": "samples/co2_oco2_year.analysis.json",
+    "projection": "equirect",
+    "colorMore": "більша концентрація CO₂",
+    "title": "Рік вимірювань CO₂ супутником OCO-2 (2014–2015)",
+    "desc": "Концентрація вуглекислого газу за даними місії OCO-2 з вересня 2014 по серпень 2015, плоска карта світу. Протягом року видно, як CO₂ у північній півкулі зростає від зими до весни, а влітку, коли рослинність у розквіті, помітно спадає по всій північній півкулі.",
+    "credit": "NASA Goddard Scientific Visualization Studio, місія OCO-2 (SVS 4402)",
+    "card": {
+      "variable": "концентрація CO₂ у стовпі атмосфери (OCO-2)",
+      "units": "ppm — колір як відносна шкала (легенди в кадрі немає)",
+      "region": "уся Земля, рівнопроміжна (плоска) проєкція",
+      "years": "вересень 2014 — серпень 2015",
+      "source": "https://svs.gsfc.nasa.gov/4402/",
+      "authors": "NASA Goddard Scientific Visualization Studio; місія Orbiting Carbon Observatory 2"
+    }
+  },
+  {
+    "id": "sea_ice_2022",
+    "topic": "ice",
+    "kind": "video",
+    "src": [
+      "samples/sea_ice_2022.webm",
+      "samples/sea_ice_2022.mp4"
+    ],
+    "analysis": "samples/sea_ice_2022.analysis.json",
+    "projection": "other",
+    "colorMore": "більше білого — більше морського льоду",
+    "title": "Мінімум арктичного морського льоду 2022",
+    "desc": "Арктика зверху: морський лід (білий) від зимового максимуму 25 лютого до літнього мінімуму 18 вересня 2022 року. Лід поступово тане й відступає від узбережь; під ним — океан і суходіл у справжніх кольорах.",
+    "credit": "NASA Goddard Scientific Visualization Studio, дані Aqua/Terra (SVS 5030)",
+    "card": {
+      "variable": "концентрація морського льоду (10 км, щоденно)",
+      "units": "частка площі (білий — лід)",
+      "region": "Арктика, вид згори",
+      "years": "лютий — вересень 2022",
+      "source": "https://svs.gsfc.nasa.gov/5030/",
+      "authors": "NASA Goddard Scientific Visualization Studio; дані Aqua, Terra"
+    }
   },
   {
     "id": "synthetic-dark",

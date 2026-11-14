@@ -1,6 +1,6 @@
 // aria-live повідомлення + необов'язкове озвучення голосом.
 let live = null, minGapMs = 0, lastAt = 0;
-export const prefs = { announce: true, voice: false };
+export const prefs = { announce: true, voice: false, intro: true, introVoice: true };
 
 export function initAnnouncer(el) { live = el; }
 
