@@ -13,6 +13,7 @@ import { setupExplore } from "./ui/explore.js";
 import { GRAMMAR } from "./grammar.js";
 import { setupGalleryMenu } from "./ui/gallery-menu.js";
 import { applyMotion, MOTION_LABEL, MOTION_NOTE } from "./analysis/motion.js";
+import { resolvePolarity } from "./analysis/palette.js";
 
 const $ = id => document.getElementById(id);
 const NO_CACHE = new URLSearchParams(location.search).has("nocache");   // ?nocache — завжди аналізувати заново
@@ -127,9 +128,12 @@ async function loadSource(title, open, item) {
     timeline.set(app.analysis);
 
     // тема: з галереї — підставляється сама; для свого файлу — нейтральна, доки користувач не скаже
-    app.topic = getTopic(item?.topic || "generic");
-    topicInput.set(item?.topic ? app.topic : null);
-    if (!item?.topic) announce("Що на цій карті? Напишіть або скажіть тему в полі «Що на цій карті?» — від неї залежить звучання.", { force: true });
+    // своє відео: тема й полярність, збережені для цього файлу минулого разу
+    const saved = item ? null : loadRead(src.key);
+    app.polarityChoice = saved?.polarity || "auto";
+    app.topic = getTopic(item?.topic || saved?.topic || "generic");
+    topicInput.set(item?.topic || saved?.topic ? app.topic : null);
+    if (!item?.topic && !saved?.topic) announce("Що на цій карті? Напишіть або скажіть тему в полі «Що на цій карті?» — від неї залежить звучання.", { force: true });
 
     showReadOptions(item);
     // шари 2–3: мапінг і партитура
@@ -150,7 +154,10 @@ async function loadSource(title, open, item) {
 /** Мапінг і композиція для поточної теми (без повторного аналізу відео). */
 async function remap() {
   app.preset = await presetFor(app.profile.sceneType, app.topic);
-  app.mapping = mapAnalysis(app.analysis, app.preset, { topic: app.topic, timeUnit: app.catalogItem?.timeUnit || null });
+  // v7 §3: полярність — лише для завантажених файлів (галерея: як задано темою)
+  const polRes = app.catalogItem ? null : resolvePolarity(app.polarityChoice, app.profile, app.topic);
+  if (polRes) $("polarity-hint").textContent = polRes.text;
+  app.mapping = mapAnalysis(app.analysis, app.preset, { topic: app.topic, timeUnit: app.catalogItem?.timeUnit || null, polarity: polRes ? polRes.pol : null });
   timeline.setSections(app.mapping.meta.sections.map(s => ({
     label: s.label, t0: s.b0 * app.mapping.meta.barDur, t1: s.b1 * app.mapping.meta.barDur,
   })));
@@ -161,6 +168,7 @@ async function remap() {
 app.setTopic = async t => {
   app.topic = t;
   if (!app.analysis || app.busy) return;
+  saveRead();
   const wasPlaying = app.player?.playing;
   await remap();
   setStatus(`Тема: ${t.name.uk}. ${app.score.key}, ${app.score.meter.id}, ${app.score.bpm} BPM.`);
@@ -169,9 +177,12 @@ app.setTopic = async t => {
 
 /* ---------------- v7: як читати завантажене відео (тип руху) ---------------- */
 function showReadOptions(item) {
-  const mo = app.analysis?.motion, show = !item && !!mo && app.source?.kind === "video";
+  const mo = app.analysis?.motion, show = !item && !!app.analysis;
   $("read-opts").hidden = !show;
   if (!show) return;
+  $("polarity").value = app.polarityChoice || "auto";
+  $("motion-row").hidden = $("motion-hint").hidden = !mo || app.source?.kind !== "video";
+  if (!mo) return;
   if (![...$("motionType").options].some(o => o.value === mo.type)) $("motionType").add(new Option(MOTION_LABEL[mo.type] || mo.type, mo.type));
   $("motionType").value = mo.type;
   $("motion-hint").textContent = `${mo.auto ? "Визначено автоматично" : "Вибрано вручну"}${mo.why ? `: ${mo.why}` : ""}. ${mo.note || MOTION_NOTE[mo.type] || ""}`;
@@ -185,6 +196,23 @@ $("motionType").addEventListener("change", async e => {
   timeline.set(app.analysis);
   await remap();
   announce(`Тип руху: ${MOTION_LABEL[e.target.value]}. ${MOTION_NOTE[e.target.value] || ""}`, { force: true });
+  if (wasPlaying) app.player.play();
+});
+
+/* ---------------- v7 §3: «що означає більше» — полярність голосу даних ---------------- */
+const READ_KEY = "ecosphear-read:";
+function loadRead(key) { try { return JSON.parse(localStorage.getItem(READ_KEY + key) || "null"); } catch { return null; } }
+function saveRead() {
+  if (app.catalogItem || !app.source) return;
+  try { localStorage.setItem(READ_KEY + app.source.key, JSON.stringify({ topic: app.topic?.id === "generic" ? null : app.topic?.id, polarity: app.polarityChoice })); } catch { /* приватний режим — не зберігаємо */ }
+}
+$("polarity").addEventListener("change", async e => {
+  app.polarityChoice = e.target.value;
+  if (!app.analysis || app.busy) return;
+  const wasPlaying = app.player?.playing;
+  saveRead();
+  await remap();
+  announce($("polarity-hint").textContent, { force: true });
   if (wasPlaying) app.player.play();
 });
 

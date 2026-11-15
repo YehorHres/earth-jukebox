@@ -8,10 +8,11 @@ import { computeFrame, MAIN_FEATURE, listFeatures } from "../features/index.js";
 import { describeRange, median, percentile, autocorr, clamp } from "../util/stats.js";
 import { detectRegion, detectScale } from "./region.js";
 import { frameBackground, regionFromFrames, detectDynamicText } from "./region-dynamic.js";
+import { detectPalette } from "./palette.js";
 
 const N_SAMPLES = 32, N_NOISE_PAIRS = 4, MASK_W = 160;
 
-export async function passA(source, { onProgress = () => {}, sceneOverride = null, scaleHint = null } = {}) {
+export async function passA(source, { onProgress = () => {}, sceneOverride = null, scaleHint = null, autoPalette = false } = {}) {
   const { w, h } = analysisSize(source, MASK_W);
   const n = w * h, dur = source.duration;
   const isStill = source.isStatic || !dur;
@@ -122,7 +123,14 @@ export async function passA(source, { onProgress = () => {}, sceneOverride = nul
 
   // ---- 5. тип сцени (лише в області даних: чорний космос навколо глобуса — не «нічна карта»)
   const scene = classifyScene(frames, n, staticMask, regionMask);
-  const sceneType = sceneOverride || scene.type;
+  let sceneType = sceneOverride || scene.type;
+  // v7 §2: шкали (легенди) немає і це не «синій → червоний» — палітру кадру впорядковуємо самі (зелені, viridis, одноколірні)
+  let palette = null;
+  if (autoPalette && !scale.found && !sceneOverride && (scene.type === "mixed" || scene.type === "heatmap")) {
+    const pal = detectPalette(frames, n, { regionMask, landMask, bgMask });
+    palette = { found: pal.found, kind: pal.kind || null, explained: pal.explained ?? null, why: pal.why };
+    if (pal.found) { scale = { found: true, palette: true, orientation: "palette", refs: pal.refs, norm: null, mask: new Uint8Array(n) }; sceneType = "heatmap"; }
+  }
   // статичні накладки: підписи, легенда, логотипи. Для нічних карт статичні кольорові вогні — це дані.
   for (let i = 0; i < n; i++) {
     if (!staticMask[i] || landMask[i] || bgMask[i] || !inRegion(i)) continue;
@@ -207,7 +215,8 @@ export async function passA(source, { onProgress = () => {}, sceneOverride = nul
     maskW: w, maskH: h, staticMask, landMask, bgMask, overlayMask, regionMask,
     region: { shape: region.shape, area: region.area, full: region.full, bbox: region.bbox, disk: region.disk, norm: region.norm },
     dynamicBg, textBoxes: text.boxes,
-    scale: scale.found ? { found: true, orientation: scale.orientation, refs: scale.refs, norm: scale.norm } : { found: false },
+    scale: scale.found ? { found: true, orientation: scale.orientation, refs: scale.refs, norm: scale.norm, ...(scale.palette && { palette: true }) } : { found: false },
+    ...(palette && { palette }),
     shares: { static: share(staticMask), land: share(landMask), bg: share(bgMask), overlay: share(overlayMask) },
     ranges, featureNoise, noiseFloor, noiseCell, mainFeature, changeRatio, changeScale, changeAmp, changeArea,
     mainSpread: spread, cuts: [], serviceTimes, period,
