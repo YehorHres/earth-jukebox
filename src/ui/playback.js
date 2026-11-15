@@ -33,7 +33,8 @@ export function setupPlayback(app, { timeline, mappingTable }) {
   app.player = player;
 
   function setPlayUI(on) {
-    $("play").textContent = on ? "⏸ Пауза" : "▶ Грати";
+    $("play").textContent = on ? "Пауза" : "Грати";
+    $("play").dataset.icon = on ? "pause" : "play";
     $("play").setAttribute("aria-pressed", on ? "true" : "false");
   }
 
@@ -44,7 +45,8 @@ export function setupPlayback(app, { timeline, mappingTable }) {
     // голосовий вступ перед першим відтворенням треку (вимикається)
     if (prefs.intro && !introDone && player.time === 0) {
       introDone = true; introRunning = true;
-      $("play").textContent = "⏭ Пропустити вступ";
+      $("play").textContent = "Пропустити вступ";
+      $("play").dataset.icon = "skip";
       const c = app.catalogItem?.card;
       const items = legendItems(app.mapping.meta.preset, ctxLegend()).filter(it => it.intro);
       await playIntro(engine, { title: app.topic && app.topic.id !== "generic" ? app.topic.name.uk : (app.catalogItem?.title || "Ваша карта"), years: c?.years, items });
@@ -199,12 +201,13 @@ export function setupPlayback(app, { timeline, mappingTable }) {
     const items = legendItems(app.mapping.meta.preset, ctxLegend());
     $("legend-list").replaceChildren(...items.map((it, k) => {
       const li = document.createElement("li");
-      const b = Object.assign(document.createElement("button"), { textContent: `▶ ${it.text}` });
+      const b = Object.assign(document.createElement("button"), { textContent: it.text });
       b.addEventListener("click", async () => {
         if (player.playing) { player.pause(); setPlayUI(false); }
         await engine.init(); engine.fade(0.9, 0.02);
         playItem(engine, it);
       });
+      b.dataset.icon = "play";
       li.appendChild(b);
       return li;
     }));

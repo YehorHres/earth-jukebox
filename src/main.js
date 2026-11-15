@@ -11,6 +11,7 @@ import { createMappingTable } from "./ui/mapping-table.js";
 import { setupPlayback } from "./ui/playback.js";
 import { setupExplore } from "./ui/explore.js";
 import { GRAMMAR } from "./grammar.js";
+import { setupGalleryMenu } from "./ui/gallery-menu.js";
 
 const $ = id => document.getElementById(id);
 const NO_CACHE = new URLSearchParams(location.search).has("nocache");   // ?nocache — завжди аналізувати заново
@@ -18,6 +19,7 @@ const app = { scanDir: "we", source: null, profile: null, analysis: null, catalo
 window.jukebox = app; // для налагодження й автотестів
 
 initAnnouncer($("live"));
+setupGalleryMenu();
 const timeline = createTimeline($("timeline"), $("tl-legend"), {
   onSeek: t => {
     if (app.score) return app.seekTo(t);
@@ -39,7 +41,8 @@ async function loadCatalog() {
   const g = $("gallery");
   for (const it of items) {
     const b = document.createElement("button");
-    b.textContent = (it.kind === "synthetic" ? "🧪 " : "🎧 ") + it.title;
+    b.textContent = it.title;
+    b.dataset.kind = it.kind;
     b.title = it.desc;
     b.setAttribute("aria-description", it.desc);
     b.addEventListener("click", () => loadItem(it));

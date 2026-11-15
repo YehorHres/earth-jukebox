@@ -167,11 +167,12 @@ export function setupExplore(app, { engine }) {
     if (on === state.on || !app.score) return;
     state.on = on;
     btn.setAttribute("aria-pressed", String(on));
-    btn.textContent = on ? "✋ Вийти з дослідження" : "🖐 Дослідити карту";
+    btn.textContent = on ? "Вийти з дослідження" : "Дослідити карту";
+    btn.dataset.icon = on ? "close" : "explore";
     viewer.classList.toggle("exploring", on);
     $("explore-readout").hidden = !on;
     if (on) {
-      if (app.player?.playing) { app.player.pause(); $("play").textContent = "▶ Грати"; $("play").setAttribute("aria-pressed", "false"); }
+      if (app.player?.playing) { app.player.pause(); $("play").textContent = "Грати"; $("play").dataset.icon = "play"; $("play").setAttribute("aria-pressed", "false"); }
       center();
       announce("Режим дослідження. Стрілки — рух зонда, Shift — більший крок, Home — центр карти, Enter — повторити, Escape — вийти. " +
         "Висота звуку — значення, ліворуч чи праворуч — положення; поза картою — тиша.", { force: true });
