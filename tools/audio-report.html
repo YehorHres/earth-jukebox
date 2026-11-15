@@ -17,7 +17,7 @@
 <body>
 <h1>Аудіозвіт: 5 треків галереї</h1>
 <p>Рендерить кожен трек офлайн так само, як застосунок, і міряє пік, гучність (LUFS, BS.1770), частки енергії по смугах
-і баланс L/R. Критерії: пік ≤ −1 dBFS; різниця гучності між треками ≤ 1 LU; енергія &lt; 60 Гц ≤ 25 %
+і баланс L/R. Критерії: пік ≤ −1 dBFS; гучність −16 LUFS ± 0.5; кореляція енергії даних із короткочасною гучністю ρ ≥ 0.7; діапазон гучності (LRA) ≥ 8 LU; кульмінація ≥ вступ + 6 дБ і + 3 партії; голос даних на 2…5 дБ над супроводом; треки різні (голос, мотив, темп, спектральний центр, густота нот); енергія &lt; 60 Гц ≤ 25 %
 (шторми в кульмінації ≤ 40 %); |L−R| ≤ 0.5 дБ. З <code>python tools/serve.py</code> треки й звіт зберігаються в <code>renders/</code>.</p>
 <button id="go" class="primary">Перерендерити й виміряти</button>
 <p id="status" role="status" aria-live="polite"></p>
@@ -33,13 +33,13 @@ async function run() {
   const t0 = performance.now();
   const q = new URLSearchParams(location.search), fast = q.has("fast");
   const rep = await galleryReport({ root: "../", keepBuffers: !fast, fast, only: q.get("only")?.split(",") || null, onProgress: t => ($("status").textContent = t) });
-  $("head").innerHTML = `<tr><th scope="col">Трек</th><th scope="col">Пік, dBFS</th><th scope="col">LUFS</th><th scope="col">L−R, дБ</th>${rep.bands.map(b => `<th scope="col">${b} Гц, %</th>`).join("")}<th scope="col">&lt;60 у кульм., %</th><th scope="col">Підсил., дБ</th></tr>`;
+  $("head").innerHTML = `<tr><th scope="col">Трек</th><th scope="col">Пік, dBFS</th><th scope="col">LUFS</th><th scope="col">L−R, дБ</th>${rep.bands.map(b => `<th scope="col">${b} Гц, %</th>`).join("")}<th scope="col">&lt;60 у кульм., %</th><th scope="col">Підсил., дБ</th><th scope="col">ρ енергія↔гучн.</th><th scope="col">LRA, LU</th><th scope="col">Кульм.−вступ, дБ</th><th scope="col">Партій вступ→кульм.</th><th scope="col">Голос над супр., дБ</th><th scope="col">Голос / мотив / BPM</th><th scope="col">Центр, Гц</th><th scope="col">Нот/с</th></tr>`;
   $("rows").replaceChildren(...rep.rows.map(r => {
     const tr = document.createElement("tr");
     const cls = (bad) => (bad ? "bad" : "good");
     tr.innerHTML = `<td></td><td class="${cls(r.peakDb > -1)}">${r.peakDb.toFixed(2)}</td><td>${r.lufs.toFixed(2)}</td><td class="${cls(Math.abs(r.balanceDb) > 0.5)}">${r.balanceDb.toFixed(2)}</td>` +
       r.bands.map((b, k) => `<td class="${k === 0 ? cls(b > 0.25) : ""}">${(b * 100).toFixed(1)}</td>`).join("") +
-      `<td>${r.climaxSub60 === null ? "—" : (r.climaxSub60 * 100).toFixed(1)}</td><td>${r.gainDb.toFixed(1)}</td>`;
+      `<td>${r.climaxSub60 === null ? "—" : (r.climaxSub60 * 100).toFixed(1)}</td><td>${r.gainDb.toFixed(1)}</td><td class="${cls(r.rho < 0.7)}">${r.rho.toFixed(2)}</td><td class="${cls(r.lra < 8)}">${r.lra.toFixed(1)}</td><td>${r.introLufs === null || r.climaxLufs === null ? "—" : (r.climaxLufs - r.introLufs).toFixed(1)}</td><td>${r.partsIntro?.toFixed(1) ?? "—"} → ${r.partsClimax?.toFixed(1) ?? "—"}</td><td>${r.leadDb?.toFixed(1) ?? "—"}</td><td>${r.voice} / ${r.motif} / ${r.bpm}</td><td>${r.centroid.toFixed(0)}</td><td>${r.noteDensity.toFixed(2)}</td>`;
     tr.cells[0].textContent = `${r.title} (${r.topic})`;
     return tr;
   }));
@@ -50,7 +50,7 @@ async function run() {
     rows: rep.rows.map(({ buffer, ...r }) => r) };
   let saved = 0;
   window.__report = json;
-  if (fast || q.has("only")) { $("status").textContent = "Швидкий/частковий прогін — файли не зберігаю."; window.__done = true; $("go").disabled = false; return; }
+  if (q.has("nosave") || fast || q.has("only")) { $("status").textContent = "Швидкий/частковий прогін — файли не зберігаю."; window.__done = true; $("go").disabled = false; return; }
   for (const r of rep.rows) {
     const wav = toWav(r.buffer);
     const a = Object.assign(document.createElement("a"), { href: URL.createObjectURL(wav), download: `${r.id}.wav`, textContent: `⬇ ${r.id}.wav` });

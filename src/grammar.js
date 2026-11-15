@@ -3,72 +3,112 @@
 // Тема змінює лише тембр (колір голосу даних, знаки-ерікони), а не правила.
 
 export const GRAMMAR = [
-  { data: "Значення головної величини (більше / менше за змістом теми)", sound: "Висота голосу даних: більше → вище", part: "dataVoice" },
-  { data: "Площа / охоплення", sound: "Гучність і кількість голосів", part: "оркестровка" },
+  { data: "Значення головної величини (більше / менше за змістом теми)", sound: "Висота голосу даних: більше → вище (мотив теми транспонується)", part: "dataVoice" },
+  { data: "Площа / охоплення", sound: "Гучність (≈ 12 дБ) і кількість партій (2–3 → 6–7), ударні", part: "оркестровка" },
   { data: "Швидкість змін", sound: "Густота ритму й темп (темп — лише між фразами)", part: "ритм" },
   { data: "Аномалія, рекорд, невизначеність", sound: "Напруга: дисонанс, тремоло, шорсткість", part: "гармонія" },
   { data: "Дискретна подія (спалах, новий об'єкт, різкий стрибок)", sound: "Ерікон — фіксований короткий звук-знак теми", part: "earcons" },
   { data: "Положення по горизонталі (захід ↔ схід, ліво ↔ право диска)", sound: "Панорама: ліве ↔ праве вухо", part: "панорама" },
   { data: "Положення по вертикалі", sound: "Висотою НЕ кодуємо (висота зайнята значенням) — повідомляємо голосом", part: "мовлення" },
-  { data: "Час відео", sound: "Час треку + тихі «тіки» шкали часу", part: "ticks" },
+  { data: "Час відео", sound: "Час треку (опція: тихі «тіки» шкали часу)", part: "ticks" },
 ];
 
-/** Діапазон голосу даних (MIDI): 2 октави над супроводом. */
+/** Діапазон голосу даних (MIDI) за замовчуванням; у теми — свій, під її інструмент (voiceOf). */
 export const VOICE_RANGE = [62, 86];
 /** Одночасно на першому плані: голос даних + до 2 солістів зон. */
 export const FOREGROUND_MAX = 3;
 /** Мінімальна відстань між зонами солістів (із 16 колонок кадру). */
 export const SOLO_MIN_GAP = 3;
-/** Супровід тихіший за голос даних (−6…−10 дБ) і має виріз у частотах під нього. */
-export const ACCOMP_DB = -7;
-export const VOICE_CUT = { f: 1200, q: 0.7, db: -4 };
+/** v6: супровід НЕ приглушуємо; голос даних лише на +3…+4 дБ над ним (підбирає калібрування), виріз під голос ≤ 3 дБ. */
+export const ACCOMP_DB = 0;
+export const VOICE_LEAD_DB = 3.5;
+export const VOICE_CUT = { f: 1200, q: 0.7, db: -2 };
 /** Приглушення музики під час мовлення (≥ 10 дБ). */
 export const DUCK_DB = -14;
-/** Референсний тон на початку треку, с. */
+/** Референсний тон на початку треку, с. Дрон-орієнтир і тіки шкали часу — лише як опція (compose({ drone, ticks })). */
 export const REF_INTRO = 1.5;
-/** Тіки шкали часу за замовчуванням: кожні 10 с, сильніший — кожен 4-й. */
+/** Тіки шкали часу (опція): кожні 10 с, сильніший — кожен 4-й. */
 export const DEFAULT_TICK = { seconds: 10, strong: 4, label: "10 секунд" };
 
-/** Партії граматики (не супровід): звучать на повному рівні. */
+/** Партії граматики (не супровід). */
 export const LEAD_PARTS = ["dataVoice", "soloists", "reference", "ticks", "earcons"];
 
-/** Етап 16 — бюджет партій: одночасно ≤ 6 (у вступі ≤ 3 + короткі знаки); знаки (тіки, ерікони) — завжди. */
-export const PARTS_MAX = 6;
-export const INTRO_PARTS_MAX = 3;
-export const SIGNAL_PARTS = ["earcons", "ticks"];
-/** Хто отримує місце в такті: спершу дані й знаки (і рідка фонова текстура теми), далі — супровід за розділом форми. */
+/** v6 — бюджет партій від даних: спокій 2–3 → пік 6–7; у вступі й в останньому такті ≤ 2 (+ короткі знаки). */
+export const PARTS_MAX = 7;
+export const INTRO_PARTS_MAX = 2;
+export const SIGNAL_PARTS = ["earcons", "ticks", "reference"];
+/** Хто отримує місце в такті: спершу дані й знаки (і вогники нічної карти), далі — супровід за розділом форми. */
 const PART_HEAD = ["dataVoice", "reference", "earcons", "ticks", "stars"];
 const PART_BY_SECTION = {
   intro: ["pad", "texture", "bass", "arp"],
-  build: ["pad", "bass", "counter", "arp", "drums", "soloists", "texture"],
-  climax: ["bass", "pad", "drums", "counter", "soloists", "arp"],
-  development: ["pad", "bass", "soloists", "arp", "drums", "texture"],
+  build: ["pad", "bass", "drums", "arp", "counter", "soloists", "texture"],
+  climax: ["bass", "pad", "drums", "counter", "arp", "soloists", "texture"],
+  development: ["pad", "bass", "arp", "drums", "soloists", "texture", "counter"],
   resolution: ["pad", "arp", "bass", "texture", "soloists"],
-  theme: ["pad", "bass", "arp", "soloists", "texture", "drums"],
+  theme: ["pad", "bass", "arp", "drums", "soloists", "texture"],
 };
 export const partPriority = section => [...PART_HEAD, ...(PART_BY_SECTION[section] || PART_BY_SECTION.theme)];
-/** Скільки партій (без знаків) дозволяють форма й дані: оркестровка + частка зон, що змінюються (тутті ↔ соло). */
+/** Скільки партій (без знаків) дозволяють дані й форма: відносна енергія (drive) + частка зон, що змінюються; кульмінація — повний склад. */
 export function partsCap(bar, last = false) {
   if (bar.section === "intro" || last) return INTRO_PARTS_MAX;
-  const o = bar.params.orchestration ?? 0.5, tu = bar.params.tutti ?? 0.5;
-  const c = (o < 0.35 ? 4 : o < 0.55 ? 5 : 6) + (tu > 0.6 ? 1 : tu < 0.15 ? -1 : 0);
-  return Math.max(3, Math.min(PARTS_MAX, c));
+  if (bar.section === "climax") return PARTS_MAX;
+  const p = bar.params, o = p.orchestration ?? 0.5, x = p.drive !== undefined ? 0.6 * p.drive + 0.4 * o : o, tu = p.tutti ?? 0.5;
+  const c = 2 + Math.round(5 * x) + (tu > 0.6 ? 1 : tu < 0.15 ? -1 : 0);
+  return Math.max(2, Math.min(PARTS_MAX, c));
 }
 
 /** Полярність: +1 — більше значення ознаки = «більше» за змістом теми; −1 — навпаки (moreMeans: "down"). */
 export const polarity = topic => (topic?.moreMeans === "down" ? -1 : 1);
 export const orient = (v, pol) => (pol < 0 ? 1 - v : v);
-export const valueToMidi = v => VOICE_RANGE[0] + Math.max(0, Math.min(1, v)) * (VOICE_RANGE[1] - VOICE_RANGE[0]);
+export const valueToMidi = (v, range = VOICE_RANGE) => range[0] + Math.max(0, Math.min(1, v)) * (range[1] - range[0]);
 
-/** Колір голосу даних — від теми (тембр = тема), правила — спільні. */
-const VOICE_COLOR = {
-  co2: { wave: "sawtooth", formant: 700 }, temperature: { wave: "sawtooth", formant: 1300 }, "ocean-currents": { wave: "triangle", formant: 900 },
-  ice: { wave: "sine", formant: 2600 }, fires: { wave: "sawtooth", formant: 1800 }, precipitation: { wave: "triangle", formant: 2000 },
-  storms: { wave: "square", formant: 1000 }, vegetation: { wave: "triangle", formant: 1100 }, nightlights: { wave: "sine", formant: 3000 },
-  clouds: { wave: "triangle", formant: 1600 }, "sea-level": { wave: "sawtooth", formant: 600 }, ozone: { wave: "sine", formant: 2200 },
-  aerosols: { wave: "square", formant: 1500 },
+/**
+ * v6: голос даних — СПРАВЖНІЙ інструмент теми (семпли; синтез — лише запасний, без семплів).
+ * inst — тембр; range — регістр під інструмент; double — [інструмент, зсув] подвоєння в кульмінації;
+ * warm / cold — шари для високих / низьких значень (океан: тепле — флейта вгорі, холодне — віолончель унизу й low-pass); short — короткі дзвінкі ноти.
+ */
+const VOICE = {
+  "ocean-currents": { inst: "violin", range: [62, 86], double: ["flute", 12], warm: ["flute", 12], cold: ["cello", -12], coldLp: true },
+  temperature: { inst: "piano", range: [60, 84], double: ["violin", 0] },
+  storms: { inst: "trombone", range: [45, 67], double: ["horn", 0] },
+  nightlights: { inst: "xylophone", range: [72, 96], double: ["piano", 0], short: true },
+  co2: { inst: "horn", range: [50, 72], double: ["trumpet", 12] },
+  ice: { inst: "piano", range: [67, 91], double: ["harp", 0] },
+  fires: { inst: "saxophone", range: [55, 77], double: ["trumpet", 0] },
+  precipitation: { inst: "harp", range: [60, 84], double: ["piano", 0] },
+  vegetation: { inst: "flute", range: [64, 88], double: ["violin", 0] },
+  clouds: { inst: "flute", range: [64, 88], double: ["harp", 0] },
+  "sea-level": { inst: "violin", range: [58, 82], double: ["horn", -12] },
+  ozone: { inst: "flute", range: [64, 88], double: ["harp", 0] },
+  aerosols: { inst: "saxophone", range: [55, 77], double: ["piano", 0] },
 };
-export const voiceColor = topicId => VOICE_COLOR[topicId] || { wave: "triangle", formant: 1400 };
+export const voiceOf = topicId => VOICE[topicId] || { inst: "violin", range: VOICE_RANGE, double: ["flute", 12] };
+
+/**
+ * v6: мотив теми — 4–8 нот зі своїм ритмом та інтервалами: [крок такту (шістнадцяті), щабель ладу відносно опори].
+ * Опору (транспозицію) дає значення даних; сильні долі підлаштовуються під акорд (тональна секвенція).
+ */
+const M = (id, steps, notes) => ({ id, steps, notes });
+const MOTIFS = {
+  "ocean-currents": M("хвиля", 12, [[0, 0], [4, 1], [6, 2], [8, 1], [10, 0]]),
+  temperature: M("підйом", 16, [[0, 0], [4, 1], [6, 2], [8, 2], [12, 1], [14, 0]]),
+  storms: M("фанфара бурі", 16, [[0, 0], [2, 0], [4, 1], [8, 2], [10, 1], [12, 0], [14, -1]]),
+  nightlights: M("дзинь-дзелень", 16, [[0, 0], [2, 1], [4, 2], [6, 1], [8, 2], [12, 4]]),
+  co2: M("подих", 16, [[0, 0], [6, 1], [8, 2], [14, 1]]),
+  ice: M("крижинка", 12, [[0, 0], [4, 2], [6, 1], [8, 0]]),
+  fires: M("язики полум'я", 20, [[0, 0], [2, 1], [4, 2], [8, 1], [12, 0], [14, 1], [16, 2]]),
+};
+const METER_MOTIFS = {
+  16: M("крок 4/4", 16, [[0, 0], [4, 1], [8, 2], [10, 1], [12, 0]]),
+  12: M("крок 3", 12, [[0, 0], [4, 1], [8, 2], [10, 1]]),
+  20: M("крок 5/4", 20, [[0, 0], [4, 1], [8, 2], [12, 1], [16, 0]]),
+};
+/** Мотив теми під розмір такту (якщо розмір інший — запасний мотив цього розміру). */
+export function motifFor(topicId, meter) {
+  const m = MOTIFS[topicId];
+  if (m && (!meter || m.steps === meter.steps)) return m;
+  return METER_MOTIFS[meter?.steps] || METER_MOTIFS[16];
+}
 
 /* ---------------- ерікони: фіксовані знаки подій ---------------- */
 // spec: noise [f0, f1, Q] — смуга шуму з ковзанням; tone [f0, f1, wave] — тон із ковзанням; dur — с.

@@ -33,6 +33,15 @@ export function computeForm(nBars, { climaxBar = null, energy = [], noChange = f
     let c0 = snap(cb - climaxLen / 2);
     c0 = Math.max(introLen, Math.min(c0, nBars - resLen - climaxLen));
     c0 = Math.max(introLen, c0);
+    // v6: climax = full ensemble and the loudest section, so it must sit where the data energy is high.
+    // If the window around the lead-feature peak is clearly weaker than the most energetic window, move the climax there.
+    if (energy.length === nBars) {
+      const win = s => { let q = 0, n = 0; for (let b = s; b < Math.min(nBars - resLen, s + climaxLen); b++) { q += energy[b]; n++; } return n ? q / n : 0; };
+      let best = c0;
+      for (let s = introLen; s <= nBars - resLen - climaxLen; s += phrase) if (win(s) > win(best)) best = s;
+      const lo = Math.min(...energy), span = Math.max(...energy) - lo;
+      if (span > 0.05 && win(c0) - lo < 0.8 * (win(best) - lo)) c0 = best;
+    }
     const c1 = Math.min(nBars - resLen, c0 + climaxLen);
     sections.push({ id: "intro", b0: 0, b1: introLen });
     if (c0 > introLen) sections.push({ id: "build", b0: introLen, b1: c0 });

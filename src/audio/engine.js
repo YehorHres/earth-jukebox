@@ -1,23 +1,28 @@
 // Аудіодвигун на чистому Web Audio (без зовнішніх бібліотек — працює офлайн).
 // Ланцюг (v4-14): інструмент → шина партії [HPF → виріз 350 Гц → LPF] (mute/solo) → [сухий + посил на реверб]
-//   → сума → «провал» → м'який компресор → рівень від даних (±4 дБ) → нормалізація гучності треку (−16 LUFS)
+//   → сума → «провал» → м'який компресор → рівень від даних (v6: ≈ 12 дБ усередині треку) → нормалізація гучності треку (−16 LUFS, один раз)
 //   → баланс L/R → лімітер → стеля −1 dBFS → вихід.
 
 import { ACCOMP_DB, VOICE_CUT, DUCK_DB } from "../grammar.js";
 
+/** Діапазон гучності від даних усередині треку, дБ (v6): тихі епізоди справді тихі, кульмінація — повна. */
+export const LEVEL_DB = [-7, 3];
+
 const c01 = x => Math.max(0, Math.min(1, x ?? 0.5));
 export const TARGET_LUFS = -16, CEILING = 0.88;      // 0.88 ≈ −1.1 dBFS
 /**
- * Динаміка від даних: ±4 дБ навколо цілі, від ВІДНОСНОЇ енергії (rel) із довгим згладжуванням
- * (середнє за 4 такти) — наближення камери чи яскравість кадру не роблять трек гучнішим.
+ * Динаміка від даних (v6): відносна енергія такту (drive — енергія, розтягнута в межах відео) керує гучністю
+ * в діапазоні LEVEL_DB (разом зі складом партій — ≈ 12 дБ); легке згладжування з попереднім тактом. Вступ — тихіше (форма), кульмінація — повна.
+ * Абсолютна яскравість / площа кадру (level) не впливає: наближення камери не робить трек гучнішим.
  */
-export function levelFor(mapping, b) {
-  const bars = mapping.bars;
-  let s = 0, n = 0;
-  for (let k = Math.max(0, b - 3); k <= Math.min(bars.length - 1, b); k++) { s += c01(bars[k].params.energy); n++; }
-  const db = Math.max(-4, Math.min(4, -4 + 8 * (n ? s / n : 0.5)));
-  return Math.pow(10, db / 20);
+export function levelDb(mapping, b) {
+  const bars = mapping.bars, u = k => c01(bars[k].params.drive ?? bars[k].params.energy);
+  const x = b > 0 ? 0.75 * u(b) + 0.25 * u(b - 1) : u(b);
+  // форма: вступ — тихо (нижня третина діапазону), кульмінація — найгучніше (верх діапазону + 1 дБ)
+  const sec = bars[b].section, y = sec === "intro" ? 0.25 * x : sec === "climax" ? Math.max(x, 0.75) : x;
+  return LEVEL_DB[0] + (LEVEL_DB[1] - LEVEL_DB[0]) * y + (sec === "climax" ? 1 : sec === "intro" ? -2 : 0);
 }
+export const levelFor = (mapping, b) => Math.pow(10, levelDb(mapping, b) / 20);
 
 // EQ партій: high-pass усім, крім басу; м'який виріз 250–500 Гц у педів і арпеджіо; бас — low-pass, суббас — HPF 32 Гц
 export const PART_EQ = {
@@ -111,9 +116,10 @@ export class Engine {
   }
 
   /** Калібрування мастера: підсилення до цільової гучності й вирівнювання L/R (balanceDb = на скільки L гучніший за R). */
-  setMaster({ gainDb = 0, balanceDb = 0 } = {}) {
-    this.masterCal = { gainDb, balanceDb };
+  setMaster({ gainDb = 0, balanceDb = 0, voiceDb = 0 } = {}) {
+    this.masterCal = { gainDb, balanceDb, voiceDb };
     if (!this.ctx) return;
+    this.applyMix();
     const t = this.ctx.currentTime;
     const set = (param, v) => { if (t < 0.01) param.value = v; else param.setTargetAtTime(v, t, 0.05); };
     set(this.normGain.gain, Math.pow(10, gainDb / 20));
@@ -174,7 +180,9 @@ export class Engine {
       const on = anySolo ? st.solo : !st.mute;
       const acc = this.isAccomp(id);
       b.cut.gain.value = acc ? VOICE_CUT.db : 0;
-      b.out.gain.setTargetAtTime(on ? (acc ? Math.pow(10, ACCOMP_DB / 20) : 1) : 0, this.ctx.currentTime, 0.03);
+      // голос даних: підсилення з калібрування (на +3…+4 дБ над супроводом); супровід не приглушуємо
+      const g = acc ? Math.pow(10, ACCOMP_DB / 20) : id === "dataVoice" ? Math.pow(10, (this.masterCal?.voiceDb || 0) / 20) : 1;
+      b.out.gain.setTargetAtTime(on ? g : 0, this.ctx.currentTime, 0.03);
     }
   }
 
@@ -182,7 +190,8 @@ export class Engine {
   setLevel(v, at) {
     if (!this.ctx) return;
     this.level = v;
-    this.levelNode.gain.setTargetAtTime(v, at ?? this.ctx.currentTime, 1.5);
+    if (!this.levelSet) { this.levelSet = true; this.levelNode.gain.setValueAtTime(v, at ?? this.ctx.currentTime); }   // початок треку — одразу на рівні вступу
+    else this.levelNode.gain.setTargetAtTime(v, at ?? this.ctx.currentTime, 0.6);
   }
 
   setWidth(w, at) {

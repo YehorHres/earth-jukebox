@@ -149,7 +149,7 @@ export function setupPlayback(app, { timeline, mappingTable }) {
     player.stop(); setPlayUI(false);
     stopIntro(); introRunning = false; introDone = false;
     // seed = відео + тема: те саме відео з тією самою темою — той самий трек
-    app.score = compose(app.mapping, { seed: `${app.catalogItem?.id || app.source.name}|${app.mapping.meta.topic}`, style: app.style || null });
+    app.score = compose(app.mapping, { seed: `${app.catalogItem?.id || app.source.name}|${app.mapping.meta.topic}`, style: app.style || null, drone: !!prefs.drone, ticks: !!prefs.ticks });
     player.load(app.score, app.mapping, app.source);
     setMinGap(Math.max(4000, app.score.barDur * 4 * 1000));
     lastSection = null; lastAnnouncedBar = -99;
@@ -162,7 +162,7 @@ export function setupPlayback(app, { timeline, mappingTable }) {
     $("wavBtn").disabled = false;
     $("exploreBtn").disabled = false;
     // семпли — у фоні; грати можна одразу (поки що синтезатори)
-    const insts = [...new Set(app.score.notes.map(n => n.inst))];
+    const insts = app.score.instruments;
     const decoder = new OfflineAudioContext(1, 1, 44100);
     const status = $("status"), base = status.textContent;
     // семпли вантажаться у фоні: якщо за цей час обрали інше відео чи тему, старий трек уже не актуальний
@@ -176,7 +176,7 @@ export function setupPlayback(app, { timeline, mappingTable }) {
       })
       .then(() => applyMaster(score, current));
     // до калібрування — типове підсилення галереї (щоб перший звук не був голоснішим за ціль)
-    score.master = { gainDb: -2.5, balanceDb: 0 };
+    score.master = { gainDb: -2.5, balanceDb: 0, voiceDb: 0 };
     engine.setMaster(score.master);
   }
 
@@ -186,10 +186,10 @@ export function setupPlayback(app, { timeline, mappingTable }) {
     try {
       storedReport ??= await fetch("renders/audio-report.json").then(r => (r.ok ? r.json() : { rows: [] })).catch(() => ({ rows: [] }));
       const row = storedReport.rows.find(r => r.id === app.catalogItem?.id && r.hash === scoreHash(score));
-      const cal = row ? { gainDb: row.gainDb, balanceDb: row.calBalanceDb }
+      const cal = row ? { gainDb: row.gainDb, balanceDb: row.calBalanceDb, voiceDb: row.voiceDb || 0 }
         : await calibrate(score, app.mapping, { passes: 1, sampleRate: 22050, key: scoreHash(score) + (app.style?.id || "") });
       if (!current()) return;
-      score.master = { gainDb: cal.gainDb, balanceDb: cal.balanceDb };
+      score.master = { gainDb: cal.gainDb, balanceDb: cal.balanceDb, voiceDb: cal.voiceDb || 0 };
       engine.setMaster(score.master);
     } catch (e) { console.warn("Калібрування гучності не вдалося:", e.message); }
   }
@@ -219,6 +219,8 @@ export function setupPlayback(app, { timeline, mappingTable }) {
   $("legendBtn").addEventListener("click", legend);
 
   /* ---- експорт треку у WAV (для плейлиста / журі) ---- */
+  // v6: дрон-орієнтир і тіки шкали часу — опції (вимкнено за замовчуванням); зміна — трек пишеться заново
+  for (const id of ["drone", "ticks"]) $(id)?.addEventListener("change", e => { prefs[id] = e.target.checked; if (app.mapping) onMapped(); });
   $("wavBtn").addEventListener("click", async () => {
     const btn = $("wavBtn");
     btn.disabled = true;

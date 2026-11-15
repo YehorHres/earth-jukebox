@@ -48,8 +48,11 @@
 
 ## Поточний стан
 `index.html` + `src/` — версія 2 (етапи 1–16 і v5-A «граматика звуку» — `src/grammar.js`; стан — у `docs/plan-v2.md`).
-Етап 16: одночасно ≤ 6 партій (бюджет — `partsCap` / `partPriority` у `src/grammar.js`), голос даних = мелодія за сольфеджіо
-(`src/composer/parts/grammar-parts.js`), `melody` і `accents` грають лише без граматики (`compose(..., { grammar: false })`).
+v6 «музика й контраст» (`docs/PROMPT-v6-music.md`): голос даних = мотив теми справжнім (семплованим) інструментом (`voiceOf`, `motifFor`
+у `src/grammar.js`; мелодія — `src/composer/parts/grammar-parts.js`, сольфеджіо етапу 16 збережено), без гліссандо; бюджет партій 2–3 → 7
+(`partsCap` / `partPriority`), гучність усередині треку від даних (`levelDb` у `src/audio/engine.js`, `params.drive` з мапера), ударні — 5 рівнів,
+нічні вогні — «вогники» (`parts/stars.js`, `params.lights`); дрон і тіки — опції (`compose(..., { drone, ticks })`).
+`melody` і `accents` грають лише без граматики (`compose(..., { grammar: false })`).
 Тема карти (`src/topics/topics.json`) задає тембр, дані — ноти. Галерея: 5 відео NASA з готовими аналізами
 (`samples/*.analysis.json`, перерахувати — `tools/precompute.html` після зміни `ANALYSIS_VERSION`).
 Автотести — `test.html`. `prototype/` — v1, запасне демо.

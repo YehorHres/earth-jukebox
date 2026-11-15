@@ -46,6 +46,44 @@ export function lufs(L, R, fs) {
   return kept.length ? lk(kept.reduce((a, b) => a + b, 0) / kept.length) : -70;
 }
 
+/**
+ * Профіль гучності (K-зважування): at(t0, t1) — гучність відрізка, LUFS (без гейтингу);
+ * shortTerm — короткочасна гучність (вікно 3 с, крок 1 с); lra — діапазон гучності (EBU Tech 3342:
+ * абсолютний гейт −70, відносний −20 LU, 95-й − 10-й перцентиль).
+ */
+export function loudnessProfile(buf) {
+  const fs = buf.sampleRate, L = buf.getChannelData(0), R = buf.numberOfChannels > 1 ? buf.getChannelData(1) : L;
+  const [shelf, hp] = kWeighting(fs);
+  const l = biquad(biquad(L, shelf), hp), r = biquad(biquad(R, shelf), hp);
+  const cs = new Float64Array(l.length + 1);
+  for (let i = 0; i < l.length; i++) cs[i + 1] = cs[i] + l[i] * l[i] + r[i] * r[i];
+  const at = (t0, t1) => { const i0 = Math.max(0, Math.round(t0 * fs)), i1 = Math.min(l.length, Math.round(t1 * fs)); return i1 > i0 ? -0.691 + db((cs[i1] - cs[i0]) / (i1 - i0)) : -120; };
+  const shortTerm = [];
+  for (let t = 0; t + 3 <= l.length / fs; t += 1) shortTerm.push(at(t, t + 3));
+  let kept = shortTerm.filter(v => v > -70), lra = 0;
+  if (kept.length) {
+    const mean = 10 * Math.log10(kept.reduce((a, v) => a + Math.pow(10, v / 10), 0) / kept.length);
+    kept = kept.filter(v => v > mean - 20).sort((a, b) => a - b);
+    const q = p => kept[Math.min(kept.length - 1, Math.max(0, Math.round(p * (kept.length - 1))))];
+    lra = kept.length > 1 ? q(0.95) - q(0.1) : 0;
+  }
+  return { at, shortTerm, lra };
+}
+
+/** Спектральний центр, Гц (моно-сума, вікно Ханна 8192, кожне 4-те вікно) — «яскравість» тембру треку. */
+export function centroid(buf) {
+  const fs = buf.sampleRate, L = buf.getChannelData(0), R = buf.numberOfChannels > 1 ? buf.getChannelData(1) : L;
+  const N = 8192, win = new Float32Array(N), re = new Float64Array(N), im = new Float64Array(N);
+  for (let i = 0; i < N; i++) win[i] = 0.5 - 0.5 * Math.cos(2 * Math.PI * i / (N - 1));
+  let num = 0, den = 0;
+  for (let s = 0; s + N <= L.length; s += N * 4) {
+    for (let i = 0; i < N; i++) { re[i] = (L[s + i] + R[s + i]) * 0.5 * win[i]; im[i] = 0; }
+    fft(re, im);
+    for (let k = 1; k < N / 2; k++) { const p = re[k] * re[k] + im[k] * im[k]; num += p * k * fs / N; den += p; }
+  }
+  return den ? num / den : 0;
+}
+
 /** FFT (radix-2, на місці). */
 function fft(re, im) {
   const n = re.length;

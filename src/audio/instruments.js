@@ -218,7 +218,7 @@ function playSample(eng, dest, n, t, s, inst) {
   const g = ctx.createGain();
   const sustained = SUSTAINED.has(inst);
   const level = (SAMPLE_LEVEL[inst] ?? 0.5) * n.vel;
-  const a = sustained ? (n.legato === false ? 0.03 : 0.12) : n.soft ? 0.035 : 0.002;
+  const a = sustained ? (n.attack ?? (n.legato === false ? 0.03 : 0.12)) : n.soft ? 0.035 : 0.002;
   g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(level, t + a);
   const rel = sustained ? 0.35 : 0.6;
   g.gain.setTargetAtTime(0.0001, t + Math.max(n.dur, a + 0.02), rel / 3);
@@ -237,6 +237,8 @@ export const FALLBACK = { tuba: "tuba", trombone: "brass", trumpet: "brass", sax
 
 /** Зіграти ноту: семпл, якщо є (і для тривалої ноти семпл досить довгий), інакше синтезатор — музика ніколи не мовчить. */
 export function playNote(eng, dest, inst, n, t) {
+  // v6: шари подвоєння (кульмінація, тепле / холодне): та сама нота іншим інструментом / октавою
+  if (n.layers) { const { layers, ...base } = n; for (const l of layers) playNote(eng, dest, l.inst, { ...base, midi: base.midi + l.shift, vel: base.vel * l.gain }, t); n = base; }
   // м'яке фортепіано (етап 17, лід): семпли фортепіано з low-pass і м'якою атакою
   if (inst === "feltpiano") { inst = "piano"; n = { ...n, lp: n.lp ?? 1500, soft: true }; }
   dest = shapeNote(eng, dest, n, t);
