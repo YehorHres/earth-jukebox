@@ -179,7 +179,8 @@ export function mapAnalysis(a, preset, { topic = null, timeUnit = null, polarity
   // ---- граматика звуку: головна величина (відносна в межах відео) з полярністю теми (moreMeans)
   const pol = polChoice ?? polarity(topic);         // v7 §3: вибір користувача («більше — це світліше / темніше / тепліше») або тема
   const valueFeature = a.leadFeature || a.mainFeature;
-  const valueSeries = !still && !noChange && valueFeature ? a.rel[valueFeature] : null;
+  // (сканування простору: огляд «змін немає» стосується даних у часі, а значення вздовж обертання — справжні)
+  const valueSeries = !still && (!noChange || (mOff && a.norm?.[valueFeature]?.significant)) && valueFeature ? a.rel[valueFeature] : null;
   const valueLabel = a.labels?.[valueFeature] || getFeature(valueFeature)?.label || valueFeature || "—";
   let prevSolo = [], prevContour = null;
   // v6: lights source = lightPoints; if it is saturated / not significant in this video (stuck at one value), use the amount of light (lightLog)

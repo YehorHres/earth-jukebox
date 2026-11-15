@@ -59,7 +59,8 @@ export function detectPalette(frames, n, masks = {}) {
   const corr = f => { let sxy = 0, sxx = 0, syy = 0, my = 0; for (const q of pts) my += f(q) / N; pts.forEach((q, i) => { const y = f(q) - my; sxy += proj[i] * y; sxx += proj[i] ** 2; syy += y * y; }); return sxy / Math.sqrt(sxx * syy || 1); };
   // головна вісь — переважно світлота чи відтінок?
   let lightCorr = corr(q => q[0]);
-  const kind = Math.abs(lightCorr) >= 0.5 ? "lightness" : "hue";
+  // (польовий тест GEDI: «коричневе й темно-зелене — нижче, яскраво-зелене й біле — вище» — світлота важить більше за «теплоту»)
+  const kind = Math.abs(lightCorr) >= 0.3 ? "lightness" : "hue";
   // орієнтація за замовчуванням: світліше = більше; для осі відтінку — тепліше (червоніше/жовтіше) = більше
   if (kind === "lightness" ? lightCorr < 0 : corr(q => q[1] + 0.5 * q[2]) < 0) { proj = proj.map(v => -v); lightCorr = -lightCorr; }
   const sorted = Float64Array.from(proj).sort(), lo = sorted[Math.floor(N * 0.02)], hi = sorted[Math.floor(N * 0.98)];
