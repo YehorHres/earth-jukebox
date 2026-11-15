@@ -1,11 +1,13 @@
 // Спливаючий список галереї: кнопка «Вибрати візуалізацію» відкриває панель із пунктами каталогу (#gallery).
 // Пункти створює main.js (loadCatalog); тут — лише відкриття/закриття, клавіатура й підпис вибраного.
 // Клавіатура: ↓ на кнопці — відкрити й перейти до списку; ↑/↓, Home/End — між пунктами; Esc — закрити й повернутися до кнопки.
+import { t } from "../i18n/index.js";
+
 const $ = id => document.getElementById(id);
 
 export function setupGalleryMenu() {
   const toggle = $("galleryToggle"), panel = $("gallery-panel"), list = $("gallery");
-  const label = toggle.querySelector(".picker-label"), EMPTY = label.textContent;
+  const label = toggle.querySelector(".picker-label");
   const items = () => [...list.querySelectorAll("button")];
   const isOpen = () => !panel.hidden;
 
@@ -24,7 +26,7 @@ export function setupGalleryMenu() {
   function markCurrent(btn) {
     items().forEach(b => b.removeAttribute("aria-current"));
     if (btn) { btn.setAttribute("aria-current", "true"); label.textContent = btn.textContent; }
-    else label.textContent = EMPTY;
+    else label.textContent = t("picker.choose");
   }
 
   toggle.addEventListener("click", () => (isOpen() ? close(false) : open(false)));
@@ -61,4 +63,9 @@ export function setupGalleryMenu() {
   // власний файл замість каталогу — скинути підпис
   $("file").addEventListener("change", () => markCurrent(null));
   $("drop").addEventListener("drop", () => markCurrent(null));
+
+  return {
+    /** Мову змінили: підпис кнопки — назва вибраного пункту (вже перекладена) або «Вибрати візуалізацію…». */
+    refresh() { const cur = list.querySelector('[aria-current="true"]'); label.textContent = cur ? cur.textContent : t("picker.choose"); },
+  };
 }

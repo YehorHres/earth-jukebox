@@ -129,7 +129,7 @@ FINAL_SUITES.push(async function palette(check) {
   // 4) UI: перемикачі є, підписані й приховані для галереї
   const html = await (await fetch("index.html")).text();
   check("UI: перемикачі «Що рухається у відео» й «Більше значення — це» мають підписи (label for) і підказки (aria-describedby)",
-    /<label for="polarity">/.test(html) && /<select id="polarity" aria-describedby="polarity-hint">/.test(html) && /<label for="motionType">/.test(html) && /id="read-opts"[^>]*hidden/.test(html), "index.html");
+    /<label for="polarity"[^>]*>/.test(html) && /<select id="polarity" aria-describedby="polarity-hint"[^>]*>/.test(html) && /<label for="motionType"[^>]*>/.test(html) && /id="read-opts"[^>]*hidden/.test(html), "index.html");
 
   // 5) тема «висота лісу» / canopy height → vegetation
   const qs = ["висота лісу", "canopy height", "forest", "ліс"], got = qs.map(q => T.matchTopic(q).topic?.id);
@@ -152,7 +152,7 @@ FINAL_SUITES.push(async function formats(check) {
   // застосунок: повідомлення видно в рядку стану й у aria-live
   const fr = document.createElement("iframe");
   fr.style.cssText = "width:900px;height:700px;position:absolute;left:-2000px";
-  fr.src = "index.html";
+  fr.src = "index.html?lang=uk";
   document.body.appendChild(fr);
   await new Promise(r => fr.addEventListener("load", r, { once: true }));
   const w = fr.contentWindow, doc = fr.contentDocument;
@@ -243,5 +243,5 @@ FINAL_SUITES.push(async function eic(check) {
   check("Картка задає тему, тип руху й полярність; якщо джерело не пояснює кольори — чесно кажемо, що напрямок не підтверджено", set.topic === "vegetation" && set.motion === "rotating-globe" && set.polarity === "lighter" && E.cardSettings(d).polarity === "auto" && E.cardSettings(cards.find(c => c.id === 4993)).motion === null && /джерело не пояснює/.test(lines.join(" ")),
     `4950: ${JSON.stringify(set)}; 5196: «${lines[lines.length - 1].slice(0, 70)}…»`);
   const html = await (await fetch("index.html")).text();
-  check("UI: пропозиція картки — група з текстом і кнопками «Так, це воно» / «Ні» (клавіатура), прихована, доки немає збігу", /id="eic-offer"[^>]*role="group"[^>]*aria-labelledby="eic-text"[^>]*hidden/.test(html) && /<button id="eic-yes" type="button">/.test(html) && /<button id="eic-no" type="button">/.test(html), "index.html");
+  check("UI: пропозиція картки — група з текстом і кнопками «Так, це воно» / «Ні» (клавіатура), прихована, доки немає збігу", /id="eic-offer"[^>]*role="group"[^>]*aria-labelledby="eic-text"[^>]*hidden/.test(html) && /<button id="eic-yes" type="button"[^>]*>/.test(html) && /<button id="eic-no" type="button"[^>]*>/.test(html), "index.html");
 });

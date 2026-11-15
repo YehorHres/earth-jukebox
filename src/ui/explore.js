@@ -8,10 +8,11 @@ import { logLight } from "../features/scene.js";
 import { announce, prefs } from "../a11y/announcer.js";
 import { playNote } from "../audio/instruments.js";
 import { snapToMode } from "../composer/theory.js";
+import { t, tr, pick, getLang, onLang } from "../i18n/index.js";
 
 const $ = id => document.getElementById(id);
-const pct = v => `${Math.round(v * 100)} %`;
-const LEVEL = v => (v < 0.2 ? "дуже низьке" : v < 0.4 ? "низьке" : v < 0.6 ? "середнє" : v < 0.8 ? "високе" : "дуже високе");
+const pct = v => (getLang() === "en" ? `${Math.round(v * 100)}%` : `${Math.round(v * 100)} %`);
+const LEVEL = v => t("explore.levels").split("|")[v < 0.2 ? 0 : v < 0.4 ? 1 : v < 0.6 ? 2 : v < 0.8 ? 3 : 4];
 
 /* ---------------- чисті функції (тестуються окремо) ---------------- */
 
@@ -57,34 +58,34 @@ export function placeOf(x, y, p) {
   if (reg?.shape === "disk" && n?.disk) {
     const aspect = (p.maskW || 2) / (p.maskH || 1);
     const dx = (x - n.disk.cx) / n.disk.r, dy = (n.disk.cy - y) / (n.disk.r * aspect);
-    if (dx * dx + dy * dy > 1) return { inside: false, text: "поза диском (космос)" };
+    if (dx * dx + dy * dy > 1) return { inside: false, text: t("explore.space") };
     const lat = Math.round(Math.asin(Math.max(-1, Math.min(1, dy))) * 180 / Math.PI);
-    const v = dy > 0.5 ? "північ" : dy < -0.5 ? "південь" : "центр";
-    const h = dx < -0.33 ? ", захід (ліворуч)" : dx > 0.33 ? ", схід (праворуч)" : "";
-    return { inside: true, text: `${v} диска${h}, ≈ ${Math.abs(lat)}° ${lat >= 0 ? "пн." : "пд."} ш. видимої півкулі`, lat };
+    const v = t("explore.diskV").split("|")[dy > 0.5 ? 0 : dy < -0.5 ? 1 : 2];
+    const h = dx < -0.33 ? t("explore.diskWest") : dx > 0.33 ? t("explore.diskEast") : "";
+    return { inside: true, text: t("explore.disk", { v, h, lat: Math.abs(lat), ns: t(lat >= 0 ? "explore.N" : "explore.S") }), lat };
   }
   const bb = n?.bbox || { x0: 0, y0: 0, x1: 1, y1: 1 };
-  if (x < bb.x0 || x > bb.x1 || y < bb.y0 || y > bb.y1) return { inside: false, text: "поза картою (рамка, підписи)" };
+  if (x < bb.x0 || x > bb.x1 || y < bb.y0 || y > bb.y1) return { inside: false, text: t("explore.offMap") };
   const rx = (x - bb.x0) / (bb.x1 - bb.x0), ry = (y - bb.y0) / (bb.y1 - bb.y0);
   if ((p?.projection || "equirect") === "equirect") {
     const lon = Math.round(-180 + 360 * rx), lat = Math.round(90 - 180 * ry);
     return { inside: true, lat, lon,
-      text: `${Math.abs(lat)}° ${lat >= 0 ? "пн." : "пд."} ш., ${Math.abs(lon)}° ${lon >= 0 ? "сх." : "зх."} д.` };
+      text: t("explore.latlon", { lat: Math.abs(lat), ns: t(lat >= 0 ? "explore.N" : "explore.S"), lon: Math.abs(lon), ew: t(lon >= 0 ? "explore.E" : "explore.W") }) };
   }
-  const v = ry < 0.33 ? "угорі" : ry > 0.66 ? "унизу" : "посередині", h = rx < 0.33 ? "ліворуч" : rx > 0.66 ? "праворуч" : "в центрі";
-  return { inside: true, text: `${v} ${h} карти` };
+  const v = t("explore.mapV").split("|")[ry < 0.33 ? 0 : ry > 0.66 ? 1 : 2], h = t("explore.mapH").split("|")[rx < 0.33 ? 0 : rx > 0.66 ? 1 : 2];
+  return { inside: true, text: t("explore.mapPlace", { v, h }) };
 }
 
 /** Текст значення: % шкали, рівень, одиниці (лише якщо діапазон відомий з каталогу). */
 export function valueText(r, { topic = null, range = null, colorMore = null } = {}) {
-  if (r.kind === "land") return "суша — даних немає";
-  if (r.value === null) return "тут даних немає";
-  let s = `${pct(r.value)} шкали, ${LEVEL(r.value)}`;
+  if (r.kind === "land") return t("explore.land");
+  if (r.value === null) return t("explore.noData");
+  let s = t("explore.value", { pct: pct(r.value), level: LEVEL(r.value) });
   if (range && Number.isFinite(range.min) && Number.isFinite(range.max))
-    s = `≈ ${(range.min + r.value * (range.max - range.min)).toFixed(range.digits ?? 1)} ${range.units || ""} (${pct(r.value)} шкали)`;
+    s = t("explore.valueUnits", { v: (range.min + r.value * (range.max - range.min)).toFixed(range.digits ?? 1), units: range.units || "", pct: pct(r.value) });
   // що означає «більше» саме для кольору цієї карти (з каталогу), інакше — для теми
-  const more = colorMore || topic?.more?.uk;
-  if (more) s += `; більше — це ${more}`;
+  const more = (colorMore && tr(colorMore)) || (topic?.more && pick(topic, "more"));
+  if (more) s += t("explore.more", { more });
   return s;
 }
 
@@ -121,7 +122,7 @@ export function setupExplore(app, { engine }) {
         r = valueFromPixels(data, { scaleRefs: p?.scale?.found ? Float32Array.from(p.scale.refs.flat()) : null, sceneType: p?.sceneType });
       } catch { r = { value: null, kind: "none" }; }
     }
-    state.last = { place, r, text: `${place.text}: ${place.inside ? valueText(r, { topic: app.topic, range: app.catalogItem?.valueRange, colorMore: app.catalogItem?.colorMore }) : "тиша"}` };
+    state.last = { place, r, text: `${place.text}: ${place.inside ? valueText(r, { topic: app.topic, range: app.catalogItem?.valueRange, colorMore: app.catalogItem?.colorMore }) : t("explore.silence")}` };
     return state.last;
   }
 
@@ -167,20 +168,23 @@ export function setupExplore(app, { engine }) {
     if (on === state.on || !app.score) return;
     state.on = on;
     btn.setAttribute("aria-pressed", String(on));
-    btn.textContent = on ? "Вийти з дослідження" : "Дослідити карту";
+    btn.textContent = t(on ? "btn.exploreExit" : "btn.explore");
     btn.dataset.icon = on ? "close" : "explore";
     viewer.classList.toggle("exploring", on);
     $("explore-readout").hidden = !on;
     if (on) {
-      if (app.player?.playing) { app.player.pause(); $("play").textContent = "Грати"; $("play").dataset.icon = "play"; $("play").setAttribute("aria-pressed", "false"); }
+      if (app.player?.playing) { app.player.pause(); $("play").textContent = t("btn.play"); $("play").dataset.icon = "play"; $("play").setAttribute("aria-pressed", "false"); }
       center();
-      announce("Режим дослідження. Стрілки — рух зонда, Shift — більший крок, Home — центр карти, Enter — повторити, Escape — вийти. " +
-        "Висота звуку — значення, ліворуч чи праворуч — положення; поза картою — тиша.", { force: true });
+      announce(t("explore.on"), { force: true });
       setTimeout(() => update({ speak: true }), prefs.voice ? 4500 : 1200);
-    } else { draw(); announce("Режим дослідження вимкнено.", { force: true }); }
+    } else { draw(); announce(t("explore.off"), { force: true }); }
   }
 
   btn.addEventListener("click", () => setOn(!state.on));
+  onLang(() => {
+    btn.textContent = t(state.on ? "btn.exploreExit" : "btn.explore");
+    if (state.on && state.last) { probe(); $("explore-readout").textContent = state.last.text; }
+  });
 
   // клавіатура: перехоплюємо раніше за плеєр (стрілки там — перемотка)
   document.addEventListener("keydown", e => {

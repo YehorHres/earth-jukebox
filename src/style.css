@@ -74,7 +74,11 @@ h3, legend { margin: 0 0 1.125rem; font-size: 1rem; font-weight: 400; line-heigh
   /* планета плавно розчиняється в сторінці, без різкого краю */
   -webkit-mask-image: linear-gradient(#000 72%, transparent 100%); mask-image: linear-gradient(#000 72%, transparent 100%);
 }
-.hero h1 { margin-top: clamp(4rem, 16vh, 10rem); }
+.hero h1 { margin-top: clamp(3rem, 13vh, 8.5rem); }
+/* верхня панель: перемикач мови — праворуч угорі, одна з перших зупинок Tab */
+.topbar { align-self: stretch; display: flex; justify-content: flex-end; }
+.topbar .lang button { min-width: 3.25rem; }
+.topbar .lang button + button { margin-left: -1px; }
 .hero-tagline {
   margin: 1.5rem auto 0; max-width: 46ch; color: var(--muted); font-size: 1.0625rem;
   text-transform: none; letter-spacing: .02em;
@@ -132,7 +136,7 @@ main { max-width: 84rem; margin: 0 auto; padding: 0 var(--gutter) 3rem; }
   scrollbar-color: var(--line) transparent; scrollbar-width: thin;
 }
 #gallery { display: block; }
-#gallery:empty::after { content: "Завантаження списку…"; display: block; padding: 1rem 1.25rem; color: var(--muted); }
+#gallery:empty::after { content: attr(data-empty); display: block; padding: 1rem 1.25rem; color: var(--muted); }
 #gallery button {
   display: flex; align-items: center; gap: .875rem; width: 100%; text-align: left;
   min-height: 3.25rem; padding: .75rem 1.25rem;
@@ -151,7 +155,16 @@ main { max-width: 84rem; margin: 0 auto; padding: 0 var(--gutter) 3rem; }
 
 #drop { border: 1px dashed var(--line); padding: 1.25rem; align-content: center; color: var(--muted); background: var(--surface); display: grid; gap: .75rem; justify-items: start; }
 #drop.over { border-style: solid; border-color: var(--ice); color: var(--text); background: var(--ice-wash); }
-input[type="file"] { color: var(--muted); font: inherit; width: 100%; max-width: 100%; min-width: 0; }
+/* поле файлу: нативна кнопка підписується мовою браузера, тому показуємо свою (мовою інтерфейсу) */
+.file-row { display: flex; align-items: center; gap: .875rem; flex-wrap: wrap; position: relative; }
+.file-input { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; }
+.file-btn {
+  display: inline-flex; align-items: center; min-height: var(--target); padding: .5rem 1rem; cursor: pointer;
+  font-size: .875rem; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--text); border: 1px solid var(--line);
+}
+.file-row:hover .file-btn { border-color: var(--ice); color: var(--ice); background: var(--ice-wash); }
+.file-input:focus-visible + .file-btn { outline: 3px solid var(--focus); outline-offset: 3px; }
+.file-name { color: var(--muted); overflow-wrap: anywhere; }
 #drop, .topic-box { min-width: 0; }
 input[type="file"]::file-selector-button {
   font: inherit; font-size: .875rem; font-weight: 600; letter-spacing: .08em; text-transform: uppercase;
@@ -164,7 +177,7 @@ input[type="file"]::file-selector-button {
   background: var(--field); border: 1px solid var(--line); padding: .5rem .875rem;
 }
 .topic-box input::placeholder { color: #98a2c4; opacity: 1; }
-.topic-row > button, .topic-row .lang button { margin-left: -1px; min-height: 3rem; }
+.topic-row > button { margin-left: -1px; min-height: 3rem; }
 .lang { gap: 0; flex-wrap: nowrap; }
 .topic-list { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: .5rem; }
 
@@ -303,6 +316,17 @@ table.mapping td.num { font-variant-numeric: tabular-nums; white-space: nowrap; 
 .bar { display: inline-block; height: 4px; background: var(--ice); vertical-align: middle; }
 
 /* ---------- 06: доступність ---------- */
+/* озвучення під курсором: головний перемикач розділу «Доступність» */
+.hover-speak { display: grid; gap: .5rem; padding-bottom: 1rem; margin-bottom: .5rem; border-bottom: 1px solid var(--rule); }
+.hover-speak button { justify-self: start; }
+.hover-speak button::after { content: ""; width: .625rem; height: .625rem; margin-left: .75rem; border: 1px solid currentColor; display: inline-block; vertical-align: middle; }
+.hover-speak button[aria-pressed="true"]::after { background: currentColor; }
+/* спливна підказка (src/ui/tooltip.js) */
+.tooltip {
+  position: fixed; z-index: 100; max-width: min(22rem, calc(100vw - 1rem));
+  padding: .5rem .75rem; background: var(--surface-solid); color: var(--text); border: 1px solid var(--ice);
+  font-size: .9375rem; line-height: 1.45; letter-spacing: .01em; text-transform: none; box-shadow: 0 .75rem 2rem rgba(0, 0, 0, .6);
+}
 .access-grid { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr); gap: clamp(1.25rem, 3vw, 2.25rem); align-items: start; }
 label.opt { display: flex; align-items: center; gap: .875rem; min-height: var(--target); margin: 0; cursor: pointer; border-top: 1px solid var(--rule); padding: .375rem 0; }
 fieldset > label.opt:first-of-type { border-top: 0; }
@@ -351,7 +375,7 @@ pre.debug { font-size: .875rem; max-height: 22rem; overflow: auto; background: v
   .style-pick { flex-wrap: wrap; width: 100%; }
   .style-pick select { width: 100%; }
   .topic-row { flex-wrap: wrap; gap: .5rem; }
-  .topic-row > button, .topic-row .lang button { margin-left: 0; }
+  .topic-row > button { margin-left: 0; }
   .topic-box input { flex-basis: 100%; }
 }
 

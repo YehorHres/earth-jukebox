@@ -15,14 +15,20 @@ import { setupGalleryMenu } from "./ui/gallery-menu.js";
 import { applyMotion, MOTION_LABEL, MOTION_NOTE } from "./analysis/motion.js";
 import { resolvePolarity } from "./analysis/palette.js";
 import { loadEic, matchEic, cardSettings, cardLines } from "./eic/match.js";
+import { t, tr, pick, getLang, setLang, onLang, applyDom, registerExact } from "./i18n/index.js";
+import { setupTooltips } from "./ui/tooltip.js";
+import { setupHoverSpeech } from "./ui/hover-speech.js";
 
 const $ = id => document.getElementById(id);
 const NO_CACHE = new URLSearchParams(location.search).has("nocache");   // ?nocache — завжди аналізувати заново
 const app = { scanDir: "we", source: null, profile: null, analysis: null, catalogItem: null, busy: false };
 window.jukebox = app; // для налагодження й автотестів
 
+applyDom();
 initAnnouncer($("live"));
-setupGalleryMenu();
+const galleryMenu = setupGalleryMenu();
+app.tooltips = setupTooltips();
+app.hoverSpeech = setupHoverSpeech();
 const timeline = createTimeline($("timeline"), $("tl-legend"), {
   onSeek: t => {
     if (app.score) return app.seekTo(t);
@@ -34,7 +40,9 @@ const mappingTable = createMappingTable($("mapping"));
 const playback = setupPlayback(app, { timeline, mappingTable });
 const onMapped = playback.onMapped;
 const explore = setupExplore(app, { engine: app.engine });   // шар 3: партитура й плеєр після мапінгу
-const setStatus = s => ($("status").textContent = s);
+let lastStatus = () => t("status.none");
+/** s — рядок (текст модулів аналізу, перекладається tr) або функція () => текст мовою UI. */
+const setStatus = s => { lastStatus = typeof s === "function" ? s : () => tr(s); $("status").textContent = lastStatus(); };
 const setProgress = p => ($("progress").firstElementChild.style.width = `${Math.round(p * 100)}%`);
 
 /* ---------------- галерея й завантаження ---------------- */
@@ -44,19 +52,25 @@ async function loadCatalog() {
   const g = $("gallery");
   for (const it of items) {
     const b = document.createElement("button");
-    b.textContent = it.title;
     b.dataset.kind = it.kind;
-    b.title = it.desc;
-    b.setAttribute("aria-description", it.desc);
+    b.dataset.tip = "tip.galleryItem";
+    b.dataset.id = it.id;
+    labelGalleryItem(b, it);
     b.addEventListener("click", () => loadItem(it));
     g.appendChild(b);
   }
   return items;
 }
 
+/** Підпис пункту галереї мовою інтерфейсу (назва + опис для скрінрідера). */
+function labelGalleryItem(b, it) {
+  b.textContent = pick(it, "title");
+  b.setAttribute("aria-description", pick(it, "desc"));
+}
+
 function loadItem(it) {
   app.catalogItem = it;
-  return loadSource(it.title, async () => {
+  return loadSource(pick(it, "title"), async () => {
     if (it.kind === "synthetic") return openSynthetic(it.synth, { name: it.title });
     if (it.kind === "image") return openImage(it.src[0], { name: it.title });
     return openVideo(it.src, { name: it.id, fps: it.fps });
@@ -85,21 +99,21 @@ async function loadSource(title, open, item) {
   $("timeline-wrap").hidden = true;
   setProgress(0);
   try {
-    setStatus(`Відкриваю «${title}»…`);
+    setStatus(() => t("status.opening", { title }));
     let src = await open(), scaleHint = null;
     app.stillProfile = null;
     // фото → режим сканування: лінія йде по карті (із заходу на схід або з півночі на південь)
     if (src.kind === "image" && !src.scan) {
-      setStatus("Огляд зображення: область даних і шкала кольорів…");
+      setStatus(() => t("status.imageScan"));
       const prep = await prepareImageScan(src, app.scanDir);
       src = prep.source; scaleHint = prep.scaleHint;
       app.stillProfile = prep.stillProfile;          // область і шкала всього фото — для режиму дослідження
     }
     $("scanDir").hidden = !src.scan;
-    $("scanDir").textContent = app.scanDir === "we" ? "↔ Сканування: захід → схід" : "↕ Сканування: північ → південь";
+    $("scanDir").textContent = t(app.scanDir === "we" ? "scan.we" : "scan.ns");
     app.source = src;
     showMedia(src);
-    announce(`Відкрито «${title}». ${item?.desc ?? ""} Аналізую відео, зачекайте.`, { force: true });
+    announce(t("status.opened", { title, desc: item ? pick(item, "desc") : "" }), { force: true });
 
     const t0 = performance.now();
     let lastSpoken = -1;
@@ -109,8 +123,8 @@ async function loadSource(title, open, item) {
       precomputedUrl: NO_CACHE ? null : item?.analysis || null,
       useCache: !NO_CACHE,
       scaleHint,
-      motion: item ? item.motionType || "temporal" : null,
-      layout: !item,                                           // static / chart / composite — лише для своїх відео   // галерея — як раніше; своє відео — тип руху визначається сам
+      motion: item ? item.motionType || "temporal" : null,   // галерея — як раніше; своє відео — тип руху визначається сам
+      layout: !item,                                           // static / chart / composite — лише для своїх відео
       onProgress: (stage, p, msg, profile) => {
         if (stage === "A") { setProgress(p * 0.15); setStatus(msg); }
         if (stage === "A-done") { app.profile = profile; renderCard(false); drawMasks(); }
@@ -126,8 +140,10 @@ async function loadSource(title, open, item) {
     if (app.analysis.replacedSource) { src = app.source = app.analysis.replacedSource; showMedia(src); }
     const dt = ((performance.now() - t0) / 1000).toFixed(1);
     setProgress(1);
-    const how = app.analysis.fromCache ? "Аналіз узято з кешу" : app.analysis.fromPrecomputed ? "Готовий аналіз завантажено" : `Аналіз виконано за ${dt} с`;
-    setStatus(`${how}: ${app.analysis.count} кадрів, подій: ${app.analysis.events.length}.`);
+    const an = app.analysis;
+    setStatus(() => t("status.analysisSummary", {
+      how: an.fromCache ? tr("Аналіз узято з кешу") : an.fromPrecomputed ? tr("Готовий аналіз завантажено") : t("status.analysisDone", { s: dt }),
+      n: an.count, e: an.events.length }));
     renderCard();
     $("timeline-wrap").hidden = false;     // спершу показати — інакше canvas має ширину 0
     timeline.set(app.analysis);
@@ -138,7 +154,7 @@ async function loadSource(title, open, item) {
     app.polarityChoice = saved?.polarity || "auto";
     app.topic = getTopic(item?.topic || saved?.topic || "generic");
     topicInput.set(item?.topic || saved?.topic ? app.topic : null);
-    if (!item?.topic && !saved?.topic) announce("Що на цій карті? Напишіть або скажіть тему в полі «Що на цій карті?» — від неї залежить звучання.", { force: true });
+    if (!item?.topic && !saved?.topic) announce(t("status.askTopic"), { force: true });
 
     showReadOptions(item);
     if (!item) offerEic(src.name, saved);
@@ -151,9 +167,9 @@ async function loadSource(title, open, item) {
   } catch (e) {
     console.error(e);
     // формат, якого браузер не декодує, — зрозуміла порада замість технічної помилки (текст + aria-live)
-    const msg = e.code === "format" ? e.message : "Помилка: " + e.message;
+    const msg = () => (e.code === "format" ? tr(e.message) : t("status.error", { msg: e.message }));
     setStatus(msg);
-    announce(msg, { force: true });
+    announce(msg(), { force: true });
   } finally {
     app.busy = false;
   }
@@ -164,22 +180,23 @@ async function remap() {
   app.preset = await presetFor(app.profile.sceneType, app.topic);
   // v7 §3: полярність — лише для завантажених файлів (галерея: як задано темою)
   const polRes = app.catalogItem ? null : resolvePolarity(app.polarityChoice, app.profile, app.topic);
-  if (polRes) $("polarity-hint").textContent = polRes.text;
+  app.polarityText = polRes ? polRes.text : "";
+  if (polRes) $("polarity-hint").textContent = tr(polRes.text);
   app.mapping = mapAnalysis(app.analysis, app.preset, { topic: app.topic, timeUnit: app.catalogItem?.timeUnit || null, polarity: polRes ? polRes.pol : null });
   timeline.setSections(app.mapping.meta.sections.map(s => ({
-    label: s.label, t0: s.b0 * app.mapping.meta.barDur, t1: s.b1 * app.mapping.meta.barDur,
+    label: tr(s.label), t0: s.b0 * app.mapping.meta.barDur, t1: s.b1 * app.mapping.meta.barDur,
   })));
   $("mapping-wrap").hidden = false;
   mappingTable.set(app.mapping, app.preset, app.analysis);
   await onMapped?.();
 }
-app.setTopic = async t => {
-  app.topic = t;
+app.setTopic = async topic => {
+  app.topic = topic;
   if (!app.analysis || app.busy) return;
   saveRead();
   const wasPlaying = app.player?.playing;
   await remap();
-  setStatus(`Тема: ${t.name.uk}. ${app.score.key}, ${app.score.meter.id}, ${app.score.bpm} BPM.`);
+  setStatus(() => t("status.topic", { name: pick(app.topic, "name"), key: app.score.key, meter: app.score.meter.id, bpm: app.score.bpm }));
   if (wasPlaying) app.player.play();
 };
 
@@ -189,12 +206,13 @@ function showReadOptions(item) {
   $("read-opts").hidden = !show;
   if (!show) return;
   $("polarity").value = app.polarityChoice || "auto";
+  if (app.polarityText) $("polarity-hint").textContent = tr(app.polarityText);
   $("motion-row").hidden = $("motion-hint").hidden = !mo || (app.source?.kind !== "video" && !app.source?.scan) || !!app.stillProfile;
   $("motionType").disabled = ["static", "chart"].includes(mo?.type);   // ці типи вже замінили відео скануванням кадру
   if (!mo) return;
-  if (![...$("motionType").options].some(o => o.value === mo.type)) $("motionType").add(new Option(MOTION_LABEL[mo.type] || mo.type, mo.type));
+  if (![...$("motionType").options].some(o => o.value === mo.type)) $("motionType").add(new Option(tr(MOTION_LABEL[mo.type] || mo.type), mo.type));
   $("motionType").value = mo.type;
-  $("motion-hint").textContent = `${mo.auto ? "Визначено автоматично" : "Вибрано вручну"}${mo.why ? `: ${mo.why}` : ""}. ${mo.note || MOTION_NOTE[mo.type] || ""}`;
+  $("motion-hint").textContent = `${t(mo.auto ? "motion.auto" : "motion.manual")}${mo.why ? `: ${tr(mo.why)}` : ""}. ${tr(mo.note || MOTION_NOTE[mo.type] || "")}`;
 }
 $("motionType").addEventListener("change", async e => {
   if (!app.analysis || app.busy) return;
@@ -204,7 +222,7 @@ $("motionType").addEventListener("change", async e => {
   renderCard(false);
   timeline.set(app.analysis);
   await remap();
-  announce(`Тип руху: ${MOTION_LABEL[e.target.value]}. ${MOTION_NOTE[e.target.value] || ""}`, { force: true });
+  announce(t("motion.announce", { label: tr(MOTION_LABEL[e.target.value]), note: tr(MOTION_NOTE[e.target.value] || "") }), { force: true });
   if (wasPlaying) app.player.play();
 });
 
@@ -226,15 +244,27 @@ $("polarity").addEventListener("change", async e => {
 });
 
 /* ---------------- v8: картка NASA EIC за назвою файлу ---------------- */
+/** Поле картки мовою інтерфейсу: card[field + "_en"] в англійському режимі (якщо є). */
+const cardField = (card, f) => (getLang() === "en" ? card[f + "_en"] ?? tr(card[f]) : card[f]);
+/** Картка з полями мовою інтерфейсу — для cardLines (src/eic/match.js не змінюємо). */
+const localCard = card => (getLang() === "en"
+  ? { ...card, desc: cardField(card, "desc"), variable: cardField(card, "variable"), units: cardField(card, "units"), colors: cardField(card, "colors"),
+      region: cardField(card, "region"), years: cardField(card, "years"), credit: cardField(card, "credit") }
+  : card);
+const eicLines = card => cardLines(localCard(card)).map(tr);
+function showEicOffer() {
+  const m = app.eicMatch;
+  $("eic-text").textContent = t("eic.offer", { title: pick(m.card, "title"), why: tr(m.why) });
+}
 function offerEic(fileName, saved) {
   app.eicDeclined = saved?.eic === 0;
   const m = matchEic(fileName, app.eic);
   if (!m || app.eicDeclined) return;
   app.eicMatch = m;
   if (saved?.eic === m.card.id) { app.eicCard = m.card; return; }          // уже підтверджено минулого разу
-  $("eic-text").textContent = `Схоже, це «${m.card.title.uk}» з NASA Earth Information Center (${m.why}). Узяти тему, тип руху й опис із картки?`;
+  showEicOffer();
   $("eic-offer").hidden = false;
-  announce($("eic-text").textContent + " Кнопки «Так, це воно» і «Ні» — під полем теми.", { force: true });
+  announce($("eic-text").textContent + " " + t("eic.offerHint"), { force: true });
 }
 /** Застосувати картку: тема, тип руху, полярність, опис. */
 app.applyEicCard = async card => {
@@ -250,14 +280,14 @@ app.applyEicCard = async card => {
   renderCard(false);
   timeline.set(app.analysis);
   await remap();
-  announce(`Картку застосовано: ${card.title.uk}. Тема — ${app.topic.name.uk}. ${cardLines(card)[0]}`, { force: true });
+  announce(t("eic.applied", { title: pick(card, "title"), topic: pick(app.topic, "name"), line: eicLines(card)[0] }), { force: true });
   $("play").focus();
   if (wasPlaying) app.player.play();
 };
 $("eic-yes").addEventListener("click", () => app.eicMatch && app.applyEicCard(app.eicMatch.card));
 $("eic-no").addEventListener("click", () => {
   app.eicDeclined = true; $("eic-offer").hidden = true; saveRead();
-  announce("Гаразд, картку не застосовую. Тему можна вказати в полі «Що на цій карті?».", { force: true });
+  announce(t("eic.declined"), { force: true });
   $("topic").focus();
 });
 
@@ -273,7 +303,7 @@ function showMedia(src) {
   // прибираємо попереднє медіа, але не шари поверх нього (маски й курсор сканування)
   viewer.querySelectorAll("video, img, canvas:not(#overlay):not(#cursor)").forEach(n => n.remove());
   $("placeholder").hidden = true;
-  if (src.kind === "image") src.el.alt = app.catalogItem?.desc || `Завантажене зображення ${src.name}`;
+  if (src.kind === "image") src.el.alt = app.catalogItem ? pick(app.catalogItem, "desc") : t("image.alt", { name: src.name });
   viewer.insertBefore(src.el, $("overlay"));
 }
 
@@ -282,20 +312,20 @@ function renderCard(speak = true) {
   const p = app.profile;
   const lines = describeProfile(p, app.source, app.analysis);
   const card = app.catalogItem?.card;
-  if (app.eicCard) lines.unshift(...cardLines(app.eicCard));
-  if (card) lines.unshift(`Дані: ${card.variable}. Одиниці: ${card.units}. Регіон: ${card.region}. Період: ${card.years}. Автори: ${card.authors}.`);
-  if (app.catalogItem?.desc) lines.unshift(`Що на відео: ${app.catalogItem.desc}`);
-  if (!app.analysis) lines.push("Детальний аналіз кожного кадру триває…");
+  if (app.eicCard) lines.unshift(...eicLines(app.eicCard));
+  if (card) lines.unshift(t("card.data", { variable: pick(card, "variable"), units: pick(card, "units"), region: pick(card, "region"), years: pick(card, "years"), authors: pick(card, "authors") }));
+  if (app.catalogItem?.desc) lines.unshift(t("card.whatOn", { desc: pick(app.catalogItem, "desc") }));
+  if (!app.analysis) lines.push(t("card.pending"));
   $("card-lines").replaceChildren(...lines.map(t => Object.assign(document.createElement("li"), { textContent: t })));
   const tags = [
     [p.sceneType, true],
-    [`впевненість ${Math.round(p.confidence * 100)} %`],
-    [SCALE_LABEL[p.changeScale]],
-    p.period ? [`цикл ~${p.period.seconds.toFixed(0)} с`] : null,
+    [t("card.confidence", { pct: Math.round(p.confidence * 100) })],
+    [SCALE_LABEL()[p.changeScale]],
+    p.period ? [t("card.cycle", { s: p.period.seconds.toFixed(0) })] : null,
   ].filter(Boolean);
   $("card-tags").replaceChildren(...tags.map(([t, hi]) => Object.assign(document.createElement("span"), { className: "tag" + (hi ? " hi" : ""), textContent: t })));
   $("card").hidden = false;
-  if (speak) announce("Що двигун зрозумів про відео. " + lines.join(" "), { force: true });
+  if (speak) announce(t("card.announce") + " " + lines.join(" "), { force: true });
   const a = app.analysis;
   $("debug").textContent = JSON.stringify({
     profile: debugProfile(p),
@@ -344,35 +374,77 @@ document.addEventListener("keydown", e => {
   if (e.target?.matches?.("input, select, textarea") || e.ctrlKey || e.metaKey || e.altKey) return;
   const k = e.key.toLowerCase();
   if (e.code === "KeyD" && app.profile) {
-    announce("Що двигун зрозумів про відео. " + describeProfile(app.profile, app.source, app.analysis).join(" "), { force: true });
+    announce(t("card.announce") + " " + describeProfile(app.profile, app.source, app.analysis).join(" "), { force: true });
   }
 });
 
 /* ---------------- файл / перетягування ---------------- */
-$("file").addEventListener("change", e => { app.lastFile = e.target.files[0]; loadFile(e.target.files[0]); });
+const fileName = () => ($("file-name").textContent = app.lastFile?.name || t("drop.none"));
+$("file").addEventListener("change", e => { app.lastFile = e.target.files[0]; fileName(); loadFile(e.target.files[0]); });
 $("scanDir").addEventListener("click", () => {
   app.scanDir = app.scanDir === "we" ? "ns" : "we";
-  announce(app.scanDir === "we" ? "Сканування із заходу на схід." : "Сканування з півночі на південь.", { force: true });
+  announce(t(app.scanDir === "we" ? "scan.sayWe" : "scan.sayNs"), { force: true });
   if (app.catalogItem) loadItem(app.catalogItem); else if (app.lastFile) loadFile(app.lastFile);
 });
 const drop = $("drop");
 ["dragenter", "dragover"].forEach(ev => drop.addEventListener(ev, e => { e.preventDefault(); drop.classList.add("over"); }));
 ["dragleave", "drop"].forEach(ev => drop.addEventListener(ev, e => { e.preventDefault(); drop.classList.remove("over"); }));
-drop.addEventListener("drop", e => { app.lastFile = e.dataTransfer.files[0]; loadFile(app.lastFile); });
+drop.addEventListener("drop", e => { app.lastFile = e.dataTransfer.files[0]; fileName(); loadFile(app.lastFile); });
 
 app.topics = await loadTopics();
 app.eic = await loadEic().catch(() => []);
+// пари «українською → англійською» з даних: тексти модулів звуку (напр. «… + тема «Океанські течії»») перекладаються на виході
+for (const tp of app.topics) {
+  registerExact(tp.name?.uk, tp.name?.en);
+  registerExact(tp.more?.uk, tp.more?.en);
+  registerExact(tp.soundProfile?.why, tp.soundProfile?.why_en);
+}
 const topicInput = setupTopicInput({ topics: app.topics, onTopic: t => app.setTopic(t) });
 app.catalog = await loadCatalog();
 app.loadItem = loadItem;
 app.loadFile = loadFile;
 
 // граматика звуку (v5-A): одна таблиця для всіх тем
-{
+function renderGrammar() {
   const tb = document.getElementById("grammar-rows");
-  if (tb) for (const r of GRAMMAR) {
-    const tr = document.createElement("tr");
-    tr.append(Object.assign(document.createElement("th"), { scope: "row", textContent: r.data }), Object.assign(document.createElement("td"), { textContent: r.sound }));
-    tb.appendChild(tr);
-  }
+  if (!tb) return;
+  tb.replaceChildren(...GRAMMAR.map(r => {
+    const row = document.createElement("tr");
+    row.append(Object.assign(document.createElement("th"), { scope: "row", textContent: pick(r, "data") }), Object.assign(document.createElement("td"), { textContent: pick(r, "sound") }));
+    return row;
+  }));
 }
+renderGrammar();
+for (const it of app.catalog) {
+  registerExact(it.title, it.title_en); registerExact(it.desc, it.desc_en); registerExact(it.colorMore, it.colorMore_en);
+}
+
+/* ---------------- мова інтерфейсу ---------------- */
+function syncLangButtons() {
+  for (const l of ["uk", "en"]) $(`lang-${l}`).setAttribute("aria-pressed", String(getLang() === l));
+}
+for (const l of ["uk", "en"]) $(`lang-${l}`).addEventListener("click", () => {
+  if (getLang() === l) return;
+  setLang(l);
+  announce(t("lang.announce"), { force: true });
+});
+/** Перемалювати все, що створює JS: галерея, граматика, картка, таймлайн, мапінг, плеєр. */
+onLang(() => {
+  syncLangButtons();
+  for (const b of $("gallery").querySelectorAll("button")) { const it = app.catalog.find(x => x.id === b.dataset.id); if (it) labelGalleryItem(b, it); }
+  galleryMenu.refresh();
+  renderGrammar();
+  fileName();
+  $("status").textContent = lastStatus();
+  $("scanDir").textContent = t(app.scanDir === "we" ? "scan.we" : "scan.ns");
+  if (app.profile) renderCard(false);
+  if (app.analysis) { timeline.set(app.analysis); showReadOptions(app.catalogItem); }
+  if (app.eicMatch && !$("eic-offer").hidden) showEicOffer();
+  if (app.mapping) {
+    timeline.setSections(app.mapping.meta.sections.map(s => ({ label: tr(s.label), t0: s.b0 * app.mapping.meta.barDur, t1: s.b1 * app.mapping.meta.barDur })));
+    mappingTable.set(app.mapping, app.preset, app.analysis);
+  }
+  topicInput.refresh();
+  playback.refresh();
+});
+syncLangButtons();

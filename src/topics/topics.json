@@ -78,6 +78,7 @@
         "flutter"
       ],
       "why": "Лише духові: валторни (пед), туба (холодний низький бас), тромбон і саксофон — тривожні, на поривах тремтять (flutter). Без органу, дрону, маримби й дерев'яних ударів. Ріст CO₂ — «задуха»: стерео звужується, фільтр закривається",
+      "why_en": "Winds only: French horns (pad), tuba (cold low bass), trombone and saxophone — uneasy, fluttering on gusts. No organ, drone, marimba or wood percussion. Rising CO₂ is “stifling”: the stereo narrows and the filter closes",
       "kit": "orchestral"
     }
   },
@@ -161,6 +162,7 @@
       "space": 0.4,
       "fx": [],
       "why": "Струнні, фортепіано й флейта — врівноважено, без «похоронної» міді; тепло — висота й лад, напруга — лише від аномалій",
+      "why_en": "Strings, piano and flute — balanced, without “funereal” brass; warmth shapes pitch and mode, tension comes only from anomalies",
       "kit": "orchestral"
     }
   },
@@ -244,6 +246,7 @@
         "coolLP"
       ],
       "why": "Віолончель, арфа й струнні легато, довгими фразами; прохолодні й спокійні епізоди — нижчий регістр і приглушений (low-pass) тембр; хвилі — текстура",
+      "why_en": "Cello, harp and legato strings in long phrases; cool, calm passages — a lower register and a muted (low-pass) tone; waves as texture",
       "kit": "ambient"
     }
   },
@@ -333,6 +336,7 @@
         "felt"
       ],
       "why": "М'яке фортепіано (felt: приглушене, м'яка атака) і скляний пед, без суббасу: менше льоду — темніший, «вологіший» тембр; фінал — поодинокі ноти, що згасають",
+      "why_en": "Felt piano (muted, soft attack) and a glass pad, no sub-bass: less ice — a darker, “wetter” tone; the ending — single notes fading away",
       "kit": "ambient"
     }
   },
@@ -414,6 +418,7 @@
       "space": 0.25,
       "fx": [],
       "why": "Ударні, піцикато, маримба й тріск у неспокійному 5/4: кожен спалах — акцент, площа — густота",
+      "why_en": "Drums, pizzicato, marimba and crackle in a restless 5/4: every flash is an accent, area is density",
       "kit": "earth"
     }
   },
@@ -494,6 +499,7 @@
       "space": 0.45,
       "fx": [],
       "why": "Арфа, піцикато й шум дощу: інтенсивність опадів — густота крапель і нот",
+      "why_en": "Harp, pizzicato and rain noise: rainfall intensity is the density of drops and notes",
       "kit": "earth"
     }
   },
@@ -586,6 +592,7 @@
         "crackle"
       ],
       "why": "Тремоло струнних і вітер зі свистом, що кружляє по колу в панорамі; менше суббасу (контрабас); спалахи — тріск стихії й грім; сильніший шторм — швидше, до 160 BPM",
+      "why_en": "String tremolo and whistling wind circling around the stereo field; less sub-bass (double bass); flashes — crackling elements and thunder; a stronger storm is faster, up to 160 BPM",
       "kit": "orchestral",
       "bpmCap": 160
     }
@@ -680,6 +687,7 @@
       "space": 0.4,
       "fx": [],
       "why": "Кларнет, флейта, фагот і калімба в пасторальному 6/8: зеленість — мажорність, сезонний цикл — форма",
+      "why_en": "Clarinet, flute, bassoon and kalimba in a pastoral 6/8: greenness is majorness, the seasonal cycle is the form",
       "kit": "earth"
     }
   },
@@ -762,6 +770,7 @@
         "pulse"
       ],
       "why": "Космічна тиша: темрява — майже без звуку; гіпнотичний пульс арфи — обертання Землі, контраст — фільтр і гучність, а не кількість нот; вогні — поодинокі іскри, що пропливають у стерео",
+      "why_en": "Cosmic silence: darkness is almost soundless; a hypnotic harp pulse is the Earth's rotation, contrast comes from filter and loudness rather than note count; the lights are single sparks drifting across the stereo field",
       "kit": "ambient"
     }
   },
@@ -837,6 +846,7 @@
       "space": 0.8,
       "fx": [],
       "why": "Педи, хор і повітряні текстури — плавно: хмарність — щільність педа",
+      "why_en": "Pads, choir and airy textures — smoothly: cloudiness is the density of the pad",
       "kit": "ambient"
     }
   },
@@ -911,6 +921,7 @@
       "space": 0.5,
       "fx": [],
       "why": "Віолончель, контрабас і хвилі: рівень — регістр, тренд — поступове «затоплення» басом",
+      "why_en": "Cello, double bass and waves: the level is the register, the trend is a gradual “flooding” with bass",
       "kit": "orchestral"
     }
   },
@@ -986,6 +997,7 @@
         "dip"
       ],
       "why": "Хор, скло й синтезований пед: діра в озоні — «провал» у спектрі звуку (фільтр закривається)",
+      "why_en": "Choir, glass and a synth pad: the ozone hole is a “dip” in the sound spectrum (the filter closes)",
       "kit": "ambient"
     }
   },
@@ -1071,6 +1083,7 @@
         "dip"
       ],
       "why": "Гранулярні текстури, шум і флейта: концентрація — «зернистість» і каламутність звуку",
+      "why_en": "Granular textures, noise and flute: concentration is the “graininess” and murkiness of the sound",
       "kit": "electronic"
     }
   },
@@ -1144,6 +1157,7 @@
       "space": 0.4,
       "fx": [],
       "why": "Нейтральний оркестр: тема не вказана",
+      "why_en": "Neutral orchestra: no topic given",
       "kit": "orchestral"
     }
   }

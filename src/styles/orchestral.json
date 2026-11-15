@@ -14,5 +14,6 @@
     "stars": "celesta"
   },
   "why": "Симфонічний оркестр: струнні, арфа, скрипка, валторна, дзвони",
+  "why_en": "Symphony orchestra: strings, harp, violin, French horn, bells",
   "id": "orchestral"
 }

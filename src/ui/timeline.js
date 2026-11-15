@@ -1,6 +1,7 @@
 // Таймлайн під відео: криві ключових ознак (abs — суцільна, rel — пунктир), рівень шуму,
 // мітки подій і розділів, курсор відтворення. Клік — перехід у цей момент.
 import { getFeature } from "../features/index.js";
+import { t, tr } from "../i18n/index.js";
 
 const COLORS = ["#f2994a", "#56ccf2", "#bb6bd9", "#6fcf97", "#f2c94c"];
 const EVENT_COLORS = { peak: "#f85149", trough: "#56ccf2", thresholdCross: "#f2c94c", changePoint: "#bb6bd9", globalMax: "#ffffff", globalMin: "#8b949e", returnOfState: "#6fcf97" };
@@ -84,9 +85,9 @@ export function createTimeline(canvas, legendEl, { onSeek } = {}) {
       legendEl.replaceChildren(...shown().map((f, k) => {
         const s = document.createElement("span");
         s.style.setProperty("--c", COLORS[k]);
-        s.textContent = (a.labels?.[f] || getFeature(f)?.label || f) + (a.norm[f].significant ? "" : " (без значущих змін)");
+        s.textContent = tr(a.labels?.[f] || getFeature(f)?.label || f) + (a.norm[f].significant ? "" : t("tl.noSig"));
         return s;
-      }), Object.assign(document.createElement("span"), { textContent: "суцільна — abs, пунктир — rel; ● події; ★ кульмінація; сіра смуга — шум" }));
+      }), Object.assign(document.createElement("span"), { textContent: t("tl.legendNote") }));
       draw();
     },
     setSections(s) { sections = s; draw(); },
