@@ -448,3 +448,4 @@ onLang(() => {
   playback.refresh();
 });
 syncLangButtons();
+$("scanDir").textContent = t("scan.we");
