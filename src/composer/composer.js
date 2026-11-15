@@ -18,6 +18,7 @@ import stars from "./parts/stars.js";
 import texture from "./parts/texture.js";
 import { colorByTopic } from "./topic-color.js";
 import { GRAMMAR_PARTS, soloTimbres } from "./parts/grammar-parts.js";
+import { TEXTURES } from "../mapping/identity.js";
 import { UPLOAD_PARTS } from "./parts/upload-parts.js";
 import { LEAD_PARTS, FOREGROUND_MAX, earconsFor, partPriority, PARTS_MAX, SIGNAL_PARTS, partsCap, voiceOf, motifFor } from "../grammar.js";
 
@@ -44,6 +45,9 @@ export function compose(mapping, { seed = "earth-jukebox", style = null, grammar
   const harmony = planHarmony(mapping, rng);
   const instr = { ...DEFAULT_INSTRUMENTS, ...(sp.instruments || {}), ...(style?.instruments || {}) };
   const allowed = new Set(sp.parts || DEFAULT_PARTS);
+  // v10 §4: фактура супроводу завантаженого відео — свій склад партій
+  const tx = grammar && meta.texture ? TEXTURES[meta.texture] : null;
+  if (tx) { tx.add.forEach(id => allowed.add(id)); tx.drop.forEach(id => { if (!(id === "drums" && meta.twoVoices)) allowed.delete(id); }); }
   // v6: голос даних — справжній інструмент теми (стиль може перекрити)
   const voice = voiceOf(meta.topic);
   if (grammar && !style?.instruments?.dataVoice) instr.dataVoice = voice.inst;
@@ -119,7 +123,7 @@ export function compose(mapping, { seed = "earth-jukebox", style = null, grammar
     bpm: meta.bpm, barDur: meta.barDur, duration: bars.length * meta.barDur, topic: meta.topic, meter,
     key: harmony.keyName, harmony, notes,
     lead: grammar ? LEAD_PARTS : null,
-    voice: grammar ? { instrument: instr.dataVoice, range: voice.range, motif: motifFor(meta.topic, meter).id } : null,
+    voice: grammar ? { instrument: instr.dataVoice, range: voice.range, motif: motifFor(meta.topic, meter, meta).id } : null,
     // усі тембри треку (разом із шарами подвоєнь) — для завантаження семплів
     instruments: [...new Set(notes.flatMap(n => [n.inst, ...(n.layers || []).map(l => l.inst)]))],
     grammar: grammar ? { reference: meta.reference || null, tick: meta.tick || null, polarity: meta.polarity ?? 1, earcons: earconsFor(meta.topic) } : null, bars: barInfo, why: { ...(meta.why || {}), ...(colorWhy.length ? { color: colorWhy.join("; ") } : {}) }, kit: { id: kitId, label: kit.label }, style: style?.id || null,

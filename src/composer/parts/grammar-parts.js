@@ -21,7 +21,7 @@ export const dataVoice = {
   active: () => true,
   render(ctx, out) {
     const { bar, bars, b, meter, h, state, meta } = ctx, p = bar.params;
-    const voice = voiceOf(meta.topic), motif = motifFor(meta.topic, meter);
+    const voice = voiceOf(meta.topic), motif = motifFor(meta.topic, meter, meta);
     const v0 = p.value ?? 0.5, v1 = bars[b + 1]?.params.value ?? v0;
     const cadence = h.cadence || null;
     if (p.dark && !cadence) { state.sig = null; return; }    // нічна карта: темрява — тиша

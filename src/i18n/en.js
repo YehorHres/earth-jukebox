@@ -236,4 +236,10 @@ export default {
   "why.points.cloud": "Point cloud: soft glass notes and breaths of noise at the place of each cluster; more points — denser.",
   "why.points.lights": "Points of light: bright notes at the place of each point; more points — denser.",
   "why.where": "Where there is more: {where}. The most active zone sounds as a separate voice: west — left ear, east — right.",
+  "why.motif": "The data voice motif is this map's “fingerprint”: the profile of values from west to east in the first frames → {n} notes; no other video has this motif.",
+  "why.texture.pulse": "Accompaniment — pulse: bass and drums beat steadily, like an alarm.",
+  "why.texture.ostinato": "Accompaniment — a dry ostinato without a pad: short hits and a repeating figure.",
+  "why.texture.chorale": "Accompaniment — chorale chords: dense, no drums.",
+  "why.texture.arpeggio": "Accompaniment — arpeggio in waves, legato, no drums.",
+  "why.texture.nature": "Accompaniment — nature textures and long chords: space and air.",
 };

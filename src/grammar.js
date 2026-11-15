@@ -104,7 +104,8 @@ const METER_MOTIFS = {
   20: M("крок 5/4", 20, [[0, 0], [4, 1], [8, 2], [12, 1], [16, 0]]),
 };
 /** Мотив теми під розмір такту (якщо розмір інший — запасний мотив цього розміру). */
-export function motifFor(topicId, meter) {
+export function motifFor(topicId, meter, meta = null) {
+  if (meta?.motif && (!meter || meta.motif.steps === meter.steps)) return meta.motif;      // v10 §4: «відбиток» карти завантаженого відео
   const m = MOTIFS[topicId];
   if (m && (!meter || m.steps === meter.steps)) return m;
   return METER_MOTIFS[meter?.steps] || METER_MOTIFS[16];

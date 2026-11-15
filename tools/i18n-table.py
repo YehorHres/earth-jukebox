@@ -225,6 +225,12 @@ T = [
  ("why.points.cloud", "Хмара точок: м'які скляні ноти й подихи шуму на місці кожного згустку; більше точок — щільніше.", "Point cloud: soft glass notes and breaths of noise at the place of each cluster; more points — denser."),
  ("why.points.lights", "Точки світла: дзвінкі ноти на місці кожної точки; більше точок — густіше.", "Points of light: bright notes at the place of each point; more points — denser."),
  ("why.where", "Де більше: {where}. Найактивніша зона звучить окремим голосом: захід — ліве вухо, схід — праве.", "Where there is more: {where}. The most active zone sounds as a separate voice: west — left ear, east — right."),
+ ("why.motif", "Мотив голосу даних — «відбиток» цієї карти: профіль значень із заходу на схід у перших кадрах → {n} нот; такого мотиву немає в жодного іншого відео.", "The data voice motif is this map's “fingerprint”: the profile of values from west to east in the first frames → {n} notes; no other video has this motif."),
+ ("why.texture.pulse", "Супровід — пульс: бас і ударні б'ються рівно, як тривога.", "Accompaniment — pulse: bass and drums beat steadily, like an alarm."),
+ ("why.texture.ostinato", "Супровід — сухе остинато без педа: короткі удари й повторювана фігура.", "Accompaniment — a dry ostinato without a pad: short hits and a repeating figure."),
+ ("why.texture.chorale", "Супровід — хоральні акорди: щільно, без ударних.", "Accompaniment — chorale chords: dense, no drums."),
+ ("why.texture.arpeggio", "Супровід — арпеджіо хвилями, легато, без ударних.", "Accompaniment — arpeggio in waves, legato, no drums."),
+ ("why.texture.nature", "Супровід — текстури природи й довгі акорди: простір і повітря.", "Accompaniment — nature textures and long chords: space and air."),
 ]
 keys=[k for k,_,_ in T]; assert len(keys)==len(set(keys)), "дублікати ключів"
 root=pathlib.Path(__file__).resolve().parent.parent/"src"/"i18n"

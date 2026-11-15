@@ -4,6 +4,7 @@
 import { applyCurve, CURVE_LABEL } from "./curves.js";
 import { computeForm, computeFormByQuantity, SECTION_LABEL } from "./form.js";
 import { quantityModel, applyQuantity, KIND_LABEL, applyUploadVoices, flashEvents, thinEvents, isPoints, isFire } from "./quantity.js";
+import { fingerprintMotif, textureFor } from "./identity.js";
 import { getFeature } from "../features/index.js";
 import { clamp, percentile, mean, slope } from "../util/stats.js";
 import { meterOf } from "../composer/meter.js";
@@ -384,6 +385,7 @@ export function mapAnalysis(a, preset, { topic = null, timeUnit = null, polarity
       tempoWhy: tp.why, tempoX, sceneType: p.sceneType, duration: still ? nBars * barDur : dur,
       meter, key, topic: topic?.id || "generic", soundProfile: sp, why,
       quantity: qm ? { kind: qm.kind, feature: qm.feature, label: qm.label, span: qm.span } : null,
+      motif: qm && name ? fingerprintMotif(bars, meter, `${name}|${topic?.id || "generic"}`) : null, texture: qm && name ? textureFor(topic?.id, name) : null,      // v10 §4: власний мотив і фактура завантаженого відео (seed — ім'я файлу; без імені — мотив і партії теми)
       pointStyle: uv?.pointStyle || null, where: uv?.where || null, twoVoices: !!uv?.fire,
       polarity: pol, valueFeature: valueFeature || null, reference, tick, lightsFeature: a.rel.lightPoints ? lightsFeature : null,
     },

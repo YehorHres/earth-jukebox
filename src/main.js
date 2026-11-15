@@ -185,7 +185,7 @@ async function remap() {
   const polRes = app.catalogItem ? null : resolvePolarity(app.polarityChoice, app.profile, app.topic);
   app.polarityText = polRes ? polRes.text : "";
   if (polRes) $("polarity-hint").textContent = tr(polRes.text);
-  app.mapping = mapAnalysis(app.analysis, app.preset, { topic: app.topic, timeUnit: app.catalogItem?.timeUnit || null, polarity: polRes ? polRes.pol : null });
+  app.mapping = mapAnalysis(app.analysis, app.preset, { topic: app.topic, timeUnit: app.catalogItem?.timeUnit || null, polarity: polRes ? polRes.pol : null, name: app.catalogItem ? null : app.source?.name || null });
   timeline.setSections(app.mapping.meta.sections.map(s => ({
     label: tr(s.label), t0: s.b0 * app.mapping.meta.barDur, t1: s.b1 * app.mapping.meta.barDur,
   })));

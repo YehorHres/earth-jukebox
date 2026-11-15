@@ -25,6 +25,8 @@ export function createMappingTable(root) {
       // v10: точкові дані / пожежа (два голоси) і «де більше» — тексти з i18n (uk + en)
       const li = text => ul.appendChild(Object.assign(document.createElement("li"), { textContent: text }));
       if (m.why.points && m.pointStyle && hasKey(`why.points.${m.pointStyle}`, getLang())) li(t(`why.points.${m.pointStyle}`));
+      if (m.motif) li(t("why.motif", { n: m.motif.notes.length }));
+      if (m.texture) li(t(`why.texture.${m.texture}`));
       if (m.where) li(t("why.where", { where: m.where[getLang()] || m.where.uk }));
       root.appendChild(ul);
     }

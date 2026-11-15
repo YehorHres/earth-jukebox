@@ -71,3 +71,25 @@ V10_SUITES.push(async function v10where(check) {
   check(`v10 §10 менше хаосу: не більше однієї події на ${EVENT_MIN_GAP} с (AirQuality мав 90 подій за 60 с)`, ev.every(e => e.gap >= EVENT_MIN_GAP - 1e-6 && e.n <= e.dur / EVENT_MIN_GAP + 1),
     ev.map(e => `${e.id}: ${e.n} подій за ${Math.round(e.dur)} с`).join("; "));
 });
+
+// 4. Унікальність: свій мотив, своя фактура, свій інструмент, свій темп
+V10_SUITES.push(async function v10unique(check) {
+  const R = await import("./audio/report.js"), { motifFor } = await import("./grammar.js"), { hasKey } = await import("./i18n/index.js");
+  const field = await Promise.all(Object.keys(FIELD).map(id => fieldTrack(id)));
+  const cat = (await (await fetch("samples/catalog.json")).json()).filter(i => i.kind === "video" && i.analysis);
+  const gallery = []; for (const item of cat) gallery.push({ id: item.id, ...(await R.buildTrack(item)) });
+  const all = [...field, ...gallery], motif = tr => motifFor(tr.mapping.meta.topic, tr.mapping.meta.meter, tr.mapping.meta);
+  const diff = (x, y) => { let d = 0; for (let i = 0; i < Math.max(x.length, y.length); i++) if (!x[i] || !y[i] || x[i][0] !== y[i][0] || x[i][1] !== y[i][1]) d++; return d; };
+  let min = Infinity, worst = "";
+  for (let i = 0; i < all.length; i++) for (let j = i + 1; j < all.length; j++) { const d = diff(motif(all[i]).notes, motif(all[j]).notes); if (d < min) { min = d; worst = `${all[i].id} / ${all[j].id}`; } }
+  const fp = field.every(tr => { const m = motif(tr); return m.fingerprint && m.notes.length >= 5 && m.notes.length <= 8 && m.notes[0][1] === 0 && m.notes.every((n, k) => !k || Math.abs(n[1] - m.notes[k - 1][1]) <= 3) && tr.score.notes.some(n => n.part === "dataVoice" && n.motif === m.id); });
+  check("v10 §4: мотив голосу даних у кожного відео власний — «відбиток» карти (5–8 нот, стрибки ≤ 3 щаблів); 7 польових + 5 галереї попарно різняться ≥ 3 нотами",
+    all.length >= 12 && fp && min >= 3, `треків ${all.length}; найменша різниця — ${min} нот (${worst}); ${field.map(tr => `${tr.id}: ${motif(tr).notes.map(n => n.join(":")).join(" ")}`).join(" | ")}`);
+  const ACC = ["pad", "bass", "arp", "drums", "texture", "counter"], sig = tr => ACC.filter(id => tr.score.notes.some(n => n.part === id)).join("+");
+  const tex = new Map(); for (const tr of field) if (tr.mapping.meta.texture) tex.set(tr.mapping.meta.texture, sig(tr));
+  check("v10 §4: фон свій — щонайменше 4 різні фактури супроводу (різний склад партій), з поясненням uk + en",
+    tex.size >= 4 && new Set(tex.values()).size >= 4 && [...tex.keys()].every(k => hasKey(`why.texture.${k}`, "uk") && hasKey(`why.texture.${k}`, "en")), [...tex].map(([k, v]) => `${k}: ${v}`).join("; "));
+  const inst = new Set(all.map(tr => tr.score.voice.instrument)), bpm = all.map(tr => tr.mapping.meta.bpm);
+  check("v10 §4: щонайменше 5 різних інструментів голосу даних і різні темпи", inst.size >= 5 && new Set(bpm).size >= 6,
+    `інструменти: ${[...inst].join(", ")}; BPM: ${all.map((tr, i) => `${tr.id} ${bpm[i]}`).join(", ")}`);
+});
