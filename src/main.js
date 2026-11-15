@@ -14,6 +14,7 @@ import { GRAMMAR } from "./grammar.js";
 import { setupGalleryMenu } from "./ui/gallery-menu.js";
 import { applyMotion, MOTION_LABEL, MOTION_NOTE } from "./analysis/motion.js";
 import { resolvePolarity } from "./analysis/palette.js";
+import { loadEic, matchEic, cardSettings, cardLines } from "./eic/match.js";
 
 const $ = id => document.getElementById(id);
 const NO_CACHE = new URLSearchParams(location.search).has("nocache");   // ?nocache — завжди аналізувати заново
@@ -74,6 +75,7 @@ async function loadSource(title, open, item) {
   stopVoice();
   playback.stop();
   app.profile = app.analysis = app.mapping = app.score = null;
+  app.eicCard = null; app.eicMatch = null; $("eic-offer").hidden = true;
   $("mapping-wrap").hidden = true;
   $("parts-wrap").hidden = true;
   explore.setOn(false);
@@ -139,6 +141,7 @@ async function loadSource(title, open, item) {
     if (!item?.topic && !saved?.topic) announce("Що на цій карті? Напишіть або скажіть тему в полі «Що на цій карті?» — від неї залежить звучання.", { force: true });
 
     showReadOptions(item);
+    if (!item) offerEic(src.name, saved);
     // шари 2–3: мапінг і партитура
     await remap();
     $("exportBtn").disabled = false;
@@ -210,7 +213,7 @@ const READ_KEY = "ecosphear-read:";
 function loadRead(key) { try { return JSON.parse(localStorage.getItem(READ_KEY + key) || "null"); } catch { return null; } }
 function saveRead() {
   if (app.catalogItem || !app.source) return;
-  try { localStorage.setItem(READ_KEY + app.source.key, JSON.stringify({ topic: app.topic?.id === "generic" ? null : app.topic?.id, polarity: app.polarityChoice })); } catch { /* приватний режим — не зберігаємо */ }
+  try { localStorage.setItem(READ_KEY + app.source.key, JSON.stringify({ topic: app.topic?.id === "generic" ? null : app.topic?.id, polarity: app.polarityChoice, eic: app.eicCard?.id ?? (app.eicDeclined ? 0 : null) })); } catch { /* приватний режим — не зберігаємо */ }
 }
 $("polarity").addEventListener("change", async e => {
   app.polarityChoice = e.target.value;
@@ -220,6 +223,42 @@ $("polarity").addEventListener("change", async e => {
   await remap();
   announce($("polarity-hint").textContent, { force: true });
   if (wasPlaying) app.player.play();
+});
+
+/* ---------------- v8: картка NASA EIC за назвою файлу ---------------- */
+function offerEic(fileName, saved) {
+  app.eicDeclined = saved?.eic === 0;
+  const m = matchEic(fileName, app.eic);
+  if (!m || app.eicDeclined) return;
+  app.eicMatch = m;
+  if (saved?.eic === m.card.id) { app.eicCard = m.card; return; }          // уже підтверджено минулого разу
+  $("eic-text").textContent = `Схоже, це «${m.card.title.uk}» з NASA Earth Information Center (${m.why}). Узяти тему, тип руху й опис із картки?`;
+  $("eic-offer").hidden = false;
+  announce($("eic-text").textContent + " Кнопки «Так, це воно» і «Ні» — під полем теми.", { force: true });
+}
+/** Застосувати картку: тема, тип руху, полярність, опис. */
+app.applyEicCard = async card => {
+  app.eicCard = card; app.eicDeclined = false;
+  $("eic-offer").hidden = true;
+  if (!app.analysis || app.busy) return;
+  const set = cardSettings(card), wasPlaying = app.player?.playing;
+  if (set.topic) { app.topic = getTopic(set.topic); topicInput.set(app.topic); }
+  app.polarityChoice = set.polarity;
+  if (set.motion && app.analysis.motion && app.analysis.motion.type !== set.motion && !app.analysis.replacedSource) app.analysis = applyMotion(app.analysis, set.motion, { auto: false });
+  showReadOptions(null);
+  saveRead();
+  renderCard(false);
+  timeline.set(app.analysis);
+  await remap();
+  announce(`Картку застосовано: ${card.title.uk}. Тема — ${app.topic.name.uk}. ${cardLines(card)[0]}`, { force: true });
+  $("play").focus();
+  if (wasPlaying) app.player.play();
+};
+$("eic-yes").addEventListener("click", () => app.eicMatch && app.applyEicCard(app.eicMatch.card));
+$("eic-no").addEventListener("click", () => {
+  app.eicDeclined = true; $("eic-offer").hidden = true; saveRead();
+  announce("Гаразд, картку не застосовую. Тему можна вказати в полі «Що на цій карті?».", { force: true });
+  $("topic").focus();
 });
 
 /** Плоска карта світу має пропорцію ~2:1; глобус і графіки — ні (тоді без широт/довгот у підписах). */
@@ -243,6 +282,7 @@ function renderCard(speak = true) {
   const p = app.profile;
   const lines = describeProfile(p, app.source, app.analysis);
   const card = app.catalogItem?.card;
+  if (app.eicCard) lines.unshift(...cardLines(app.eicCard));
   if (card) lines.unshift(`Дані: ${card.variable}. Одиниці: ${card.units}. Регіон: ${card.region}. Період: ${card.years}. Автори: ${card.authors}.`);
   if (app.catalogItem?.desc) lines.unshift(`Що на відео: ${app.catalogItem.desc}`);
   if (!app.analysis) lines.push("Детальний аналіз кожного кадру триває…");
@@ -321,6 +361,7 @@ const drop = $("drop");
 drop.addEventListener("drop", e => { app.lastFile = e.dataTransfer.files[0]; loadFile(app.lastFile); });
 
 app.topics = await loadTopics();
+app.eic = await loadEic().catch(() => []);
 const topicInput = setupTopicInput({ topics: app.topics, onTopic: t => app.setTopic(t) });
 app.catalog = await loadCatalog();
 app.loadItem = loadItem;

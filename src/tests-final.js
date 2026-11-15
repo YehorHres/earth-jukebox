@@ -213,3 +213,35 @@ FINAL_SUITES.push(async function layout(check) {
   const one = await analyzeSource(openSynthetic("flatmap"), { useCache: false, layout: true });
   check("Одна карта на весь кадр не стає composite / static / chart", one.motion?.type === "temporal" && !one.profile.panels && !one.replacedSource, one.motion?.type);
 });
+
+// G. Картки NASA EIC і зіставлення файлу з карткою за назвою
+FINAL_SUITES.push(async function eic(check) {
+  const E = await import("./eic/match.js");
+  const T = await import("./topics/topics.js");
+  const { MOTION_LABEL } = await import("./analysis/motion.js");
+  const { POLARITY_CHOICES } = await import("./analysis/palette.js");
+  await T.loadTopics();
+  const cards = await E.loadEic();
+  const bad = [];
+  for (const c of cards) {
+    if (!c.id || !c.title?.uk || !c.title?.en || !c.desc || c.desc.length < 80 || !c.credit || !c.keywords?.length) bad.push(`${c.id}: неповна картка`);
+    if (T.getTopic(c.topic)?.id !== c.topic) bad.push(`${c.id}: невідома тема ${c.topic}`);
+    if (!MOTION_LABEL[c.motionType]) bad.push(`${c.id}: невідомий тип ${c.motionType}`);
+    if (c.moreMeans !== null && !POLARITY_CHOICES.includes(c.moreMeans)) bad.push(`${c.id}: moreMeans ${c.moreMeans}`);
+    if (c.source !== null && c.source !== `https://svs.gsfc.nasa.gov/${c.id}/`) bad.push(`${c.id}: джерело`);
+  }
+  check("Картки EIC: 7 відео польових тестів + ECCO2 — назва uk/en, тема, тип, опис для незрячих, автори, джерело; невідоме — null", cards.length === 8 && !bad.length, bad.join("; ") || cards.map(c => c.id).join(", "));
+
+  const files = { "GEDI_global_w_colorbar_1080p60.mp4": 4950, "Dixie_fire_2021_1080p60.mp4": 4993, "iss_lightning_sphere_07312023.mp4": 5011,
+    "dyamondPointCloud_12-1-2023b_dyamond_co2_anim_globe_orbit_1080p30_h265 (1).mp4": 5196, "nightlights_flat_series_and_change_wZooms_13_EIC_2160p30_h265.mp4": 5313,
+    "AirQuality_SphereWithLabels_5760x3240.mp4": 5533, "perpetual_ocean2_beauty_hw5x3_810p30_5.mp4": 5425, "ecco2_sst_flow.mp4": 3912, "a004950_forest.mp4": 4950 };
+  const wrong = Object.entries(files).filter(([f, id]) => E.matchEic(f)?.card.id !== id).map(([f]) => `${f} → ${E.matchEic(f)?.card.id ?? "немає"}`);
+  const none = ["holiday_2024.mp4", "sea_ice_2022.mp4", "IMG_1080p60_5313x.mp4", "video (1).mp4"].filter(f => E.matchEic(f));
+  check("Зіставлення за назвою файлу: усі файли польових тестів → своя картка (ключові слова або SVS id); сторонні файли — без картки", !wrong.length && !none.length, wrong.concat(none.map(f => `${f}: хибний збіг`)).join("; ") || `${Object.keys(files).length} файлів`);
+
+  const g = cards.find(c => c.id === 4950), d = cards.find(c => c.id === 5196), set = E.cardSettings(g), lines = E.cardLines(d);
+  check("Картка задає тему, тип руху й полярність; якщо джерело не пояснює кольори — чесно кажемо, що напрямок не підтверджено", set.topic === "vegetation" && set.motion === "rotating-globe" && set.polarity === "lighter" && E.cardSettings(d).polarity === "auto" && E.cardSettings(cards.find(c => c.id === 4993)).motion === null && /джерело не пояснює/.test(lines.join(" ")),
+    `4950: ${JSON.stringify(set)}; 5196: «${lines[lines.length - 1].slice(0, 70)}…»`);
+  const html = await (await fetch("index.html")).text();
+  check("UI: пропозиція картки — група з текстом і кнопками «Так, це воно» / «Ні» (клавіатура), прихована, доки немає збігу", /id="eic-offer"[^>]*role="group"[^>]*aria-labelledby="eic-text"[^>]*hidden/.test(html) && /<button id="eic-yes" type="button">/.test(html) && /<button id="eic-no" type="button">/.test(html), "index.html");
+});
