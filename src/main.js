@@ -18,6 +18,7 @@ import { loadEic, matchEic, cardSettings, cardLines } from "./eic/match.js";
 import { t, tr, pick, getLang, setLang, onLang, applyDom, registerExact, speechLang } from "./i18n/index.js";
 import { setupTooltips } from "./ui/tooltip.js";
 import { setupHoverSpeech } from "./ui/hover-speech.js";
+import { cardYears } from "./a11y/explain.js";
 import { getSpeechRate, setSpeechRate, utterRate, RATE_STEP } from "./a11y/speech.js";
 
 const $ = id => document.getElementById(id);
@@ -31,6 +32,7 @@ const galleryMenu = setupGalleryMenu();
 app.tooltips = setupTooltips();
 app.hoverSpeech = setupHoverSpeech();
 const timeline = createTimeline($("timeline"), $("tl-legend"), {
+  tipEl: $("tl-tip"),
   onSeek: t => {
     if (app.score) return app.seekTo(t);
     if (app.source?.kind === "video") app.source.el.currentTime = t;
@@ -187,6 +189,7 @@ async function remap() {
   timeline.setSections(app.mapping.meta.sections.map(s => ({
     label: tr(s.label), t0: s.b0 * app.mapping.meta.barDur, t1: s.b1 * app.mapping.meta.barDur,
   })));
+  timeline.setYears(cardYears(app.eicCard || app.catalogItem?.card));
   $("mapping-wrap").hidden = false;
   mappingTable.set(app.mapping, app.preset, app.analysis);
   await onMapped?.();

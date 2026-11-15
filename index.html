@@ -139,6 +139,11 @@
           <button id="whatBtn" disabled aria-keyshortcuts="W" data-icon="sound" data-tip="tip.what" data-i18n="btn.what">Що зараз?</button>
           <button id="wavBtn" disabled data-icon="download" data-tip="tip.wav" data-i18n="btn.wav">Трек у WAV</button>
         </div>
+        <label class="opt style-pick" for="playRate"><span data-i18n="rate.label">Швидкість</span>
+          <select id="playRate" aria-keyshortcuts="[ ]" data-tip="tip.playRate">
+            <option value="0.5">0.5×</option><option value="0.75">0.75×</option><option value="1" selected>1×</option><option value="1.25">1.25×</option><option value="1.5">1.5×</option>
+          </select>
+        </label>
         <label class="opt style-pick" for="style"><span data-i18n="style.label">Стиль звучання</span>
           <select id="style" aria-describedby="style-hint" data-tip="tip.style"><option value="" data-i18n="style.byTopic">за темою карти</option></select>
         </label>
@@ -160,7 +165,11 @@
 
     <section id="timeline-wrap" hidden aria-labelledby="tl-title">
       <h2 id="tl-title" data-i18n="tl.title">Таймлайн ознак і подій</h2>
-      <canvas id="timeline" class="timeline" role="img" data-i18n-attr="aria-label:tl.aria" aria-label="Графік ознак у часі"></canvas>
+      <div class="tl-box">
+        <canvas id="timeline" class="timeline" role="slider" tabindex="0" aria-valuemin="0" aria-valuemax="0" aria-valuenow="0" aria-describedby="tl-desc" aria-keyshortcuts="ArrowLeft ArrowRight Home End PageUp PageDown" data-tip="tip.timeline" data-i18n-attr="aria-label:tl.aria" aria-label="Таймлайн: позиція відтворення"></canvas>
+        <div id="tl-tip" class="tl-tip" hidden></div>
+      </div>
+      <p id="tl-desc" class="sr-only"></p>
       <div class="legend-row" id="tl-legend" aria-hidden="true"></div>
     </section>
   </div>
@@ -178,6 +187,7 @@
 
       <fieldset id="parts-wrap" hidden>
         <legend data-i18n="parts.legend">Партії оркестру</legend>
+        <div class="mix-master" id="mix-master"></div>
         <div class="parts" id="parts" role="group" data-i18n-attr="aria-label:parts.aria" aria-label="Партії: увімкнути, вимкнути, соло"></div>
       </fieldset>
 

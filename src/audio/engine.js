@@ -101,7 +101,9 @@ export class Engine {
     this.balL.connect(merge, 0, 0); this.balR.connect(merge, 0, 1);
     // ducking: музика приглушується під час мовлення (після мастера — не впливає на калібрування гучності)
     this.duckNode = ctx.createGain();
-    merge.connect(limiter).connect(shaper).connect(this.duckNode).connect(ctx.destination);
+    this.userNode = ctx.createGain();
+    this.userNode.gain.value = this.userVol ?? 1;
+    merge.connect(limiter).connect(shaper).connect(this.duckNode).connect(this.userNode).connect(ctx.destination);
     this.setMaster(this.masterCal || { gainDb: 0, balanceDb: 0 });
     // реверб: згенерована імпульсна характеристика (стерео, ~3.5 с)
     this.reverb = ctx.createConvolver();
@@ -173,7 +175,12 @@ export class Engine {
     this.partState.set(id, { ...(this.partState.get(id) || { mute: false, solo: false }), ...patch });
     this.applyMix();
   }
-  getPart(id) { return this.partState.get(id) || { mute: false, solo: false }; }
+  getPart(id) { return this.partState.get(id) || { mute: false, solo: false, vol: 1 }; }
+  /** v10 §8: загальна гучність користувача (після мастера, як ducking; калібрування не змінює). */
+  setUserVolume(v) {
+    this.userVol = Math.max(0, Math.min(1.5, v));
+    if (this.userNode) this.userNode.gain.setTargetAtTime(this.userVol, this.ctx.currentTime, 0.03);
+  }
 
   applyMix() {
     if (!this.ctx) return;
@@ -185,7 +192,7 @@ export class Engine {
       b.cut.gain.value = acc ? VOICE_CUT.db : 0;
       // голос даних: підсилення з калібрування (на +3…+4 дБ над супроводом); супровід не приглушуємо
       const g = acc ? Math.pow(10, ACCOMP_DB / 20) : id === "dataVoice" ? Math.pow(10, (this.masterCal?.voiceDb || 0) / 20) : 1;
-      b.out.gain.setTargetAtTime(on ? g : 0, this.ctx.currentTime, 0.03);
+      b.out.gain.setTargetAtTime(on ? g * (st.vol ?? 1) : 0, this.ctx.currentTime, 0.03);
     }
   }
 
