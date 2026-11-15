@@ -4,6 +4,7 @@
 <script type="module">
 import { FIELD, fieldTrack } from "../src/tests-v10.js";
 import { renderOffline, toWav } from "../src/audio/render.js";
+const { measure } = await import("../src/audio/measure.js"), { TARGET_LUFS } = await import("../src/audio/engine.js");
 const q = new URLSearchParams(location.search), only = q.get("only")?.split(","), log = document.getElementById("log"), out = [];
 const { loadFor } = await import("../src/audio/library/index.js"), M = await import("../src/audio/master.js");
 for (const id of Object.keys(FIELD)) {
@@ -11,10 +12,16 @@ for (const id of Object.keys(FIELD)) {
   try {
     const tr = await fieldTrack(id, "../"), dur = tr.mapping.meta.duration;
     if (loadFor) await loadFor(new OfflineAudioContext(1, 1, 44100), tr.score.instruments);
-    const master = M.calibrate ? await M.calibrate(tr.score, tr.mapping, { passes: 1, sampleRate: 22050 }) : null;
-    const from = Math.max(0, Math.min(dur - 30, dur * 0.35)), r = await renderOffline(tr.score, tr.mapping, { from, seconds: Math.min(30, dur), master, sampleRate: 22050 });
+    const from = Math.max(0, Math.min(dur - 30, dur * 0.35)), ex = { from, seconds: Math.min(30, dur), sampleRate: 22050 };
+    let master;
+    if (dur <= 150) master = await M.calibrate(tr.score, tr.mapping, { passes: 1, sampleRate: 22050 });
+    else {      // довгий трек: гучність нормуємо за самим уривком (повний рендер треку у фоновій вкладці триває десятки хвилин)
+      const voiceDb = await M.voiceTrim(tr.score, tr.mapping, { sampleRate: 22050 }), m = measure((await renderOffline(tr.score, tr.mapping, { ...ex, master: { gainDb: 0, balanceDb: 0, voiceDb } })).buffer);
+      master = { gainDb: Math.max(-24, Math.min(30, TARGET_LUFS - m.lufs)), balanceDb: m.balanceDb, voiceDb };
+    }
+    const r = await renderOffline(tr.score, tr.mapping, { ...ex, master });
     const ok = (await fetch(`../__save/renders/field/${id}.wav`, { method: "POST", body: toWav(r.buffer) })).ok;
-    out.push(`${id}: ${ok ? "збережено" : "НЕ збережено"} (з ${from.toFixed(0)} с)`);
+    out.push(`${id}: ${ok ? "збережено" : "НЕ збережено"} (з ${from.toFixed(0)} с${dur > 150 ? "; гучність — за уривком" : ""})`);
   } catch (e) { out.push(`${id}: помилка — ${e.message}`); }
   log.textContent = out.join("\n");
 }
