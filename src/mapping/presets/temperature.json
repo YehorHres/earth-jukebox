@@ -1,0 +1,35 @@
+{
+  "id": "temperature",
+  "title": "тема temperature",
+  "climax": {
+    "feature": "hotShare",
+    "why": "Кульмінація — у вікні з найбільшою часткою тепла"
+  },
+  "params": {
+    "energy": {
+      "base": 0.1,
+      "sources": [
+        {
+          "feature": "hotShare",
+          "channel": "rel",
+          "weight": 0.4,
+          "curve": "smooth"
+        },
+        {
+          "feature": "warmth",
+          "channel": "rel",
+          "weight": 0.25,
+          "curve": "linear"
+        },
+        {
+          "feature": "activeMass",
+          "channel": "rel",
+          "weight": 0.2,
+          "curve": "linear"
+        }
+      ],
+      "why": "Більше тепла (частка теплої площі, середня теплота) і більша площа даних — гучніше й більше інструментів; швидкість змін іде лише в густоту ритму, тож охолодження не гучнішає"
+    }
+  },
+  "accent": {}
+}

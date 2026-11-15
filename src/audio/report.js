@@ -20,7 +20,16 @@ export function scoreHash(score) {
 
 // v6: голос даних на +3…+4 дБ над супроводом (не більше); контраст усередині треку; треки різні між собою
 export const CRITERIA = { leadDb: [2, 5], peakDb: -1, lufsSpread: 1, lufsTol: 0.5, sub60: 0.25, sub60StormClimax: 0.40, balanceDb: 0.5,
-  rho: 0.7, lra: 8, climaxOverIntroDb: 6, climaxPartsOverIntro: 3, starsRho: 0.8, bpmGap: 5, centroidGap: 0.03, densityGap: 0.03 };
+  rho: 0.7, lra: 8, climaxOverIntroDb: 6, climaxPartsOverIntro: 3, starsRho: 0.8, bpmGap: 5, centroidGap: 0.03, densityGap: 0.03,
+  heatRho: 0.6, coolRiseDb: 0 };
+/** Теми, де гучність — від частки тепла (не від швидкості змін). */
+export const HEAT_TOPICS = ["ocean-currents", "temperature"];
+/** Середня зміна гучності (дБ) на відрізках охолодження: такти, де частка тепла спадає (у межах body). */
+export function coolingRise(heat, loud, body, step = 2) {
+  const d = [];
+  for (let b = step; b < heat.length; b++) if (body.has(b) && body.has(b - step) && heat[b] < heat[b - step] - 0.02) d.push(loud[b] - loud[b - step]);
+  return d.length ? d.reduce((p, q) => p + q, 0) / d.length : null;
+}
 
 const rank = arr => { const idx = arr.map((v, i) => [v, i]).sort((p, q) => p[0] - q[0]); const r = new Array(arr.length); for (let i = 0; i < idx.length;) { let j = i; while (j + 1 < idx.length && idx[j + 1][0] === idx[i][0]) j++; for (let k = i; k <= j; k++) r[idx[k][1]] = (i + j) / 2; i = j + 1; } return r; };
 const pearson = (x, y) => { const n = x.length, mx = x.reduce((p, q) => p + q, 0) / n, my = y.reduce((p, q) => p + q, 0) / n; let sxy = 0, sxx = 0, syy = 0; for (let i = 0; i < n; i++) { sxy += (x[i] - mx) * (y[i] - my); sxx += (x[i] - mx) ** 2; syy += (y[i] - my) ** 2; } return sxy / Math.sqrt(sxx * syy || 1); };
@@ -79,12 +88,24 @@ export async function galleryReport({ root = "", onProgress = () => {}, keepBuff
     const body = tr.mapping.bars.map((b, i) => i).filter(i => tr.mapping.bars[i].section !== "intro" && i < tr.mapping.bars.length - 1);
     const rho = spearman(body.map(i => tr.mapping.bars[i].params.energy), body.map(i => stBar[i]));
     const secLoud = id => { const s = tr.mapping.meta.sections.find(x => x.id === id); return s ? lp.at(s.b0 * bd, Math.min(dur, s.b1 * bd)) : null; };
+    // теми тепла (ocean-currents, temperature): гучність ↔ частка тепла (hotShare); на охолодженні гучність не зростає
+    let heatRho = null, coolRiseDb = null;
+    if (HEAT_TOPICS.includes(tr.mapping.meta.topic) && tr.analysis.rel.hotShare) {
+      const heat = tr.mapping.bars.map(b => b.frames.reduce((s, i) => s + tr.analysis.rel.hotShare[i], 0) / b.frames.length);
+      heatRho = spearman(body.map(i => heat[i]), body.map(i => stBar[i]));
+      coolRiseDb = coolingRise(heat, stBar, new Set(body));
+    }
     const st = starsPerBar(tr.score, tr.mapping), starsRho = tr.score.parts.some(p => p.id === "stars") ? spearman(st.counts, st.lights) : null;
-    rows.push({ rho, lra: lp.lra, introLufs: secLoud("intro"), climaxLufs: secLoud("climax"), starsRho, centroid: centroid(r.buffer), voiceDb: cal.voiceDb || 0, ...trackShape(tr.score, tr.mapping),
+    rows.push({ rho, heatRho, coolRiseDb, lra: lp.lra, introLufs: secLoud("intro"), climaxLufs: secLoud("climax"), starsRho, centroid: centroid(r.buffer), voiceDb: cal.voiceDb || 0, ...trackShape(tr.score, tr.mapping),
       leadDb, id: item.id, title: item.title, topic: tr.mapping.meta.topic, seconds: m.seconds, peakDb: m.peakDb, lufs: m.lufs,
       balanceDb: m.balanceDb, bands: m.bands, hash: scoreHash(tr.score), climaxSub60: climaxBands ? climaxBands[0] : null, gainDb: cal.gainDb, calBalanceDb: cal.balanceDb,
       ...(keepBuffers && { buffer: r.buffer }) });
   }
+  return { rows, ...checkRows(rows), target: TARGET_LUFS, bands: BANDS.map(b => b[0]) };
+}
+
+/** Критерії звіту для рядків треків (і для звіту, зібраного з частково перерендерених рядків). */
+export function checkRows(rows) {
   const problems = [];
   const lu = rows.map(r => r.lufs), spread = Math.max(...lu) - Math.min(...lu);
   if (spread > CRITERIA.lufsSpread) problems.push(`різниця гучності між треками ${spread.toFixed(2)} LU > ${CRITERIA.lufsSpread}`);
@@ -92,6 +113,8 @@ export async function galleryReport({ root = "", onProgress = () => {}, keepBuff
     if (r.leadDb === null || r.leadDb < CRITERIA.leadDb[0] || r.leadDb > CRITERIA.leadDb[1]) problems.push(`${r.id}: голос даних на ${r.leadDb?.toFixed(1)} дБ над супроводом (треба ${CRITERIA.leadDb[0]}…${CRITERIA.leadDb[1]})`);
     if (Math.abs(r.lufs - TARGET_LUFS) > CRITERIA.lufsTol) problems.push(`${r.id}: гучність ${r.lufs.toFixed(2)} LUFS (треба ${TARGET_LUFS} ± ${CRITERIA.lufsTol})`);
     if (r.rho < CRITERIA.rho) problems.push(`${r.id}: кореляція енергії даних із гучністю ρ = ${r.rho.toFixed(2)} < ${CRITERIA.rho}`);
+    if (r.heatRho !== null && r.heatRho < CRITERIA.heatRho) problems.push(`${r.id}: кореляція гучності з часткою тепла ρ = ${r.heatRho.toFixed(2)} < ${CRITERIA.heatRho}`);
+    if (r.coolRiseDb !== null && r.coolRiseDb > CRITERIA.coolRiseDb) problems.push(`${r.id}: на охолодженні гучність зростає в середньому на ${r.coolRiseDb.toFixed(1)} дБ`);
     if (r.lra < CRITERIA.lra) problems.push(`${r.id}: діапазон гучності ${r.lra.toFixed(1)} LU < ${CRITERIA.lra}`);
     if (r.introLufs !== null && r.climaxLufs !== null && r.climaxLufs - r.introLufs < CRITERIA.climaxOverIntroDb) problems.push(`${r.id}: кульмінація гучніша за вступ лише на ${(r.climaxLufs - r.introLufs).toFixed(1)} дБ (< ${CRITERIA.climaxOverIntroDb})`);
     if (r.partsIntro !== null && r.partsClimax !== null && r.partsClimax - r.partsIntro < CRITERIA.climaxPartsOverIntro) problems.push(`${r.id}: партій у кульмінації ${r.partsClimax.toFixed(1)}, у вступі ${r.partsIntro.toFixed(1)} (різниця < ${CRITERIA.climaxPartsOverIntro})`);
@@ -108,5 +131,5 @@ export async function galleryReport({ root = "", onProgress = () => {}, keepBuff
     if (rel(p.centroid, q.centroid) < CRITERIA.centroidGap) problems.push(`${p.id} і ${q.id}: спектральний центр майже однаковий (${p.centroid.toFixed(0)} і ${q.centroid.toFixed(0)} Гц)`);
     if (rel(p.noteDensity, q.noteDensity) < CRITERIA.densityGap) problems.push(`${p.id} і ${q.id}: густота нот майже однакова (${p.noteDensity.toFixed(2)} і ${q.noteDensity.toFixed(2)} нот/с)`);
   }
-  return { rows, ok: !problems.length, problems, spread, target: TARGET_LUFS, bands: BANDS.map(b => b[0]) };
+  return { ok: !problems.length, problems, spread };
 }

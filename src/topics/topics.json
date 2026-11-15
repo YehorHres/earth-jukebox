@@ -122,7 +122,7 @@
       "en": "warmer"
     },
     "moreMeans": "up",
-    "preset": null,
+    "preset": "temperature",
     "soundProfile": {
       "key": {
         "rule": "data"

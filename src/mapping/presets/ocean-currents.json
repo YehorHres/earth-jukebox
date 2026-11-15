@@ -1,9 +1,37 @@
 {
   "id": "ocean-currents",
   "title": "тема ocean-currents",
+  "climax": {
+    "feature": "hotShare",
+    "why": "Кульмінація — у вікні з найбільшою часткою теплої води"
+  },
   "params": {
+    "energy": {
+      "base": 0.1,
+      "sources": [
+        {
+          "feature": "hotShare",
+          "channel": "rel",
+          "weight": 0.4,
+          "curve": "smooth"
+        },
+        {
+          "feature": "warmth",
+          "channel": "rel",
+          "weight": 0.25,
+          "curve": "linear"
+        },
+        {
+          "feature": "activeMass",
+          "channel": "rel",
+          "weight": 0.2,
+          "curve": "linear"
+        }
+      ],
+      "why": "Більше теплої води (частка теплої площі, середня теплота) і більша площа даних — гучніше й більше інструментів; швидкість змін іде лише в густоту ритму, тож охолодження не гучнішає"
+    },
     "brightness": {
-      "base": 0.0,
+      "base": -0.4,
       "sources": [
         {
           "feature": "hotShare",

@@ -25,7 +25,7 @@
 <ul id="problems"></ul>
 <div id="links" class="row"></div>
 <script type="module">
-import { galleryReport } from "../src/audio/report.js";
+import { galleryReport, checkRows } from "../src/audio/report.js";
 import { toWav } from "../src/audio/render.js";
 const $ = id => document.getElementById(id);
 async function run() {
@@ -33,6 +33,14 @@ async function run() {
   const t0 = performance.now();
   const q = new URLSearchParams(location.search), fast = q.has("fast");
   const rep = await galleryReport({ root: "../", keepBuffers: !fast, fast, only: q.get("only")?.split(",") || null, onProgress: t => ($("status").textContent = t) });
+  // &only=…&merge — перерендерити лише вказані треки, а решту рядків узяти з наявного renders/audio-report.json
+  if (q.has("only") && q.has("merge") && !fast) {
+    const old = await (await fetch("../renders/audio-report.json", { cache: "no-store" })).json();
+    const fresh = new Map(rep.rows.map(r => [r.id, r]));
+    const merged = old.rows.map(r => fresh.get(r.id) || r);
+    for (const r of rep.rows) if (!old.rows.some(o => o.id === r.id)) merged.push(r);
+    Object.assign(rep, checkRows(merged), { rows: merged });
+  }
   $("head").innerHTML = `<tr><th scope="col">Трек</th><th scope="col">Пік, dBFS</th><th scope="col">LUFS</th><th scope="col">L−R, дБ</th>${rep.bands.map(b => `<th scope="col">${b} Гц, %</th>`).join("")}<th scope="col">&lt;60 у кульм., %</th><th scope="col">Підсил., дБ</th><th scope="col">ρ енергія↔гучн.</th><th scope="col">LRA, LU</th><th scope="col">Кульм.−вступ, дБ</th><th scope="col">Партій вступ→кульм.</th><th scope="col">Голос над супр., дБ</th><th scope="col">Голос / мотив / BPM</th><th scope="col">Центр, Гц</th><th scope="col">Нот/с</th></tr>`;
   $("rows").replaceChildren(...rep.rows.map(r => {
     const tr = document.createElement("tr");
@@ -50,8 +58,9 @@ async function run() {
     rows: rep.rows.map(({ buffer, ...r }) => r) };
   let saved = 0;
   window.__report = json;
-  if (q.has("nosave") || fast || q.has("only")) { $("status").textContent = "Швидкий/частковий прогін — файли не зберігаю."; window.__done = true; $("go").disabled = false; return; }
+  if (q.has("nosave") || fast || (q.has("only") && !q.has("merge"))) { $("status").textContent = "Швидкий/частковий прогін — файли не зберігаю."; window.__done = true; $("go").disabled = false; return; }
   for (const r of rep.rows) {
+    if (!r.buffer) continue;                                   // рядок зі старого звіту — WAV уже є
     const wav = toWav(r.buffer);
     const a = Object.assign(document.createElement("a"), { href: URL.createObjectURL(wav), download: `${r.id}.wav`, textContent: `⬇ ${r.id}.wav` });
     $("links").appendChild(a);

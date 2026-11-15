@@ -277,8 +277,16 @@ export function mapAnalysis(a, preset, { topic = null, timeUnit = null } = {}) {
   }
 
   // ---- форма треку
-  const climaxBar = a.climax && !still ? Math.min(nBars - 1, Math.floor(a.climax.time / barDur)) : null;
-  const { sections, formCurve, phrase } = computeForm(nBars, { climaxBar, energy: bars.map(x => x.params.energy), noChange });
+  let climaxBar = a.climax && !still ? Math.min(nBars - 1, Math.floor(a.climax.time / barDur)) : null;
+  let formEnergy = bars.map(x => x.params.energy);
+  // тема може задати ознаку кульмінації (ocean-currents, temperature: частка тепла) — кульмінація у вікні з її максимумом
+  const cf = preset.climax?.feature, cs = cf && !still ? a.rel[cf] : null;
+  if (cs) {
+    formEnergy = bars.map(x => aggregate(cs, x.frames));
+    climaxBar = formEnergy.reduce((m, v, i) => (v > formEnergy[m] ? i : m), 0);
+    why.climax = preset.climax.why || `Кульмінація — у вікні з максимумом «${a.labels?.[cf] || cf}»`;
+  }
+  const { sections, formCurve, phrase } = computeForm(nBars, { climaxBar, energy: formEnergy, noChange, byFeature: !!cs });
   const cutBars = new Set((a.cuts || []).filter(c => !c.edge).map(c => Math.floor(c.time / barDur)));
   for (const s of sections) for (let b = s.b0; b < s.b1; b++) {
     const bar = bars[b];
