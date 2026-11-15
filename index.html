@@ -6,61 +6,85 @@
 <title>Earth Jukebox</title>
 <meta name="description" content="Earth Jukebox: візуалізації NASA перетворюються на музику для незрячих і слабозорих слухачів.">
 <link rel="icon" href="data:,">
+<!-- шрифти з CDN; без інтернету — системні Segoe UI / Arial (див. src/style.css) -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&family=Unbounded:wght@300;400;500&display=swap">
 <link rel="stylesheet" href="src/style.css">
 </head>
 <body>
-<a class="skip-link" href="#controls-panel">Перейти до керування відтворенням</a>
-<header>
-  <h1>
-    <svg class="logo" viewBox="0 0 48 48" aria-hidden="true" focusable="false">
-      <defs>
-        <radialGradient id="planet" cx="38%" cy="32%" r="70%"><stop offset="0" stop-color="#9ff0ff"/><stop offset=".55" stop-color="#5a7dff"/><stop offset="1" stop-color="#2a1a6e"/></radialGradient>
-        <linearGradient id="ring" x1="0" x2="1"><stop offset="0" stop-color="#b3a6ff"/><stop offset="1" stop-color="#6fe0ff"/></linearGradient>
-      </defs>
-      <path d="M6 30c-4 5 1 8 12 5 9-2 20-8 25-14 3-4 1-6-4-5.5" fill="none" stroke="url(#ring)" stroke-width="2.4" stroke-linecap="round" opacity=".55"/>
-      <circle cx="24" cy="24" r="12.5" fill="url(#planet)"/>
-      <path d="M6 30c4 4 15 1 25-5" fill="none" stroke="url(#ring)" stroke-width="2.4" stroke-linecap="round"/>
-      <circle cx="40" cy="9" r="1.6" fill="#fff"/><circle cx="9" cy="12" r="1" fill="#cfd6ff"/>
-    </svg>
-    <span class="brand">Earth Jukebox</span>
-  </h1>
-  <p>Двигун спершу «дивиться» все відео NASA, розуміє, що в ньому відбувається, а потім пише до нього музику.</p>
+<a class="skip-link" href="#transport">Перейти до керування відтворенням</a>
+
+<header class="hero">
+  <div class="hero-meta" aria-hidden="true">
+    <span>NASA Space Apps Challenge</span>
+    <span>2026</span>
+  </div>
+  <h1>Earth Jukebox</h1>
+  <p class="hero-tagline">Двигун спершу «дивиться» все відео NASA, розуміє, що в ньому відбувається, а потім пише до нього музику.</p>
 </header>
 
 <main>
-  <section class="panel stack" aria-labelledby="stage-title">
-    <h2 id="stage-title" class="sr-only">Візуалізація</h2>
-    <div class="row" id="gallery" role="group" aria-label="Галерея візуалізацій"></div>
-    <div id="drop">
-      <label for="file">Або перетягніть сюди своє відео / фото, чи виберіть файл: </label>
-      <input type="file" id="file" accept="video/*,image/*">
-      <button id="scanDir" type="button" hidden>↔ Сканування: захід → схід</button>
+  <!-- 01 — вибір карти -->
+  <section class="chapter chapter-source" aria-labelledby="stage-title">
+    <div class="chapter-head">
+      <span class="chapter-no" aria-hidden="true">01</span>
+      <h2 id="stage-title">Візуалізація</h2>
     </div>
-    <div class="topic-box">
-      <label for="topic"><strong>Що на цій карті?</strong> Тема задає звучання: тембр = тема, ноти = дані.</label>
-      <div class="row">
-        <input id="topic" type="text" autocomplete="off" spellcheck="false" aria-describedby="topic-hint"
-               placeholder="напр. «викиди CO₂», «ураган», «морський лід», «sea surface temperature»">
-        <button id="mic" type="button" hidden aria-pressed="false" aria-label="Сказати тему голосом" data-icon="mic"></button>
-        <span role="group" aria-label="Мова теми й голосу" class="row">
-          <button id="lang-uk" type="button" aria-pressed="true" lang="uk">UA</button>
-          <button id="lang-en" type="button" aria-pressed="false" lang="en">EN</button>
-        </span>
+    <div class="source-grid">
+      <div class="row" id="gallery" role="group" aria-label="Галерея візуалізацій"></div>
+      <div class="source-side">
+        <div id="drop">
+          <label for="file">Або перетягніть сюди своє відео / фото, чи виберіть файл: </label>
+          <input type="file" id="file" accept="video/*,image/*">
+          <button id="scanDir" type="button" hidden>↔ Сканування: захід → схід</button>
+        </div>
+        <div class="topic-box">
+          <label for="topic"><strong>Що на цій карті?</strong> Тема задає звучання: тембр = тема, ноти = дані.</label>
+          <div class="row topic-row">
+            <input id="topic" type="text" autocomplete="off" spellcheck="false" aria-describedby="topic-hint"
+                   placeholder="напр. «викиди CO₂», «ураган», «морський лід», «sea surface temperature»">
+            <button id="mic" type="button" hidden aria-pressed="false" aria-label="Сказати тему голосом" data-icon="mic"></button>
+            <span role="group" aria-label="Мова теми й голосу" class="row lang">
+              <button id="lang-uk" type="button" aria-pressed="true" lang="uk">UA</button>
+              <button id="lang-en" type="button" aria-pressed="false" lang="en">EN</button>
+            </span>
+          </div>
+          <p id="topic-hint" class="keys">Тему не вибрано.</p>
+          <ul id="topic-list" class="topic-list" hidden aria-label="Теми"></ul>
+        </div>
       </div>
-      <p id="topic-hint" class="keys">Тему не вибрано.</p>
-      <ul id="topic-list" class="topic-list" hidden aria-label="Теми"></ul>
     </div>
+  </section>
+
+  <!-- 02 — екран і пульт -->
+  <section class="chapter chapter-stage" aria-label="Екран і керування">
     <div class="viewer" id="viewer">
       <div class="placeholder" id="placeholder">Оберіть візуалізацію в галереї вище.</div>
       <canvas id="overlay" aria-hidden="true"></canvas>
       <canvas id="cursor" aria-hidden="true"></canvas>
     </div>
-    <div>
+    <div class="transport" id="transport" tabindex="-1" aria-label="Керування відтворенням" role="region">
       <div id="progress" aria-hidden="true"><div></div></div>
+      <div class="transport-row">
+        <div class="row" id="controls">
+          <button id="play" class="primary" disabled aria-keyshortcuts="Space" data-icon="play">Грати</button>
+          <button id="legendBtn" disabled aria-keyshortcuts="L" data-icon="sound">Аудіолегенда</button>
+          <button id="exploreBtn" disabled aria-pressed="false" aria-keyshortcuts="E" data-icon="explore">Дослідити карту</button>
+          <button id="wavBtn" disabled data-icon="download">Трек у WAV</button>
+        </div>
+        <label class="opt style-pick" for="style">Стиль звучання
+          <select id="style" aria-describedby="style-hint"><option value="">за темою карти</option></select>
+        </label>
+      </div>
       <p id="status" role="status">Файл не завантажено.</p>
+      <p id="style-hint" class="keys">Стиль змінює лише інструменти й набір ударних; гармонія, ритм і форма — з даних.</p>
       <p id="explore-readout" class="explore-readout" hidden></p>
     </div>
+  </section>
 
+  <!-- 03 — що зрозумів двигун -->
+  <div class="chapter chapter-insight">
     <section class="card" id="card" aria-labelledby="card-title" hidden tabindex="-1">
       <h2 id="card-title">Що двигун зрозумів про відео</h2>
       <div class="tags" id="card-tags"></div>
@@ -72,6 +96,81 @@
       <canvas id="timeline" class="timeline" role="img" aria-label="Графік ознак у часі"></canvas>
       <div class="legend-row" id="tl-legend" aria-hidden="true"></div>
     </section>
+  </div>
+
+  <!-- 04 — звук зараз -->
+  <section class="chapter chapter-sound" aria-labelledby="sound-title">
+    <div class="chapter-head">
+      <span class="chapter-no" aria-hidden="true">02</span>
+      <h2 id="sound-title">Звук</h2>
+    </div>
+    <div class="sound-grid">
+      <fieldset class="now-playing">
+        <legend>Зараз звучить</legend>
+        <dl class="readout" id="readout"><dt>—</dt><dd>Аналіз ще не виконано</dd></dl>
+      </fieldset>
+
+      <fieldset id="parts-wrap" hidden>
+        <legend>Партії оркестру</legend>
+        <div class="parts" id="parts" role="group" aria-label="Партії: увімкнути, вимкнути, соло"></div>
+      </fieldset>
+
+      <section id="legend-wrap" hidden aria-labelledby="legend-title">
+        <h3 id="legend-title">Аудіолегенда: як звучать дані</h3>
+        <ul class="legend-list" id="legend-list"></ul>
+      </section>
+    </div>
+  </section>
+
+  <!-- 05 — правила -->
+  <section class="chapter chapter-rules" aria-labelledby="rules-title">
+    <div class="chapter-head">
+      <span class="chapter-no" aria-hidden="true">03</span>
+      <h2 id="rules-title">Як дані стають музикою</h2>
+    </div>
+    <div class="rules-grid">
+      <section id="grammar-wrap" aria-labelledby="grammar-title">
+        <h3 id="grammar-title">Граматика звуку: однакова для всіх карт</h3>
+        <p class="keys">Вивчіть раз — і зрозумієте будь-яку карту. Тема змінює лише тембр, правила — ті самі. Голос даних завжди на першому плані; музика стишується, коли говорить голос.</p>
+        <table class="mapping">
+          <thead><tr><th scope="col">Що в даних</th><th scope="col">Як звучить завжди</th></tr></thead>
+          <tbody id="grammar-rows"></tbody>
+        </table>
+      </section>
+
+      <section id="mapping-wrap" hidden aria-labelledby="map-title">
+        <h3 id="map-title">Таблиця мапінгу: дані → музика</h3>
+        <div id="mapping"></div>
+      </section>
+    </div>
+  </section>
+
+  <!-- 06 — доступність -->
+  <section class="chapter chapter-access" aria-labelledby="access-title">
+    <div class="chapter-head">
+      <span class="chapter-no" aria-hidden="true">04</span>
+      <h2 id="access-title">Доступність</h2>
+    </div>
+    <div class="access-grid">
+      <fieldset>
+        <legend>Озвучення й орієнтири</legend>
+        <label class="opt"><input type="checkbox" id="announce" checked> Повідомляти події для скрінрідера</label>
+        <label class="opt"><input type="checkbox" id="voice"> Озвучувати голосом</label>
+        <label class="opt"><input type="checkbox" id="drone"> Дрон-орієнтир (тихий референсний тон упродовж треку)</label>
+        <label class="opt"><input type="checkbox" id="ticks"> Тіки шкали часу</label>
+        <label class="opt"><input type="checkbox" id="intro" checked> Голосовий вступ перед треком (тема, роки, що означає «більше»)</label>
+      </fieldset>
+
+      <div class="shortcuts">
+        <h3>Клавіші</h3>
+        <p class="keys">
+          <kbd>Space</kbd> грати/пауза · <kbd>L</kbd> аудіолегенда · <kbd>D</kbd> прочитати картку ·
+          <kbd>M</kbd> що зараз керує музикою · <kbd>E</kbd> дослідити карту (стрілки, <kbd>Shift</kbd> — більший крок, <kbd>Esc</kbd> — вийти) ·
+          <kbd>1</kbd>–<kbd>9</kbd> вимкнути/увімкнути партію · <kbd>Shift</kbd>+<kbd>1</kbd>–<kbd>9</kbd> соло ·
+          <kbd>←</kbd>/<kbd>→</kbd> ±5 с
+        </p>
+      </div>
+    </div>
 
     <details>
       <summary>Технічні дані аналізу (для розробників)</summary>
@@ -82,66 +181,12 @@
       <pre class="debug" id="debug"></pre>
     </details>
   </section>
-
-  <aside class="panel stack" aria-label="Керування" id="controls-panel" tabindex="-1">
-    <div class="row" id="controls">
-      <button id="play" class="primary" disabled aria-keyshortcuts="Space" data-icon="play">Грати</button>
-      <button id="legendBtn" disabled aria-keyshortcuts="L" data-icon="sound">Аудіолегенда</button>
-      <button id="wavBtn" disabled data-icon="download">Трек у WAV</button>
-      <button id="exploreBtn" disabled aria-pressed="false" aria-keyshortcuts="E" data-icon="explore">Дослідити карту</button>
-    </div>
-
-    <label class="opt" for="style">Стиль звучання:
-      <select id="style" aria-describedby="style-hint"><option value="">за темою карти</option></select>
-    </label>
-    <p id="style-hint" class="keys">Стиль змінює лише інструменти й набір ударних; гармонія, ритм і форма — з даних.</p>
-
-    <fieldset id="parts-wrap" hidden>
-      <legend>Партії оркестру</legend>
-      <div class="parts" id="parts" role="group" aria-label="Партії: увімкнути, вимкнути, соло"></div>
-    </fieldset>
-
-    <fieldset>
-      <legend>Зараз звучить</legend>
-      <dl class="readout" id="readout"><dt>—</dt><dd>Аналіз ще не виконано</dd></dl>
-    </fieldset>
-
-    <section id="legend-wrap" hidden aria-labelledby="legend-title">
-      <h2 id="legend-title">Аудіолегенда: як звучать дані</h2>
-      <ul class="legend-list" id="legend-list"></ul>
-    </section>
-
-    <section id="grammar-wrap" aria-labelledby="grammar-title">
-      <h2 id="grammar-title">Граматика звуку: однакова для всіх карт</h2>
-      <p class="keys">Вивчіть раз — і зрозумієте будь-яку карту. Тема змінює лише тембр, правила — ті самі. Голос даних завжди на першому плані; музика стишується, коли говорить голос.</p>
-      <table class="mapping">
-        <thead><tr><th scope="col">Що в даних</th><th scope="col">Як звучить завжди</th></tr></thead>
-        <tbody id="grammar-rows"></tbody>
-      </table>
-    </section>
-
-    <section id="mapping-wrap" hidden aria-labelledby="map-title">
-      <h2 id="map-title">Таблиця мапінгу: дані → музика</h2>
-      <div id="mapping"></div>
-    </section>
-
-    <fieldset>
-      <legend>Доступність</legend>
-      <label class="opt"><input type="checkbox" id="announce" checked> Повідомляти події для скрінрідера</label>
-      <label class="opt"><input type="checkbox" id="voice"> Озвучувати голосом</label>
-      <label class="opt"><input type="checkbox" id="drone"> Дрон-орієнтир (тихий референсний тон упродовж треку)</label>
-      <label class="opt"><input type="checkbox" id="ticks"> Тіки шкали часу</label>
-      <label class="opt"><input type="checkbox" id="intro" checked> Голосовий вступ перед треком (тема, роки, що означає «більше»)</label>
-    </fieldset>
-
-    <p class="keys">
-      <kbd>Space</kbd> грати/пауза · <kbd>L</kbd> аудіолегенда · <kbd>D</kbd> прочитати картку ·
-      <kbd>M</kbd> що зараз керує музикою · <kbd>E</kbd> дослідити карту (стрілки, <kbd>Shift</kbd> — більший крок, <kbd>Esc</kbd> — вийти) ·
-      <kbd>1</kbd>–<kbd>9</kbd> вимкнути/увімкнути партію · <kbd>Shift</kbd>+<kbd>1</kbd>–<kbd>9</kbd> соло ·
-      <kbd>←</kbd>/<kbd>→</kbd> ±5 с
-    </p>
-  </aside>
 </main>
+
+<footer class="site-foot">
+  <span>Earth Jukebox</span>
+  <span>Візуалізації: NASA Earth Information Center</span>
+</footer>
 
 <div id="live" class="sr-only" aria-live="polite"></div>
 <script type="module" src="src/main.js"></script>
