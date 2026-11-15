@@ -52,7 +52,7 @@ try {
     sceneDetected: p.sceneDetected, sceneType: p.sceneType, confidence: r2(p.confidence), region: p.region?.full ? "full" : p.region?.shape,
     motion: a.motion?.type, motionAuto: a.motion?.auto, motionConfidence: r2(a.motion?.confidence), motionWhy: a.motion?.why, motionStats: a.motion?.stats && Object.fromEntries(Object.entries(a.motion.stats).map(([k, v]) => [k, typeof v === "number" ? r2(v) : v])),
     scale: p.scale?.palette ? `палітра кадру (${p.palette.kind}, ${r2(p.palette.explained)})` : p.scale?.found ? `шкала в кадрі (${p.scale.orientation})` : p.sceneType === "heatmap" ? "відтінок синій→червоний" : "яскравість",
-    paletteWhy: p.palette?.why || null, changeScale: p.changeScale,
+    paletteWhy: p.palette?.why || null, sense: (await import("../src/analysis/palette.js")).scaleSense(p), changeScale: p.changeScale,
     leadFeature: lf, leadLabel: lf ? a.labels[lf] : null, polarity: pol.pol, polarityText: pol.text,
     rhoVoiceLead: r2(rho), events: a.events.length, eventsWithoutMotion: a.temporalBase?.events.length ?? a.events.length,
     bpm: s.bpm, key: s.key, notes: s.notes.length, voiceNotes: s.notes.filter(n => n.part === "dataVoice").length, parts: s.parts.map(x => x.id).join(","),

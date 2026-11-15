@@ -84,9 +84,12 @@ export function classifyMotion(frames, profile, valid = null) {
   const steady = mx > 0 ? (percentile(ax, 75) - percentile(ax, 25)) / mx : 9;
   Object.assign(stats, { medianDx: mx, medianDy: my, oneWay, steady, dir: pos * 2 >= moving ? "east" : "west" });
   const disk = profile.region?.shape === "disk";
-  if (disk && stats.movingShare >= 0.5 && oneWay >= 0.85 && mx >= 2.5 * my + 0.2) {
+  // диск знайдено — досить горизонтального зсуву в один бік; диска немає (глобус на весь кадр, підписи) —
+  // вимагаємо ще й суто горизонтального сталого зсуву без наближення: так обертається глобус, камера так не їздить
+  const pureScan = stats.movingShare >= 0.5 && oneWay >= 0.9 && mx >= 4 * my + 0.3 && steady < 0.5 && stats.zoomShare < 0.1;
+  if ((disk && stats.movingShare >= 0.5 && oneWay >= 0.85 && mx >= 2.5 * my + 0.2) || pureScan) {
     return { type: "rotating-globe", auto: true, stats, confidence: Math.min(1, 0.5 + 0.5 * stats.movingShare) * (steady < 0.8 ? 1 : 0.7),
-      why: `текстура всередині диска стало зсувається горизонтально (${Math.round(stats.movingShare * 100)} % кадрів, в один бік — ${Math.round(oneWay * 100)} %)` };
+      why: `текстура ${disk ? "всередині диска" : "в центрі кадру"} стало зсувається горизонтально (${Math.round(stats.movingShare * 100)} % кадрів, в один бік — ${Math.round(oneWay * 100)} %)` };
   }
   if (stats.movingShare >= 0.3 || stats.zoomShare >= 0.3 || stats.movingShare + stats.zoomShare >= 0.4) {
     return { type: "camera-pan-zoom", auto: true, stats, confidence: Math.min(1, 0.4 + Math.max(stats.movingShare, stats.zoomShare)),

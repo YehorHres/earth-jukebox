@@ -210,7 +210,7 @@ Object.assign(SCENES, {
     },
     truth(x, y) { const { cx, cy, r } = this.disk(); return (x - cx) ** 2 + (y - cy) ** 2 <= r * r; },
   },
-  // камера їде над статичною картою (3 px за кадр на схід, 0.5 px на південь); дані НЕ змінюються
+  // камера їде над статичною картою (3 px за кадр на схід, 2 px на південь); дані НЕ змінюються
   "pan-map": {
     w: 480, h: 240, duration: 12, fps: 10, shape: "full",
     draw(g, t, W, H) {
@@ -226,7 +226,7 @@ Object.assign(SCENES, {
         this._map = m;
       }
       const f = Math.round(t * this.fps);
-      g.drawImage(this._map, 3 * f, Math.round(0.5 * f), W, H, 0, 0, W, H);
+      g.drawImage(this._map, 3 * f, 2 * f, W, H, 0, 0, W, H);
     },
     truth: () => true,
   },
