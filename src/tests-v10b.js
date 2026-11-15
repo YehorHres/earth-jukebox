@@ -98,3 +98,19 @@ V10_SUITES.push(async function v10unique(check) {
   check("v10 §4: щонайменше 5 різних інструментів голосу даних і різні темпи", inst.size >= 5 && new Set(bpm).size >= 6,
     `інструменти: ${[...inst].join(", ")}; BPM: ${all.map((tr, i) => `${tr.id} ${bpm[i]}`).join(", ")}`);
 });
+
+// ISS-блискавки v2 (гілка iss-fix): гучність і кількість шарів ідуть за кількістю спалахів
+V10_SUITES.push(async function issStorm(check) {
+  const { levelDb } = await import("./audio/engine.js");
+  const tr = await fieldTrack("iss"), fl = perBar(tr, tr.analysis.rel.pointShare), n = fl.length;
+  const rho = (a, c) => { const m = x => x.reduce((p, q) => p + q, 0) / x.length, ma = m(a), mc = m(c); let s = 0, sa = 0, sc = 0; a.forEach((v, i) => { s += (v - ma) * (c[i] - mc); sa += (v - ma) ** 2; sc += (c[i] - mc) ** 2; }); return s / Math.sqrt(sa * sc || 1); };
+  const loud = fl.map((_, b) => levelDb(tr.mapping, b)), layers = tr.score.bars.map(x => x.active.length);
+  // гучність такту з урахуванням сили нот: рівень майстра (дБ) + 20·lg суми vel
+  const sum = fl.map(() => 0); for (const nn of tr.score.notes) sum[Math.min(n - 1, Math.floor((nn.t + 1e-6) / tr.score.barDur))] += nn.vel;
+  const r1 = rho(loud, fl), r2 = rho(layers, fl), r3 = rho(sum, fl), range = Math.max(...loud) - Math.min(...loud);
+  window.__iss = { r1, r2, r3, range, layers, fl: fl.map(v => +v.toFixed(2)), chords: tr.score.bars.map(x => x.chord) };
+  check("ISS v2: ρ(гучність, к-сть спалахів) ≥ 0.8", r1 >= 0.8 && r3 >= 0.8, `ρ рівня = ${r1.toFixed(2)}, ρ суми сили нот = ${r3.toFixed(2)}`);
+  check("ISS v2: ρ(к-сть активних шарів, к-сть спалахів) ≥ 0.7", r2 >= 0.7, `ρ = ${r2.toFixed(2)}`);
+  check("ISS v2: діапазон гучності ≈ 18 дБ", range >= 14 && range <= 18.5, `${range.toFixed(1)} дБ`);
+  check("ISS v2: прогресія i–VI–III–VII і напруга в кульмінації", tr.score.bars.some(x => /VI/.test(x.chord)) && Math.max(...tr.score.bars.map(x => x.level)) >= 2, [...new Set(tr.score.bars.map(x => x.chord))].join(" "));
+});

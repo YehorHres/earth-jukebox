@@ -19,6 +19,8 @@ export function levelDb(mapping, b) {
   const bars = mapping.bars, u = k => c01(bars[k].params.drive ?? bars[k].params.energy);
   const x = b > 0 ? 0.75 * u(b) + 0.25 * u(b - 1) : u(b);
   // v10 §1 (завантажені відео): гучність — лише від «кількості» даних; форма й позиція в треку нічого не додають (вступ ≤ 2 такти — трохи тихіше)
+  // ISS-блискавки: гучність — від кількості спалахів, діапазон 18 дБ
+  if (mapping.meta?.pointStyle === "lightning") return LEVEL_DB[1] - 18 * (1 - c01(0.75 * (bars[b].params.points ?? u(b)) + 0.25 * (b > 0 ? bars[b - 1].params.points ?? u(b - 1) : bars[b].params.points ?? u(b))));
   if (mapping.meta?.quantity) return LEVEL_DB[0] + (LEVEL_DB[1] - LEVEL_DB[0]) * x + (bars[b].section === "intro" ? -1.5 : 0);
   // форма: вступ — тихо (нижня третина діапазону), кульмінація — найгучніше (верх діапазону + 1 дБ)
   const sec = bars[b].section, y = sec === "intro" ? 0.25 * x : sec === "climax" ? Math.max(x, 0.75) : x;

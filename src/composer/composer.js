@@ -20,6 +20,7 @@ import { colorByTopic } from "./topic-color.js";
 import { GRAMMAR_PARTS, soloTimbres } from "./parts/grammar-parts.js";
 import { TEXTURES } from "../mapping/identity.js";
 import { UPLOAD_PARTS } from "./parts/upload-parts.js";
+import { STORM_PARTS, stormBar } from "./parts/storm-parts.js";
 import { LEAD_PARTS, FOREGROUND_MAX, earconsFor, partPriority, PARTS_MAX, SIGNAL_PARTS, partsCap, voiceOf, motifFor } from "../grammar.js";
 
 // порядок = номери клавіш 1–9 для mute/solo
@@ -55,7 +56,9 @@ export function compose(mapping, { seed = "earth-jukebox", style = null, grammar
   // голос даних — перша партія (клавіша 1); решта партій граматики — після супроводу
   const G = grammar ? GRAMMAR_PARTS : [];
   // v10: партії завантажених відео (точки, «згоріло», соліст «де більше») — звучать лише коли мапер дав їм параметри
-  const parts = [...G.slice(0, 1), ...PARTS.filter(p => allowed.has(p.id)), ...G.slice(1), ...(grammar ? UPLOAD_PARTS : [])];
+  // ISS-блискавки: власний склад — шари вступають за кількістю спалахів (parts/storm-parts.js)
+  const storm = grammar && meta.pointStyle === "lightning";
+  const parts = storm ? [G[0], UPLOAD_PARTS[0], ...STORM_PARTS, UPLOAD_PARTS[2], ...G.filter(q => q.id === "earcons")] : [...G.slice(0, 1), ...PARTS.filter(p => allowed.has(p.id)), ...G.slice(1), ...(grammar ? UPLOAD_PARTS : [])];
   instr.soloists = soloTimbres(instr)[0];
   // етап 16: порядок, у якому партії отримують місце в такті, — за розділом форми (бюджет ≤ PARTS_MAX); без граматики — як раніше, без ліміту
   const orders = {};
@@ -73,6 +76,22 @@ export function compose(mapping, { seed = "earth-jukebox", style = null, grammar
     const last = b === bars.length - 1, climax = grammar && bar.section === "climax";
     const ctx = { bar, h: harmony.bars[b], nextH: harmony.bars[b + 1], prevH: harmony.bars[b - 1], beat, rng, meta, meter, profile, instr, o, bars, b, grammar, opts };
     const active = [], lead = [];
+    if (storm) {
+      const r = stormBar({ ...ctx, tonic: ((harmony.bars[0].root % 12) + 12) % 12 }, state, notes);
+      // соліст «де більше» (ноти — з акорду грози) і звуки-знаки подій лишаються
+      const lead = [];
+      for (const part of [r.x >= 0.1 ? G[0] : null, UPLOAD_PARTS[2], G.find(q => q.id === "earcons")]) {
+        if (!part || !part.active(o, ctx)) continue;
+        const out = []; part.render({ ...ctx, state: (state[part.id] ||= {}) }, out);
+        if (!out.length) continue;
+        if (part.grammar) lead.push(part.id);
+        for (const n of out) {
+          if (part.id === "dataVoice" && n.midi > 0) { const tn = ((harmony.bars[0].root % 12) + 12) % 12; while (![0, 2, 3, 5, 7, 8, 10].includes(((n.midi - tn) % 12 + 12) % 12)) n.midi--; n.vel *= 0.35 + 0.65 * r.x; }
+          if (n.hot) n.midi = r.chord.pcs.reduce((m, pc) => { const c = Math.round((n.midi - pc) / 12) * 12 + pc; return Math.abs(c - n.midi) < Math.abs(m - n.midi) ? c : m; }, 999); notes.push({ part: part.id, pan: bar.params.pan * 0.4, ...n, inst: n.inst || instr[part.id] }); }
+      }
+      barInfo.push({ active: r.active, lead, streams: 0, count: r.active.length, sustained: r.active.length, cap: 5, why: `Гроза: ${r.chord.name}, напруга ${r.chord.tension}/3 — за кількістю спалахів`, mode: harmony.bars[b].mode.label, level: r.chord.tension, chord: r.chord.name, flashes: r.x });
+      continue;
+    }
     // вогники нічної карти — головна текстура: поза вступом і фіналом не забирають місце в супроводу
     const up = (bar.params.points !== undefined ? 1 : 0) + (bar.params.burned !== undefined ? 1 : 0) + (bar.params.hot && bar.section !== "intro" ? 1 : 0) + (meta.twoVoices && bar.section !== "intro" ? 1 : 0);      // точки, «згоріло» й соліст «де більше» не забирають місце в супроводу
     const cap = grammar ? Math.min(PARTS_MAX, partsCap(bar, last) + (lights && bar.section !== "intro" && !last ? 1 : 0) + up) : Infinity;
