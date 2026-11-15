@@ -9,6 +9,7 @@
 <link rel="stylesheet" href="src/style.css">
 </head>
 <body>
+<a class="skip-link" href="#controls-panel">Перейти до керування відтворенням</a>
 <header>
   <h1>
     <svg class="logo" viewBox="0 0 48 48" aria-hidden="true" focusable="false">
@@ -82,7 +83,7 @@
     </details>
   </section>
 
-  <aside class="panel stack" aria-label="Керування">
+  <aside class="panel stack" aria-label="Керування" id="controls-panel" tabindex="-1">
     <div class="row" id="controls">
       <button id="play" class="primary" disabled aria-keyshortcuts="Space" data-icon="play">Грати</button>
       <button id="legendBtn" disabled aria-keyshortcuts="L" data-icon="sound">Аудіолегенда</button>
