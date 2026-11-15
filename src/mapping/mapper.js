@@ -9,6 +9,8 @@ import { meterOf } from "../composer/meter.js";
 import { polarity, orient, pickSoloZones, DEFAULT_TICK } from "../grammar.js";
 
 export const BPM_CAP = 130;
+/** Стеля темпу теми: за замовчуванням BPM_CAP; шторм (етап 17) — до 160 («дощ vs шторм»). */
+export const bpmCapFor = topic => topic?.soundProfile?.bpmCap ?? BPM_CAP;
 /** Ширина події в кадрах: скільки сусідніх кадрів тримається вище половини її висоти над фоном (±10 кадрів). */
 function eventWidth(x, f) {
   if (!x) return 99;
@@ -127,8 +129,8 @@ export function mapAnalysis(a, preset, { topic = null, timeUnit = null } = {}) {
     tempoX = clamp((mean(all) - tp.in[0]) / (tp.in[1] - tp.in[0]));
   }
   const bpmRange = sp.bpm || tp.bpm;
-  // темп один на весь трек (не змінюється посеред фраз), тому стеля — BPM_CAP для всіх тем
-  const bpm = Math.min(BPM_CAP, Math.round(bpmRange[0] + (bpmRange[1] - bpmRange[0]) * tempoX));
+  // темп один на весь трек (не змінюється посеред фраз); стеля — BPM_CAP (або bpmCap теми)
+  const bpm = Math.min(bpmCapFor(topic), Math.round(bpmRange[0] + (bpmRange[1] - bpmRange[0]) * tempoX));
   why.tempo = `${bpm} BPM: діапазон теми ${bpmRange[0]}–${bpmRange[1]}, позиція ${Math.round(tempoX * 100)} % — ${tp.why.toLowerCase()}`;
   const meter = meterOf(sp.meter);
   why.meter = `Розмір ${meter.label} — характер теми${topic ? ` «${topic.name.uk}»` : ""}`;

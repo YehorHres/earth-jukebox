@@ -240,7 +240,17 @@ export function topicSynths({ out, env, osc, vibrato, mtof, bell }) {
       bp.frequency.setValueAtTime(300 + 900 * a, t);
       bp.frequency.linearRampToValueAtTime(500 + 1500 * a, t + n.dur / 2);
       bp.frequency.linearRampToValueAtTime(300 + 900 * a, t + n.dur);
-      noiseSrc(eng, t, stop).connect(bp).connect(g).connect(panner(eng, dest, t, n));
+      const dst = panner(eng, dest, t, n);
+      noiseSrc(eng, t, stop).connect(bp).connect(g).connect(dst);
+      if (n.whistle) {
+        // свист (етап 17, шторми): вузька смуга шуму, що ковзає вгору-вниз з поривом
+        const wb = ctx.createBiquadFilter(); wb.type = "bandpass"; wb.Q.value = 18;
+        wb.frequency.setValueAtTime(1200 + 1200 * a, t);
+        wb.frequency.linearRampToValueAtTime(1800 + 2400 * a, t + n.dur * 0.6);
+        wb.frequency.linearRampToValueAtTime(1300 + 1000 * a, t + n.dur);
+        const wg = ctx.createGain(); wg.gain.value = 2.2;
+        noiseSrc(eng, t, stop).connect(wb).connect(wg).connect(g);
+      }
     },
     rain(eng, dest, n, t) {
       // шум дощу + краплі (короткі клацання), к-сть крапель = інтенсивність

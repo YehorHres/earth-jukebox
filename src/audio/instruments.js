@@ -12,7 +12,7 @@ export const INSTRUMENT_LABEL = {
   harp: "арфа", celesta: "челеста", glockenspiel: "глокеншпіль", bells: "дзвони", violin: "скрипка", flute: "флейта",
   subbass: "саб-бас", thunder: "грім", tuba: "туба", organ: "орган", choir: "хор", warmpad: "теплий пед", glasspad: "холодний (скляний) пед",
   tremolo: "тремоло струнних", pizz: "піцикато струнних", marimba: "маримба", kalimba: "калімба", glass: "скло", harmonics: "флажолети",
-  fmbell: "FM-дзвони", clarinet: "кларнет", bassoon: "фагот", snare: "малий барабан",
+  fmbell: "FM-дзвони", feltpiano: "м'яке фортепіано (felt)", clarinet: "кларнет", bassoon: "фагот", snare: "малий барабан",
   wind: "вітер", rain: "дощ", waves: "хвилі", crackle: "тріск вогню", air: "повітря", granular: "гранулярна текстура",
   tuba: "туба", trombone: "тромбон", trumpet: "труба", saxophone: "саксофон", organ: "орган", harmonium: "фісгармонія",
   xylophone: "ксилофон", guitar: "акустична гітара", eguitar: "електрогітара", handpan: "ханпан", lead: "синт-лід", pluck: "синт-щипок",
@@ -218,7 +218,7 @@ function playSample(eng, dest, n, t, s, inst) {
   const g = ctx.createGain();
   const sustained = SUSTAINED.has(inst);
   const level = (SAMPLE_LEVEL[inst] ?? 0.5) * n.vel;
-  const a = sustained ? (n.legato === false ? 0.03 : 0.12) : 0.002;
+  const a = sustained ? (n.legato === false ? 0.03 : 0.12) : n.soft ? 0.035 : 0.002;
   g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(level, t + a);
   const rel = sustained ? 0.35 : 0.6;
   g.gain.setTargetAtTime(0.0001, t + Math.max(n.dur, a + 0.02), rel / 3);
@@ -237,6 +237,9 @@ export const FALLBACK = { tuba: "tuba", trombone: "brass", trumpet: "brass", sax
 
 /** Зіграти ноту: семпл, якщо є (і для тривалої ноти семпл досить довгий), інакше синтезатор — музика ніколи не мовчить. */
 export function playNote(eng, dest, inst, n, t) {
+  // м'яке фортепіано (етап 17, лід): семпли фортепіано з low-pass і м'якою атакою
+  if (inst === "feltpiano") { inst = "piano"; n = { ...n, lp: n.lp ?? 1500, soft: true }; }
+  dest = shapeNote(eng, dest, n, t);
   const s = samplers.get(inst);
   if (s) {
     // тривала нота довша за семпл — синтезатор (без обриву звуку посеред ноти)
@@ -247,4 +250,22 @@ export function playNote(eng, dest, inst, n, t) {
   (SYNTH[inst] || SYNTH[FALLBACK[inst]] || SYNTH.piano)(eng, dest, n, t);
 }
 
+/**
+ * Обробка однієї ноти (етап 17): n.lp — low-pass (Гц: «закритий» тембр, прохолода, задуха);
+ * n.flutter — тремоло гучності (Гц: нервові духові на поривах). Без полів — нота як була.
+ */
+function shapeNote(eng, dest, n, t) {
+  const ctx = eng.ctx;
+  let d = dest;
+  if (n.lp) { const f = ctx.createBiquadFilter(); f.type = "lowpass"; f.frequency.value = n.lp; f.Q.value = 0.5; f.connect(d); d = f; }
+  if (n.flutter) {
+    const g = ctx.createGain(), lfo = ctx.createOscillator(), depth = ctx.createGain();
+    g.gain.value = 0.65; depth.gain.value = 0.35; lfo.frequency.value = n.flutter;
+    lfo.connect(depth).connect(g.gain); lfo.start(t); lfo.stop(t + (n.dur || 0.5) + 1.5);
+    g.connect(d); d = g;
+  }
+  return d;
+}
+
+SYNTH.feltpiano = (eng, dest, n, t) => SYNTH.piano(eng, dest, n, t);
 export const synthNames = () => Object.keys(SYNTH);
