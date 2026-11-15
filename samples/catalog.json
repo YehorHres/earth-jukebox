@@ -3,6 +3,7 @@
     "id": "ecco2_sst_flow",
     "topic": "ocean-currents",
     "title": "Течії та температура океану (ECCO2)",
+    "title_en": "Ocean currents and temperature (ECCO2)",
     "kind": "video",
     "src": [
       "samples/ecco2_sst_flow.webm",
@@ -11,25 +12,36 @@
     "analysis": "samples/ecco2_sst_flow.analysis.json",
     "projection": "equirect",
     "colorMore": "тепліша вода",
+    "colorMore_en": "warmer water",
     "desc": "Течії поверхні Світового океану за моделлю ECCO2. Колір ліній — температура води: синій холодний, зелений і жовтий помірні, червоний теплий. Сіре — суша. Карта світу в рівнокутній проєкції: захід ліворуч, схід праворуч, північ угорі.",
+    "desc_en": "Surface currents of the world ocean from the ECCO2 model. Line colour is water temperature: blue is cold, green and yellow are moderate, red is warm. Grey is land. A world map in an equirectangular projection: west on the left, east on the right, north at the top.",
     "legend": {
       "cold": "холодна вода (синій)",
-      "warm": "тепла вода (червоний)"
+      "cold_en": "cold water (blue)",
+      "warm": "тепла вода (червоний)",
+    "warm_en": "warm water (red)"
     },
     "credit": "NASA/Goddard Space Flight Center Scientific Visualization Studio, дані ECCO2 (MIT/JPL)",
+    "credit_en": "NASA/Goddard Space Flight Center Scientific Visualization Studio, ECCO2 data (MIT/JPL)",
     "card": {
       "variable": "температура поверхні океану й течії (модель ECCO2)",
+      "variable_en": "sea surface temperature and currents (ECCO2 model)",
       "units": "колір — відносна шкала температури (у відео немає легенди)",
+      "units_en": "colour is a relative temperature scale (no legend in the video)",
       "region": "Світовий океан, рівнокутна проєкція",
+      "region_en": "World ocean, equirectangular projection",
       "years": "фрагмент модельного року",
+      "years_en": "part of a model year",
       "source": "https://svs.gsfc.nasa.gov/",
-      "authors": "NASA Goddard Scientific Visualization Studio; дані ECCO2 (MIT/JPL)"
+      "authors": "NASA Goddard Scientific Visualization Studio; дані ECCO2 (MIT/JPL)",
+    "authors_en": "NASA Goddard Scientific Visualization Studio; ECCO2 data (MIT/JPL)"
     }
   },
   {
     "id": "night_lights_rotating",
     "topic": "nightlights",
     "title": "Земля вночі: вогні міст (Suomi NPP)",
+    "title_en": "Earth at night: city lights (Suomi NPP)",
     "kind": "video",
     "src": [
       "samples/night_lights_rotating.webm",
@@ -38,15 +50,22 @@
     "analysis": "samples/night_lights_rotating.analysis.json",
     "projection": "globe",
     "colorMore": "більше світла",
+    "colorMore_en": "more light",
     "desc": "Земна куля обертається; видно нічну сторону планети. Яскраві золотисті точки — вогні міст і доріг, темні області — океани, пустелі, ліси й малозаселені землі. Дані супутника Suomi NPP (прилад VIIRS, канал день/ніч), 2012 рік.",
+    "desc_en": "The globe rotates, showing the night side of the planet. Bright golden points are the lights of cities and roads; dark areas are oceans, deserts, forests and sparsely populated land. Data from the Suomi NPP satellite (VIIRS instrument, day/night band), 2012.",
     "credit": "NASA Earth Observatory / NASA Goddard Space Flight Center Scientific Visualization Studio, дані Suomi NPP VIIRS (SVS 30082)",
+    "credit_en": "NASA Earth Observatory / NASA Goddard Space Flight Center Scientific Visualization Studio, Suomi NPP VIIRS data (SVS 30082)",
     "card": {
       "variable": "нічне світло (канал день/ніч приладу VIIRS)",
+      "variable_en": "night light (VIIRS day/night band)",
       "units": "яскравість (відносна)",
+      "units_en": "brightness (relative)",
       "region": "уся Земля, обертовий глобус",
+      "region_en": "the whole Earth, rotating globe",
       "years": "2012",
       "source": "https://svs.gsfc.nasa.gov/30082/",
-      "authors": "NASA Earth Observatory / NASA Goddard SVS; дані Suomi NPP VIIRS"
+      "authors": "NASA Earth Observatory / NASA Goddard SVS; дані Suomi NPP VIIRS",
+    "authors_en": "NASA Earth Observatory / NASA Goddard SVS; Suomi NPP VIIRS data"
     }
   },
   {
@@ -60,16 +79,25 @@
     "analysis": "samples/hurricane_beryl.analysis.json",
     "projection": "other",
     "colorMore": "вища яскравісна температура в мікрохвильовому каналі",
+    "colorMore_en": "higher brightness temperature in the microwave channel",
     "title": "Ураган Берил очима супутників TROPICS (2024)",
+    "title_en": "Hurricane Beryl seen by the TROPICS satellites (2024)",
     "desc": "Анімація починається з орбіт сузір'я малих супутників TROPICS; коли з'являється ураган Берил, камера наближається, і кожен прохід супутника додає смугу вимірювань — видно, як шторм розвивається. Смуги кольору — яскравісна температура в мікрохвильовому каналі 12, під ними — карта Карибського басейну.",
+    "desc_en": "The animation starts with the orbits of the TROPICS constellation of small satellites; when Hurricane Beryl appears, the camera zooms in and each satellite pass adds a strip of measurements — you can see the storm develop. The coloured strips are brightness temperature in microwave channel 12, over a map of the Caribbean.",
     "credit": "NASA Goddard Scientific Visualization Studio, місія TROPICS (SVS 5331)",
+    "credit_en": "NASA Goddard Scientific Visualization Studio, TROPICS mission (SVS 5331)",
     "card": {
       "variable": "яскравісна температура (мікрохвильовий канал 12, TROPICS)",
+      "variable_en": "brightness temperature (microwave channel 12, TROPICS)",
       "units": "колір — відносна шкала (легенди в кадрі немає)",
+      "units_en": "colour is a relative scale (no legend in the frame)",
       "region": "Атлантика й Карибський басейн",
+      "region_en": "Atlantic and the Caribbean",
       "years": "липень 2024",
+      "years_en": "July 2024",
       "source": "https://svs.gsfc.nasa.gov/5331/",
-      "authors": "NASA Goddard Scientific Visualization Studio; місія TROPICS"
+      "authors": "NASA Goddard Scientific Visualization Studio; місія TROPICS",
+    "authors_en": "NASA Goddard Scientific Visualization Studio; TROPICS mission"
     }
   },
   {
@@ -83,16 +111,25 @@
     "analysis": "samples/co2_oco2_year.analysis.json",
     "projection": "equirect",
     "colorMore": "більша концентрація CO₂",
+    "colorMore_en": "higher CO₂ concentration",
     "title": "Рік вимірювань CO₂ супутником OCO-2 (2014–2015)",
+    "title_en": "A year of CO₂ measured by OCO-2 (2014–2015)",
     "desc": "Концентрація вуглекислого газу за даними місії OCO-2 з вересня 2014 по серпень 2015, плоска карта світу. Протягом року видно, як CO₂ у північній півкулі зростає від зими до весни, а влітку, коли рослинність у розквіті, помітно спадає по всій північній півкулі.",
+    "desc_en": "Carbon dioxide concentration from the OCO-2 mission, September 2014 to August 2015, on a flat world map. Over the year you can see CO₂ in the northern hemisphere rise from winter to spring and then drop noticeably across the whole northern hemisphere in summer, when vegetation is in full bloom.",
     "credit": "NASA Goddard Scientific Visualization Studio, місія OCO-2 (SVS 4402)",
+    "credit_en": "NASA Goddard Scientific Visualization Studio, OCO-2 mission (SVS 4402)",
     "card": {
       "variable": "концентрація CO₂ у стовпі атмосфери (OCO-2)",
+      "variable_en": "column CO₂ concentration (OCO-2)",
       "units": "ppm — колір як відносна шкала (легенди в кадрі немає)",
+      "units_en": "ppm — colour as a relative scale (no legend in the frame)",
       "region": "уся Земля, рівнопроміжна (плоска) проєкція",
+      "region_en": "the whole Earth, equidistant (flat) projection",
       "years": "вересень 2014 — серпень 2015",
+      "years_en": "September 2014 — August 2015",
       "source": "https://svs.gsfc.nasa.gov/4402/",
-      "authors": "NASA Goddard Scientific Visualization Studio; місія Orbiting Carbon Observatory 2"
+      "authors": "NASA Goddard Scientific Visualization Studio; місія Orbiting Carbon Observatory 2",
+    "authors_en": "NASA Goddard Scientific Visualization Studio; Orbiting Carbon Observatory 2 mission"
     }
   },
   {
@@ -106,31 +143,44 @@
     "analysis": "samples/sea_ice_2022.analysis.json",
     "projection": "other",
     "colorMore": "більше білого — більше морського льоду",
+    "colorMore_en": "more white — more sea ice",
     "title": "Мінімум арктичного морського льоду 2022",
+    "title_en": "Arctic sea ice minimum 2022",
     "desc": "Арктика зверху: морський лід (білий) від зимового максимуму 25 лютого до літнього мінімуму 18 вересня 2022 року. Лід поступово тане й відступає від узбережь; під ним — океан і суходіл у справжніх кольорах.",
+    "desc_en": "The Arctic from above: sea ice (white) from its winter maximum on 25 February to its summer minimum on 18 September 2022. The ice gradually melts and retreats from the coasts; underneath are ocean and land in true colour.",
     "credit": "NASA Goddard Scientific Visualization Studio, дані Aqua/Terra (SVS 5030)",
+    "credit_en": "NASA Goddard Scientific Visualization Studio, Aqua/Terra data (SVS 5030)",
     "card": {
       "variable": "концентрація морського льоду (10 км, щоденно)",
+      "variable_en": "sea ice concentration (10 km, daily)",
       "units": "частка площі (білий — лід)",
+      "units_en": "area fraction (white is ice)",
       "region": "Арктика, вид згори",
+      "region_en": "Arctic, view from above",
       "years": "лютий — вересень 2022",
+      "years_en": "February — September 2022",
       "source": "https://svs.gsfc.nasa.gov/5030/",
-      "authors": "NASA Goddard Scientific Visualization Studio; дані Aqua, Terra"
+      "authors": "NASA Goddard Scientific Visualization Studio; дані Aqua, Terra",
+    "authors_en": "NASA Goddard Scientific Visualization Studio; Aqua, Terra data"
     }
   },
   {
     "id": "synthetic-dark",
     "topic": "nightlights",
     "title": "Тест: темна нічна карта з ледь помітними змінами",
+    "title_en": "Test: dark night map with barely visible changes",
     "kind": "synthetic",
     "synth": "dark-lights",
-    "desc": "Синтетичне тестове відео: темний фон, тьмяні вогні; праворуч кластер-«місто» повільно й ледь помітно яскравішає. Перевіряє, що двигун підсилює малі зміни чесно й пояснює це."
+    "desc": "Синтетичне тестове відео: темний фон, тьмяні вогні; праворуч кластер-«місто» повільно й ледь помітно яскравішає. Перевіряє, що двигун підсилює малі зміни чесно й пояснює це.",
+  "desc_en": "A synthetic test video: dark background, dim lights; on the right a “city” cluster slowly and barely visibly brightens. It checks that the engine amplifies small changes honestly and explains it."
   },
   {
     "id": "synthetic-static",
     "title": "Тест: статичне відео без змін",
+    "title_en": "Test: static video with no changes",
     "kind": "synthetic",
     "synth": "static-dark",
-    "desc": "Синтетичне тестове відео без жодних змін, лише шум стиснення. Двигун має сказати, що змін немає, і не вигадувати подій."
+    "desc": "Синтетичне тестове відео без жодних змін, лише шум стиснення. Двигун має сказати, що змін немає, і не вигадувати подій.",
+  "desc_en": "A synthetic test video with no changes at all, only compression noise. The engine must say there are no changes and not invent events."
   }
 ]

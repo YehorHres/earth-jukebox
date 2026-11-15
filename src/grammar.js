@@ -3,14 +3,14 @@
 // Тема змінює лише тембр (колір голосу даних, знаки-ерікони), а не правила.
 
 export const GRAMMAR = [
-  { data: "Значення головної величини (більше / менше за змістом теми)", sound: "Висота голосу даних: більше → вище (мотив теми транспонується)", part: "dataVoice" },
-  { data: "Площа / охоплення", sound: "Гучність (≈ 12 дБ) і кількість партій (2–3 → 6–7), ударні", part: "оркестровка" },
-  { data: "Швидкість змін", sound: "Густота ритму й темп (темп — лише між фразами)", part: "ритм" },
-  { data: "Аномалія, рекорд, невизначеність", sound: "Напруга: дисонанс, тремоло, шорсткість", part: "гармонія" },
-  { data: "Дискретна подія (спалах, новий об'єкт, різкий стрибок)", sound: "Ерікон — фіксований короткий звук-знак теми", part: "earcons" },
-  { data: "Положення по горизонталі (захід ↔ схід, ліво ↔ право диска)", sound: "Панорама: ліве ↔ праве вухо", part: "панорама" },
-  { data: "Положення по вертикалі", sound: "Висотою НЕ кодуємо (висота зайнята значенням) — повідомляємо голосом", part: "мовлення" },
-  { data: "Час відео", sound: "Час треку (опція: тихі «тіки» шкали часу)", part: "ticks" },
+  { data: "Значення головної величини (більше / менше за змістом теми)", sound: "Висота голосу даних: більше → вище (мотив теми транспонується)", part: "dataVoice", data_en: "Value of the main quantity (more / less, by the topic's meaning)", sound_en: "Pitch of the data voice: more → higher (the topic motif is transposed)" },
+  { data: "Площа / охоплення", sound: "Гучність (≈ 12 дБ) і кількість партій (2–3 → 6–7), ударні", part: "оркестровка", data_en: "Area / extent", sound_en: "Loudness (≈ 12 dB) and number of parts (2–3 → 6–7), drums" },
+  { data: "Швидкість змін", sound: "Густота ритму й темп (темп — лише між фразами)", part: "ритм", data_en: "Speed of change", sound_en: "Rhythmic density and tempo (tempo changes only between phrases)" },
+  { data: "Аномалія, рекорд, невизначеність", sound: "Напруга: дисонанс, тремоло, шорсткість", part: "гармонія", data_en: "Anomaly, record, uncertainty", sound_en: "Tension: dissonance, tremolo, roughness" },
+  { data: "Дискретна подія (спалах, новий об'єкт, різкий стрибок)", sound: "Ерікон — фіксований короткий звук-знак теми", part: "earcons", data_en: "Discrete event (flash, new object, sudden jump)", sound_en: "Earcon — a fixed short sound sign of the topic" },
+  { data: "Положення по горизонталі (захід ↔ схід, ліво ↔ право диска)", sound: "Панорама: ліве ↔ праве вухо", part: "панорама", data_en: "Horizontal position (west ↔ east, left ↔ right of the disc)", sound_en: "Panning: left ↔ right ear" },
+  { data: "Положення по вертикалі", sound: "Висотою НЕ кодуємо (висота зайнята значенням) — повідомляємо голосом", part: "мовлення", data_en: "Vertical position", sound_en: "NOT encoded by pitch (pitch is taken by the value) — announced by voice" },
+  { data: "Час відео", sound: "Час треку (опція: тихі «тіки» шкали часу)", part: "ticks", data_en: "Video time", sound_en: "Track time (option: quiet time-scale “ticks”)" },
 ];
 
 /** Діапазон голосу даних (MIDI) за замовчуванням; у теми — свій, під її інструмент (voiceOf). */
@@ -28,7 +28,7 @@ export const DUCK_DB = -14;
 /** Референсний тон на початку треку, с. Дрон-орієнтир і тіки шкали часу — лише як опція (compose({ drone, ticks })). */
 export const REF_INTRO = 1.5;
 /** Тіки шкали часу (опція): кожні 10 с, сильніший — кожен 4-й. */
-export const DEFAULT_TICK = { seconds: 10, strong: 4, label: "10 секунд" };
+export const DEFAULT_TICK = { seconds: 10, strong: 4, label: "10 секунд", label_en: "10 seconds" };
 
 /** Партії граматики (не супровід). */
 export const LEAD_PARTS = ["dataVoice", "soloists", "reference", "ticks", "earcons"];
@@ -146,6 +146,15 @@ const EARCONS = {
     E("exhale", "down", "видих", "CO₂ найменше", { noise: [1300, 240, 1.5], dur: 0.6 }),
     COMMON_JUMP,
   ],
+};
+/** Англійські назви й значення ериконів (id → [назва, що означає]) — лише тексти для інтерфейсу. */
+export const EARCONS_EN = {
+  jump: ["thud", "a sharp regime change"], up: ["rising signal", "a peak or record"], down: ["falling signal", "a dip or minimum"],
+  gust: ["wind gust", "the storm intensifies"], calm: ["wind dies down", "the storm weakens"], lightning: ["lightning", "a sudden jump"],
+  crack: ["crack", "the most ice"], drop: ["drop", "the least ice, melting"],
+  spark: ["spark", "more lights"], fade: ["fade", "fewer lights"],
+  flare: ["flare", "the most fires"], hiss: ["hiss", "the fire dies down"], crackle: ["crackle", "a sharp change"],
+  puff: ["puff", "the most CO₂"], exhale: ["exhale", "the least CO₂"],
 };
 /** 2–4 знаки теми, однакові по всьому треку. */
 export const earconsFor = topicId => EARCONS[topicId] || DEFAULT_EARCONS;
