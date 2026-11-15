@@ -107,7 +107,8 @@ async function loadSource(title, open, item) {
       precomputedUrl: NO_CACHE ? null : item?.analysis || null,
       useCache: !NO_CACHE,
       scaleHint,
-      motion: item ? item.motionType || "temporal" : null,   // галерея — як раніше; своє відео — тип руху визначається сам
+      motion: item ? item.motionType || "temporal" : null,
+      layout: !item,                                           // static / chart / composite — лише для своїх відео   // галерея — як раніше; своє відео — тип руху визначається сам
       onProgress: (stage, p, msg, profile) => {
         if (stage === "A") { setProgress(p * 0.15); setStatus(msg); }
         if (stage === "A-done") { app.profile = profile; renderCard(false); drawMasks(); }
@@ -119,6 +120,8 @@ async function loadSource(title, open, item) {
       },
     });
     app.profile = app.analysis.profile;
+    // статичне відео або графік: звучить сканування кадру — показуємо цей кадр і лінію сканування
+    if (app.analysis.replacedSource) { src = app.source = app.analysis.replacedSource; showMedia(src); }
     const dt = ((performance.now() - t0) / 1000).toFixed(1);
     setProgress(1);
     const how = app.analysis.fromCache ? "Аналіз узято з кешу" : app.analysis.fromPrecomputed ? "Готовий аналіз завантажено" : `Аналіз виконано за ${dt} с`;
@@ -183,7 +186,8 @@ function showReadOptions(item) {
   $("read-opts").hidden = !show;
   if (!show) return;
   $("polarity").value = app.polarityChoice || "auto";
-  $("motion-row").hidden = $("motion-hint").hidden = !mo || app.source?.kind !== "video";
+  $("motion-row").hidden = $("motion-hint").hidden = !mo || (app.source?.kind !== "video" && !app.source?.scan) || !!app.stillProfile;
+  $("motionType").disabled = ["static", "chart"].includes(mo?.type);   // ці типи вже замінили відео скануванням кадру
   if (!mo) return;
   if (![...$("motionType").options].some(o => o.value === mo.type)) $("motionType").add(new Option(MOTION_LABEL[mo.type] || mo.type, mo.type));
   $("motionType").value = mo.type;

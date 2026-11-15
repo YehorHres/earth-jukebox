@@ -12,7 +12,8 @@ import { cacheGet, cachePut } from "./cache.js";
 import { listFeatures, getFeature, MAIN_FEATURE } from "../features/index.js";
 import { BANDS } from "../features/zones.js";
 import { median, percentile, smooth, autocorr, std, mean } from "../util/stats.js";
-import { classifyMotion, applyMotion } from "./motion.js";
+import { classifyMotion, applyMotion, MOTION_LABEL } from "./motion.js";
+import { stillFromVideo, extractChartLines, applyChart, LAYOUT_NOTE } from "./layout.js";
 
 export const ANALYSIS_VERSION = 9;
 
@@ -31,9 +32,10 @@ const STORY = {
   mixed: { feature: "brightness", text: "найяскравіший момент" },
 };
 
-export async function analyzeSource(source, { sceneOverride = null, projection = "equirect", onProgress = () => {}, useCache = true, precomputedUrl = null, scaleHint = null, motion = null, palette = null } = {}) {
+export async function analyzeSource(source, { sceneOverride = null, projection = "equirect", onProgress = () => {}, useCache = true, precomputedUrl = null, scaleHint = null, motion = null, palette = null, layout = false } = {}) {
+  // layout (блок F, лише завантажені відео): static → сканування кадру, chart → лінії графіка, composite → найбільша панель
   // motion: null — тип руху визначається автоматично (завантажені відео); "temporal" — галерея (поведінка як раніше)
-  const key = `v${ANALYSIS_VERSION}|${source.key}|${sceneOverride || ""}|${projection}${motion ? "" : "|m2"}`;
+  const key = `v${ANALYSIS_VERSION}|${source.key}|${sceneOverride || ""}|${projection}${motion ? "" : "|m2"}${layout ? "|L1" : ""}`;
   const autoPalette = palette ?? !motion;          // палітра без легенди — лише для завантажених файлів
   if (useCache) {
     const hit = await cacheGet(key);
@@ -44,9 +46,27 @@ export async function analyzeSource(source, { sceneOverride = null, projection =
     if (pre) { onProgress("cache", 1, "Готовий аналіз завантажено"); return pre; }
   }
   const t0 = performance.now();
-  const profile = await passA(source, { sceneOverride, scaleHint, autoPalette, onProgress: (p, msg) => onProgress("A", p, msg) });
+  const profile = await passA(source, { sceneOverride, scaleHint, autoPalette, autoLayout: layout, onProgress: (p, msg) => onProgress("A", p, msg) });
   // проєкція: «equirect» — плоска карта світу (колонки = довгота, рядки = широта); «globe» / «other» — ні
   profile.projection = projection;
+  if (layout && !motion && !profile.isStill && !source.scan && source.duration > 0) {
+    const chart = profile.sceneType === "chart", flat = profile.changeScale === "none";
+    if (chart || flat) {
+      // графік читаємо з останнього кадру (лінія домальована до кінця); статичне відео — із середнього
+      const still = await stillFromVideo(source, chart ? source.duration - 0.05 : source.duration / 2);
+      const lines = chart ? extractChartLines(still.el.getContext("2d").getImageData(0, 0, still.width, still.height).data, still.width, still.height) : null;
+      if (flat || lines.lines.length) {
+        const prep = await prepareImageScan(still, "we");
+        const a = await analyzeSource(prep.source, { sceneOverride, projection, onProgress, useCache: false, scaleHint: prep.scaleHint, motion: "temporal", palette: autoPalette });
+        if (chart && lines.lines.length) applyChart(a, lines);
+        else a.motion = { type: "static", auto: true, confidence: 1, label: MOTION_LABEL.static, note: LAYOUT_NOTE.static, why: "зміни у відео менші за шум" };
+        a.key = key;
+        // джерело для показу й курсора сканування (не серіалізується й не кешується)
+        Object.defineProperty(a, "replacedSource", { value: prep.source, enumerable: false });
+        return a;
+      }
+    }
+  }
   onProgress("A-done", 1, "Огляд завершено", profile);
   const pb = await passB(source, profile, { onProgress: (p, i, n) => onProgress("B", p, `Аналізую кадр ${i} з ${n}`) });
   const analysis = buildAnalysis(profile, pb, { motion });
@@ -219,7 +239,12 @@ export function buildAnalysis(profile, pb, { motion = null } = {}) {
   if (motion === "temporal") return analysis;
   const detected = motion ? { type: motion, auto: false, confidence: 1, why: "задано вручну", stats: {} } : classifyMotion(frames, profile, valid);
   analysis.motion = detected;
-  return applyMotion(analysis, detected.type, { auto: detected.auto });
+  const out = applyMotion(analysis, detected.type, { auto: detected.auto });
+  if (profile.panels) {
+    out.layout = { type: "composite", panels: profile.panels, note: `${LAYOUT_NOTE.composite} Панелей: ${profile.panels.length}; найбільша займає ${Math.round(profile.panels[0].area * 100)} % кадру.` };
+    if (out.motion.type === "temporal") out.motion = { ...out.motion, type: "composite", label: MOTION_LABEL.composite, note: out.layout.note, why: `знайдено ${profile.panels.length} панелі, розділені суцільними смугами` };
+  }
+  return out;
 }
 
 /** «Гарячі точки»: top-3 клітинки сітки з найбільшою зміною за відео — «солісти» оркестру. */

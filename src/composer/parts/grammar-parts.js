@@ -167,4 +167,18 @@ export const earcons = {
   },
 };
 
-export const GRAMMAR_PARTS = [dataVoice, soloists, reference, ticks, earcons];
+// Другий голос (блок F): друга лінія графіка — нижче за голос даних, іншим тембром, праворуч. Звучить лише коли є params.value2.
+export const secondVoice = {
+  id: "secondVoice", grammar: true,
+  label: "Другий голос (друга лінія графіка)",
+  role: "Друга лінія графіка: вища лінія — вища нота; інший тембр, октавою нижче, у правому вусі",
+  active: (o, ctx) => ctx.bar.params.value2 !== undefined,
+  render(ctx, out) {
+    const { bar, bars, b, meter, h, meta, instr } = ctx, range = voiceOf(meta.topic).range;
+    const v0 = bar.params.value2, v1 = bars[b + 1]?.params.value2 ?? v0, half = meter.steps / 2, stepDur = bar.dur / meter.steps;
+    const inst = soloTimbres(instr)[1] || soloTimbres(instr)[0] || "clarinet";
+    [0, half].forEach((s, k) => out.push({ inst, t: bar.t0 + s * stepDur, midi: snapToMode(Math.round(valueToMidi(k ? (v0 + v1) / 2 : v0, range)) - 12, h.root, h.mode), dur: half * stepDur * 0.95, vel: 0.6, pan: 0.6, line: 2 }));
+  },
+};
+
+export const GRAMMAR_PARTS = [dataVoice, soloists, reference, ticks, earcons, secondVoice];

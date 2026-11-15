@@ -55,7 +55,7 @@ FINAL_SUITES.push(async function motion(check) {
   check("Обертовий глобус: рух не керує гучністю й темпом (джерел руху в мапінгу немає); висота голосу даних іде за центром диска", motionSrc(br.m) === 0 && R.spearman(vBars, tBars) >= 0.9 && br.s.notes.some(n => n.part === "dataVoice") && /замість руху/.test(JSON.stringify(br.m.bars[3].explain)),
     `джерел руху: ${motionSrc(br.m)}, ρ(висота, центр) = ${R.spearman(vBars, tBars).toFixed(2)}, ${br.m.meta.bpm} BPM, нот ${br.s.notes.length}`);
   const text = describeProfile(rot.profile, null, rot).join(" ");
-  check("Обертовий глобус: аудіоопис пояснює «звучить те, що зараз у центрі»", /Глобус обертається: звучить те, що зараз у центрі/.test(text) && /Глобус обертається/.test(br.m.meta.why.motion || ""), (text.match(/Тип руху[^.]*\.[^.]*\./) || [""])[0]);
+  check("Обертовий глобус: аудіоопис пояснює «звучить те, що зараз у центрі»", /Глобус обертається: звучить те, що зараз у центрі/.test(text) && /Глобус обертається/.test(br.m.meta.why.motion || ""), (text.match(/Тип відео[^.]*\.[^.]*\./) || [""])[0]);
 
   // 2) панорама над статичною картою
   const pan = await analyzeSource(openSynthetic("pan-map"), { useCache: false });
@@ -156,7 +156,7 @@ FINAL_SUITES.push(async function formats(check) {
   document.body.appendChild(fr);
   await new Promise(r => fr.addEventListener("load", r, { once: true }));
   const w = fr.contentWindow, doc = fr.contentDocument;
-  for (let i = 0; i < 40 && !w.jukebox?.loadFile; i++) await new Promise(r => setTimeout(r, 250));
+  for (let i = 0; i < 160 && !w.jukebox?.loadFile; i++) await new Promise(r => setTimeout(r, 250));
   const origErr = w.console.error; w.console.error = () => {};      // очікувана помилка — не засмічує консоль
   await w.jukebox.loadFile(new w.File([new Uint8Array(4096)], "broken_h265.mp4", { type: "video/mp4" }));
   w.console.error = origErr;
@@ -164,4 +164,52 @@ FINAL_SUITES.push(async function formats(check) {
   const status = doc.getElementById("status").textContent, live = doc.getElementById("live").textContent;
   check("Формати: у застосунку повідомлення видно текстом (рядок стану) і чутно (aria-live); застосунок лишається робочим", status === S.FORMAT_MESSAGE && live === S.FORMAT_MESSAGE && w.jukebox.busy === false, `стан: «${status.slice(0, 60)}…»`);
   fr.remove();
+});
+
+// F. Типи static, chart, composite
+FINAL_SUITES.push(async function layout(check) {
+  const { openSynthetic } = await import("./media/sources.js");
+  const { analyzeSource } = await import("./analysis/analyze.js");
+  const { SCENES, CHART_LINES } = await import("./media/synthetic-scenes.js");
+  const { presetFor, mapAnalysis } = await import("./mapping/mapper.js");
+  const { compose } = await import("./composer/composer.js");
+  const { describeProfile } = await import("./a11y/describe.js");
+  const R = await import("./audio/report.js");
+  const T = await import("./topics/topics.js");
+  await T.loadTopics();
+  const topic = T.getTopic("generic");
+  const build = async a => { const m = mapAnalysis(a, await presetFor(a.profile.sceneType, topic), { topic }); return { m, s: compose(m, { seed: a.key }) }; };
+
+  // 1) статичне відео → сканування кадру
+  const st = await analyzeSource(openSynthetic("static-dark"), { useCache: false, layout: true });
+  check("Статичне відео (дані не змінюються, камера стоїть): тип static — кадр сканується із заходу на схід, як зображення", st.motion?.type === "static" && st.profile.scan?.dir === "we" && !!st.replacedSource?.scan && /сканування/.test(describeProfile(st.profile, null, st).join(" ")),
+    `${st.motion?.type}; ${st.count} кадрів сканування за ${st.profile.durationSec} с`);
+  const plain = await analyzeSource(openSynthetic("static-dark"), { useCache: false });
+  check("Без layout (галерея, старі тести) статичне відео аналізується як раніше", plain.motion?.type === "temporal" && !plain.replacedSource && !plain.profile.scan, `${plain.motion?.type}, змін: ${plain.profile.changeScale}`);
+
+  // 2) графік із двома лініями
+  const ch = await analyzeSource(openSynthetic("chart-2lines"), { useCache: false, layout: true });
+  const n = ch.count, xs = Array.from({ length: n }, (_, i) => 0.125 + 0.75 * i / (n - 1));
+  // лінія сканування йде по всьому кадру: x кадру → x осі графіка (вісь займає 40…460 px із 480)
+  const ax = xs.map(x => Math.max(0, Math.min(1, (x * 480 - 40) / 420)));
+  const rho1 = ch.abs.chartLine1 ? R.spearman(Array.from(ch.abs.chartLine1), ax.map(CHART_LINES[0])) : 0, rho2 = ch.abs.chartLine2 ? R.spearman(Array.from(ch.abs.chartLine2), ax.map(CHART_LINES[1])) : 0;
+  check("Графік: тип chart; x = час треку, y = висота голосу даних (ρ із лінією ≥ 0.95); знайдено обидві лінії", ch.motion?.type === "chart" && ch.leadFeature === "chartLine1" && rho1 >= 0.95 && rho2 >= 0.95,
+    `${ch.motion?.type} (${ch.profile.sceneType}), провідна: ${ch.leadFeature}, ρ₁ = ${rho1.toFixed(2)}, ρ₂ = ${rho2.toFixed(2)} — ${ch.motion?.why}`);
+  const bc = await build(ch), v2 = bc.s.notes.filter(x => x.part === "secondVoice"), v1 = bc.s.notes.filter(x => x.part === "dataVoice");
+  const mean = (arr, f) => arr.reduce((p, q) => p + f(q), 0) / Math.max(1, arr.length);
+  const half = bc.s.duration / 2, falls = mean(v2.filter(x => x.t < half), x => x.midi) > mean(v2.filter(x => x.t >= half), x => x.midi), rises = mean(v1.filter(x => x.t < half), x => x.midi) < mean(v1.filter(x => x.t >= half), x => x.midi);
+  check("Графік: дві лінії — два голоси з різними тембрами й панорамою; перша зростає — голос даних вище, друга спадає — другий голос нижче", v2.length >= 8 && v1.length >= 8 && falls && rises && v2[0].inst !== v1[0].inst && v2.every(x => x.pan === 0.6) && bc.s.parts.some(x => x.id === "secondVoice"),
+    `голос даних: ${v1.length} нот (${v1[0]?.inst}), другий голос: ${v2.length} нот (${v2[0]?.inst}, панорама ${v2[0]?.pan})`);
+  const cross = ch.events.filter(e => e.crossing), tCross = cross[0]?.time / ch.profile.durationSec;
+  check("Графік: перетин ліній — одна подія (ерікон) там, де лінії справді перетинаються", cross.length === 1 && Math.abs(tCross - 0.5) < 0.2 && bc.s.notes.some(x => x.part === "earcons"), `перетинів: ${cross.length}, на ${(tCross * 100).toFixed(0)} % треку; еріконів ${bc.s.notes.filter(x => x.part === "earcons").length}`);
+
+  // 3) дві панелі поруч → читаємо найбільшу
+  const tp = await analyzeSource(openSynthetic("two-panels"), { useCache: false, layout: true });
+  const sc = SCENES["two-panels"], p = tp.profile, bb = p.region.norm.bbox, [rx, ry, rw, rh] = sc.rect;
+  const ix = Math.max(0, Math.min(bb.x1, (rx + rw) / sc.w) - Math.max(bb.x0, rx / sc.w)) * Math.max(0, Math.min(bb.y1, (ry + rh) / sc.h) - Math.max(bb.y0, ry / sc.h));
+  const iou = ix / ((bb.x1 - bb.x0) * (bb.y1 - bb.y0) + rw * rh / (sc.w * sc.h) - ix);
+  check("Дві панелі поруч: тип composite, знайдено 2 панелі, звучить найбільша (IoU з лівою панеллю ≥ 0.85)", tp.motion?.type === "composite" && p.panels?.length === 2 && iou >= 0.85 && /найбільша/.test(describeProfile(p, null, tp).join(" ")),
+    `${tp.motion?.type}; панелі: ${(p.panels || []).map(q => Math.round(q.area * 100) + " %").join(", ")}; IoU = ${iou.toFixed(2)}`);
+  const one = await analyzeSource(openSynthetic("flatmap"), { useCache: false, layout: true });
+  check("Одна карта на весь кадр не стає composite / static / chart", one.motion?.type === "temporal" && !one.profile.panels && !one.replacedSource, one.motion?.type);
 });

@@ -23,7 +23,9 @@ export const MOTION_NOTE = {
   "camera-pan-zoom": "Камера рухається над картою: звучить те, що зараз у кадрі. Рух камери не дає подій і не керує гучністю.",
 };
 /** Тип руху, для якого рух у кадрі не є зміною даних. */
-export const motionOff = a => !!a?.motion && a.motion.type !== "temporal";
+/** Типи, для яких рух у кадрі — не зміна даних (static / chart / composite читаються як звичайний або сканований кадр). */
+export const MOTION_OFF = ["rotating-globe", "camera-pan-zoom"];
+export const motionOff = a => MOTION_OFF.includes(a?.motion?.type);
 
 /**
  * Глобальний зсув текстури prev → cur у центральному вікні кадру (центр диска / карти).
@@ -149,7 +151,7 @@ function flashes(a, feature) {
 export function applyMotion(a, type, { auto = false } = {}) {
   const base = a.temporalBase || { events: a.events, leadFeature: a.leadFeature, hotspots: a.hotspots, period: a.period, climax: a.climax, keyFeatures: a.keyFeatures };
   const motion = { ...(a.motion || {}), type, auto, label: MOTION_LABEL[type], note: MOTION_NOTE[type] || "" };
-  if (type === "temporal" || a.count < 2) return { ...a, ...base, temporalBase: base, motion };
+  if (!MOTION_OFF.includes(type) || a.count < 2) return { ...a, ...base, temporalBase: base, motion };
   const out = { ...a, temporalBase: base, motion, abs: { ...a.abs }, rel: { ...a.rel }, norm: { ...a.norm }, rank: { ...a.rank }, temporal: { ...a.temporal }, labels: { ...a.labels } };
   let lead = base.leadFeature && !/^hotspot/.test(base.leadFeature) ? base.leadFeature : a.mainFeature;
   if (type === "rotating-globe") {

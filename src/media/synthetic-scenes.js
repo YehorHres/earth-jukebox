@@ -255,3 +255,36 @@ Object.assign(SCENES, {
   "green-map": { w: 480, h: 240, duration: 12, fps: 10, shape: "full", palette: "green", draw(g, t, W, H) { drawValueMap(g, W, H, t, PALETTES.green); }, truth: () => true },
   "viridis-map": { w: 480, h: 240, duration: 12, fps: 10, shape: "full", palette: "viridis", draw(g, t, W, H) { drawValueMap(g, W, H, t, PALETTES.viridis); }, truth: () => true },
 });
+
+/* ---------- блок F: графік із двома лініями; дві панелі поруч ---------- */
+/** Лінії тестового графіка: x 0..1 → y 0..1 (частка висоти осі). */
+export const CHART_LINES = [x => 0.15 + 0.7 * x + 0.06 * Math.sin(x * 12), x => 0.85 - 0.6 * x];
+Object.assign(SCENES, {
+  // статичний графік: червона лінія зростає, синя спадає, перетин приблизно посередині
+  "chart-2lines": {
+    w: 480, h: 270, duration: 12, fps: 10, shape: "any",
+    draw(g, t, W, H) {
+      g.fillStyle = "#fff"; g.fillRect(0, 0, W, H);
+      g.strokeStyle = "#222"; g.lineWidth = 2; g.beginPath(); g.moveTo(40, 20); g.lineTo(40, 240); g.lineTo(460, 240); g.stroke();
+      const n = Math.max(2, Math.round(4 + 80 * Math.min(1, t / 10)));          // лінії домальовуються до 10-ї секунди
+      ["rgb(220,40,40)", "rgb(40,80,220)"].forEach((c, li) => {
+        g.strokeStyle = c; g.lineWidth = 3; g.beginPath();
+        for (let k = 0; k <= n; k++) { const x = k / 84, px = 40 + 420 * x, py = 240 - 220 * CHART_LINES[li](x); k ? g.lineTo(px, py) : g.moveTo(px, py); }
+        g.stroke();
+      });
+      g.fillStyle = "#000"; g.font = "13px sans-serif"; g.fillText("Burned area, km²", 50, 16);
+    },
+    truth: () => true,
+  },
+  // дві панелі на чорному: велика карта ліворуч (62 % ширини) і мала праворуч
+  "two-panels": {
+    w: 640, h: 300, duration: 12, fps: 10, shape: "rect", rect: [10, 10, 390, 280], rect2: [430, 60, 200, 180],
+    draw(g, t, W, H) {
+      g.fillStyle = "#000"; g.fillRect(0, 0, W, H);
+      const [x, y, w, h] = this.rect, [x2, y2, w2, h2] = this.rect2;
+      drawHeatMap(g, x, y, w, h, t);
+      drawHeatMap(g, x2, y2, w2, h2, t * 1.7 + 3);
+    },
+    truth(x, y) { const [rx, ry, w, h] = this.rect; return x >= rx && x < rx + w && y >= ry && y < ry + h; },
+  },
+});

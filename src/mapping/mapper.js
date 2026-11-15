@@ -119,7 +119,7 @@ export function mapAnalysis(a, preset, { topic = null, timeUnit = null, polarity
   const sp = topic?.soundProfile || {};
   const why = {};
   // v7 §1: глобус обертається / камера рухається — рух у кадрі не є зміною даних (галерея: motion немає → як раніше)
-  const mOff = !!a.motion && a.motion.type !== "temporal";
+  const mOff = a.motion?.type === "rotating-globe" || a.motion?.type === "camera-pan-zoom";
   const isMotionSrc = src => src.feature === "frameDiff" || TEMPORAL.has(src.channel);
 
   // ---- темп усього треку: діапазон — від теми, позиція в діапазоні — рух у даних
@@ -238,6 +238,8 @@ export function mapAnalysis(a, preset, { topic = null, timeUnit = null, polarity
     // значення головної величини → висота голосу даних (більше за змістом теми → вище)
     params.value = orient(clamp(valueSeries ? aggregate(valueSeries, idx) : 0.5), pol);
     explain.value = [{ source: `${valueLabel} (відн.)${pol < 0 ? " — обернено: для теми «більше» = менше значення ознаки" : ""}`, contrib: params.value }];
+    // графік із двома лініями (блок F): друга лінія — другий голос
+    if (a.rel.chartLine2) { params.value2 = orient(clamp(aggregate(a.rel.chartLine2, idx)), pol); explain.value2 = [{ source: `${a.labels.chartLine2} (відн.)`, contrib: params.value2 }]; }
     // артикуляція з даних (етап 16): крещендо / димінуендо ← тренд головної величини за 20 кадрів
     const iEnd = idx[idx.length - 1], tr = valueSeries ? (valueSeries[iEnd] - valueSeries[Math.max(0, iEnd - 20)]) * pol : 0;
     params.dynamics = clamp(0.5 + 2 * tr);
@@ -342,7 +344,8 @@ export function mapAnalysis(a, preset, { topic = null, timeUnit = null, polarity
   const tick = timeUnit?.seconds > 0 ? { seconds: timeUnit.seconds, strong: timeUnit.strong || 12, label: timeUnit.label || "одиниця часу" } : DEFAULT_TICK;
   why.value = `Голос даних: «${valueLabel}»${topic?.more?.uk ? ` (${topic.more.uk} → вище)` : " (більше → вище)"}`;
   why.reference = reference.why;
-  if (mOff) why.motion = a.motion.note || `Тип руху: ${a.motion.label}`;
+  if (a.motion && a.motion.type !== "temporal" && a.motion.note) why.motion = a.motion.note;
+  else if (a.layout?.note) why.motion = a.layout.note;
   why.sound = topic ? `${topic.name.uk}: ${sp.why}` : "Тему не вказано — нейтральний оркестр";
 
   return {
