@@ -2,6 +2,7 @@
 // Кожен етап додає свої перевірки до списку SUITES.
 import { openVideo, openImage, openSynthetic } from "./media/sources.js";
 import { passA } from "./analysis/pass-a.js";
+import { FINAL_SUITES } from "./tests-final.js";
 
 const rows = document.getElementById("rows");
 const results = [];
@@ -426,7 +427,9 @@ SUITES.push(async function stage12() {
   log.push(`→, Shift+→: x ${x0.toFixed(2)} → ${st.x.toFixed(2)}`);
   const movedOk = Math.abs(st.x - x0 - 0.12) < 1e-6 && w.jukebox.player.time === 0;
   key("Home"); const homeOk = Math.abs(st.x - x0) < 1e-6;
-  key("Enter"); await new Promise(r => setTimeout(r, 100));
+  key("Enter");
+  // aria-live оновлюється таймером (30 мс); у фоновій вкладці таймери сповільнені — чекаємо на опис точки до 3 с
+  for (let i = 0; i < 30 && !/пн\.|пд\./.test(doc.getElementById("live").textContent); i++) await new Promise(r => setTimeout(r, 100));
   const live = doc.getElementById("live").textContent;
   log.push(`Enter → «${live.slice(0, 60)}…»`);
   key("Escape"); await new Promise(r => setTimeout(r, 100));
@@ -844,8 +847,14 @@ SUITES.push(async function stage_v6() {
     `ρ(частка теплої води, світлість ладу) = ${br.toFixed(2)}; лади: ${oc ? [...new Set(oc.score.harmony.bars.map(h => h.mode.label))].join(" / ") : "—"}`);
 });
 
+for (const f of FINAL_SUITES) SUITES.push(Object.defineProperty(() => f(check), "name", { value: f.name }));
+
+// ?only=golden,motion — лише названі набори (для швидких ітерацій; перед комітом — повний прогін)
+const ONLY = new URLSearchParams(location.search).get("only")?.split(",");
+
 (async () => {
   for (const s of SUITES) {
+    if (ONLY && !ONLY.includes(s.name)) continue;
     try { await s(); }
     catch (e) { console.error(e); report(`${s.name}: виняток`, false, e.message); }
   }

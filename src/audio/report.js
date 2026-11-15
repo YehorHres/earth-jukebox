@@ -18,6 +18,14 @@ export function scoreHash(score) {
   return hashString(score.notes.map(n => `${n.part}:${n.inst}:${n.t.toFixed(3)}:${n.midi}:${n.dur.toFixed(3)}:${n.vel.toFixed(3)}`).join("|")).toString(36);
 }
 
+/** «Золотий» відбиток (v7 §0): темп, тональність, розмір і всі ноти з інструментами, панорамою й шарами подвоєнь. */
+export function goldenHash(score) {
+  const f = v => (typeof v === "number" ? v.toFixed(3) : "-");
+  const head = `${score.bpm}|${f(score.barDur)}|${score.key}|${score.meter.id}|${score.notes.length}|${score.parts.map(p => `${p.id}=${p.instrument}`).join(",")}`;
+  const body = score.notes.map(n => `${n.part}:${n.inst}:${f(n.t)}:${n.midi}:${f(n.dur)}:${f(n.vel)}:${f(n.pan)}:${(n.layers || []).map(l => `${l.inst}${l.shift ?? ""}`).join("+")}`).join("|");
+  return `${hashString(head + "#" + body).toString(36)}-${hashString(body, 7).toString(36)}`;
+}
+
 // v6: голос даних на +3…+4 дБ над супроводом (не більше); контраст усередині треку; треки різні між собою
 export const CRITERIA = { leadDb: [2, 5], peakDb: -1, lufsSpread: 1, lufsTol: 0.5, sub60: 0.25, sub60StormClimax: 0.40, balanceDb: 0.5,
   rho: 0.7, lra: 8, climaxOverIntroDb: 6, climaxPartsOverIntro: 3, starsRho: 0.8, bpmGap: 5, centroidGap: 0.03, densityGap: 0.03,
