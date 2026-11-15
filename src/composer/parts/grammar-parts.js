@@ -162,7 +162,7 @@ export const earcons = {
     const { bar, meta } = ctx;
     for (const e of bar.events) {
       const ec = earconFor(meta.topic, e, pol(meta));
-      if (ec) out.push({ t: e.time, midi: 0, dur: ec.spec.dur, vel: 0.9, pan: 0, ec: ec.spec, earcon: ec.id, eventTime: e.time, fixed: true });
+      if (ec) out.push({ t: e.time, midi: 0, dur: ec.spec.dur, vel: 0.9, pan: e.col !== undefined ? -0.85 + 1.7 * e.col / 15 : 0, ec: ec.spec, earcon: ec.id, eventTime: e.time, fixed: true });
     }
   },
 };

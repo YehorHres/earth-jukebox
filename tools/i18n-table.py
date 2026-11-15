@@ -220,6 +220,11 @@ T = [
  ("speech.sample", "Швидкість мовлення {r}. Так звучатиме все озвучення.", "Speech rate {r}. All speech will sound like this."),
  ("btn.what", "Що зараз?", "What now?"),
  ("tip.what", "Сказати час або дату, де найбільше, чи росте величина і наскільки. Клавіша W.", "Say the time or date, where there is most, whether the value is rising and by how much. Key W."),
+ ("why.points.lightning", "Блискавки: кожна точка — сухий тріск на своєму місці (ліве ↔ праве вухо), за мить — далекий низький грім; більше спалахів — густіше й напруженіше.", "Lightning: every point is a dry crack at its own place (left ↔ right ear), followed a moment later by distant low thunder; more flashes — denser and more tense."),
+ ("why.points.fire", "Звучать два голоси: вогонь, що горить (потріскування, іскри, ударні й ритм — що більше вогню, то тривожніше), і площа, що вже згоріла (низький дрон, який лише наростає).", "Two voices sound: the fire that is burning (crackle, sparks, drums and rhythm — the more fire, the more alarming) and the area already burned (a low drone that only grows)."),
+ ("why.points.cloud", "Хмара точок: м'які скляні ноти й подихи шуму на місці кожного згустку; більше точок — щільніше.", "Point cloud: soft glass notes and breaths of noise at the place of each cluster; more points — denser."),
+ ("why.points.lights", "Точки світла: дзвінкі ноти на місці кожної точки; більше точок — густіше.", "Points of light: bright notes at the place of each point; more points — denser."),
+ ("why.where", "Де більше: {where}. Найактивніша зона звучить окремим голосом: захід — ліве вухо, схід — праве.", "Where there is more: {where}. The most active zone sounds as a separate voice: west — left ear, east — right."),
 ]
 keys=[k for k,_,_ in T]; assert len(keys)==len(set(keys)), "дублікати ключів"
 root=pathlib.Path(__file__).resolve().parent.parent/"src"/"i18n"

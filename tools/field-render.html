@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="uk"><head><meta charset="utf-8"><title>Уривки польових відео → renders/field/*.wav</title></head>
+<body><h1>30-с уривки польових відео</h1><p>Зберігає <code>renders/field/&lt;id&gt;.wav</code> (потрібен <code>python tools/serve.py</code>). <code>?only=iss,co2</code> — лише названі.</p><pre id="log" aria-live="polite"></pre>
+<script type="module">
+import { FIELD, fieldTrack } from "../src/tests-v10.js";
+import { renderOffline, toWav } from "../src/audio/render.js";
+const q = new URLSearchParams(location.search), only = q.get("only")?.split(","), log = document.getElementById("log"), out = [];
+const { loadFor } = await import("../src/audio/library/index.js"), M = await import("../src/audio/master.js");
+for (const id of Object.keys(FIELD)) {
+  if (only && !only.includes(id)) continue;
+  try {
+    const tr = await fieldTrack(id, "../"), dur = tr.mapping.meta.duration;
+    if (loadFor) await loadFor(new OfflineAudioContext(1, 1, 44100), tr.score.instruments);
+    const master = M.calibrate ? await M.calibrate(tr.score, tr.mapping, { passes: 1, sampleRate: 22050 }) : null;
+    const from = Math.max(0, Math.min(dur - 30, dur * 0.35)), r = await renderOffline(tr.score, tr.mapping, { from, seconds: Math.min(30, dur), master, sampleRate: 22050 });
+    const ok = (await fetch(`../__save/renders/field/${id}.wav`, { method: "POST", body: toWav(r.buffer) })).ok;
+    out.push(`${id}: ${ok ? "збережено" : "НЕ збережено"} (з ${from.toFixed(0)} с)`);
+  } catch (e) { out.push(`${id}: помилка — ${e.message}`); }
+  log.textContent = out.join("\n");
+}
+window.__done = out; log.textContent += "\nготово";
+</script></body></html>

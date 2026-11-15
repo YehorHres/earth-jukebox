@@ -18,6 +18,7 @@ import stars from "./parts/stars.js";
 import texture from "./parts/texture.js";
 import { colorByTopic } from "./topic-color.js";
 import { GRAMMAR_PARTS, soloTimbres } from "./parts/grammar-parts.js";
+import { UPLOAD_PARTS } from "./parts/upload-parts.js";
 import { LEAD_PARTS, FOREGROUND_MAX, earconsFor, partPriority, PARTS_MAX, SIGNAL_PARTS, partsCap, voiceOf, motifFor } from "../grammar.js";
 
 // порядок = номери клавіш 1–9 для mute/solo
@@ -49,11 +50,12 @@ export function compose(mapping, { seed = "earth-jukebox", style = null, grammar
   const opts = { drone, ticks }, lights = grammar && allowed.has("stars");
   // голос даних — перша партія (клавіша 1); решта партій граматики — після супроводу
   const G = grammar ? GRAMMAR_PARTS : [];
-  const parts = [...G.slice(0, 1), ...PARTS.filter(p => allowed.has(p.id)), ...G.slice(1)];
+  // v10: партії завантажених відео (точки, «згоріло», соліст «де більше») — звучать лише коли мапер дав їм параметри
+  const parts = [...G.slice(0, 1), ...PARTS.filter(p => allowed.has(p.id)), ...G.slice(1), ...(grammar ? UPLOAD_PARTS : [])];
   instr.soloists = soloTimbres(instr)[0];
   // етап 16: порядок, у якому партії отримують місце в такті, — за розділом форми (бюджет ≤ PARTS_MAX); без граматики — як раніше, без ліміту
   const orders = {};
-  const orderFor = section => (orders[section] ||= (() => { const pr = partPriority(section), prio = id => { const i = pr.indexOf(id); return i < 0 ? 99 : i; };
+  const orderFor = section => (orders[section] ||= (() => { const pr = partPriority(section), prio = id => { if (id === "drums" && meta.twoVoices) return 4.5; const i = pr.indexOf(id); return i < 0 ? 99 : i; };      // v10 §3: ударні пожежі — голос «горить зараз», завжди мають місце
     return [...parts].sort((x, y) => prio(x.id) - prio(y.id)); })());
   const kitId = style?.kit || sp.kit || "orchestral", kit = kitOf(kitId);
   const profile = { rhythm: sp.rhythm || "steady", fx: sp.fx || [], instruments: instr, kit };
@@ -68,7 +70,8 @@ export function compose(mapping, { seed = "earth-jukebox", style = null, grammar
     const ctx = { bar, h: harmony.bars[b], nextH: harmony.bars[b + 1], prevH: harmony.bars[b - 1], beat, rng, meta, meter, profile, instr, o, bars, b, grammar, opts };
     const active = [], lead = [];
     // вогники нічної карти — головна текстура: поза вступом і фіналом не забирають місце в супроводу
-    const cap = grammar ? Math.min(PARTS_MAX, partsCap(bar, last) + (lights && bar.section !== "intro" && !last ? 1 : 0)) : Infinity;
+    const up = (bar.params.points !== undefined ? 1 : 0) + (bar.params.burned !== undefined ? 1 : 0) + (bar.params.hot && bar.section !== "intro" ? 1 : 0) + (meta.twoVoices && bar.section !== "intro" ? 1 : 0);      // точки, «згоріло» й соліст «де більше» не забирають місце в супроводу
+    const cap = grammar ? Math.min(PARTS_MAX, partsCap(bar, last) + (lights && bar.section !== "intro" && !last ? 1 : 0) + up) : Infinity;
     const dark = lights && bar.params.dark && !last;
     let sustained = 0, signals = 0;
     for (const part of grammar ? orderFor(bar.section) : parts) {

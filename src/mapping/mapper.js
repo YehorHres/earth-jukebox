@@ -3,13 +3,15 @@
 // Кожен параметр = base + Σ weight · curve(ознака), обрізаний до діапазону; explain — внески джерел.
 import { applyCurve, CURVE_LABEL } from "./curves.js";
 import { computeForm, computeFormByQuantity, SECTION_LABEL } from "./form.js";
-import { quantityModel, applyQuantity, KIND_LABEL } from "./quantity.js";
+import { quantityModel, applyQuantity, KIND_LABEL, applyUploadVoices, flashEvents, thinEvents, isPoints, isFire } from "./quantity.js";
 import { getFeature } from "../features/index.js";
 import { clamp, percentile, mean, slope } from "../util/stats.js";
 import { meterOf } from "../composer/meter.js";
 import { polarity, orient, pickSoloZones, DEFAULT_TICK } from "../grammar.js";
 
 export const BPM_CAP = 130;
+/** v10 §10: мінімальна відстань між подіями завантаженого відео, с. */
+export const EVENT_MIN_GAP = 2.5;
 /** Стеля темпу теми: за замовчуванням BPM_CAP; шторм (етап 17) — до 160 («дощ vs шторм»). */
 export const bpmCapFor = topic => topic?.soundProfile?.bpmCap ?? BPM_CAP;
 /** Ширина події в кадрах: скільки сусідніх кадрів тримається вище половини її висоти над фоном (±10 кадрів). */
@@ -177,6 +179,14 @@ export function mapAnalysis(a, preset, { topic = null, timeUnit = null, polarity
   // акценти — лише від сильних подій провідних ознак
   const accentFeatures = new Set([a.leadFeature, ...a.keyFeatures.slice(0, 2), "hotspot1"].filter(Boolean));
   const minStrength = preset.accent.minStrength ?? 0.5;
+  // v10 §2, §3, §10 (завантажені відео): нові точки (спалахи блискавок) і нові осередки вогню — події зі своїм місцем у стерео;
+  // подій не більше однієї на 2.5 с — лишаються найсильніші («менше хаосу»)
+  let eventPool = a.events;
+  if (a.motion && !still) {
+    const fire = isFire(a, topic), extra = fire ? flashEvents(a, "fireShare", "новий осередок вогню", "qf") : isPoints(a, topic) ? flashEvents(a, "pointShare", topic?.id === "storms" ? "спалах блискавок" : "нові точки", "qp") : [];
+    if (extra.length) accentFeatures.add(fire ? "fireShare" : "pointShare");
+    eventPool = thinEvents([...a.events.filter(e => accentFeatures.has(e.feature) || e.type === "globalMax"), ...extra], EVENT_MIN_GAP);
+  }
   let lastAccentBar = -9;
 
   // ---- граматика звуку: головна величина (відносна в межах відео) з полярністю теми (moreMeans)
@@ -266,7 +276,7 @@ export function mapAnalysis(a, preset, { topic = null, timeUnit = null, polarity
 
     // події такту: усі — для пояснень; сильні — акценти (не більше 2, не в сусідніх тактах без потреби)
     const t0 = b * barDur;
-    const all = still ? [] : a.events
+    const all = still ? [] : eventPool
       .filter(e => preset.accent.events.includes(e.type) && e.time >= t0 && e.time < t0 + barDur)
       .map(e => ({ ...e, offset: (e.time - t0) / barDur }));
     let evs = all.filter(e => accentFeatures.has(e.feature) && (e.strength >= minStrength || e.type === "globalMax" || e.type === "returnOfState"))
@@ -285,6 +295,16 @@ export function mapAnalysis(a, preset, { topic = null, timeUnit = null, polarity
   // ---- v10 §1: завантажене відео — гучність, густота, напруга, регістр і форма йдуть за «кількістю» даних на видимій поверхні
   const qm = a.motion && !still ? quantityModel(a, bars, { topic, pol, valueSeries, valueFeature, valueLabel }) : null;
   if (qm) applyQuantity(bars, qm, { keepRhythm: !mOff });
+
+  // ---- v10 §2, §3, §5: точки, пожежа (два голоси), «де більше» (соліст найактивнішої зони, панорама = положення)
+  const uv = qm ? applyUploadVoices(a, bars, { topic, pol, model: qm, stars: (sp.parts || []).includes("stars") && !!a.rel.lightPoints }) : null;
+  if (uv) {
+    for (const bar of bars) if (bar.params.hot) bar.params.soloZones = [];      // замість «зон, що відхиляються» — один соліст «де більше»
+    if (uv.pointStyle && uv.pointStyle !== "lights-stars") why.points = { lightning: "Блискавки: кожна точка — сухий тріск на своєму місці (ліве ↔ праве вухо), за мить — далекий низький грім; більше спалахів — густіше й напруженіше",
+      fire: "Звучать два голоси: вогонь, що горить (потріскування, іскри, ударні й ритм — що більше вогню, то тривожніше), і площа, що вже згоріла (низький дрон, який лише наростає)",
+      cloud: "Хмара точок: м'які скляні ноти й подихи шуму на місці кожного згустку; більше точок — щільніше", lights: "Точки світла: дзвінкі ноти на місці кожної точки; більше точок — густіше" }[uv.pointStyle];
+    if (uv.where) why.where = `Де більше: ${uv.where.uk}. Найактивніша зона звучить окремим голосом: захід — ліве вухо, схід — праве`;
+  }
 
   // ---- відносна енергія (v6): енергія, розтягнута в межах відео (5–95 перцентиль) — контраст гучності, складу й ударних.
   // Якщо енергія майже не змінюється (розмах < 0.2), розтяг пропорційно слабший — рівний трек лишається рівним.
@@ -364,6 +384,7 @@ export function mapAnalysis(a, preset, { topic = null, timeUnit = null, polarity
       tempoWhy: tp.why, tempoX, sceneType: p.sceneType, duration: still ? nBars * barDur : dur,
       meter, key, topic: topic?.id || "generic", soundProfile: sp, why,
       quantity: qm ? { kind: qm.kind, feature: qm.feature, label: qm.label, span: qm.span } : null,
+      pointStyle: uv?.pointStyle || null, where: uv?.where || null, twoVoices: !!uv?.fire,
       polarity: pol, valueFeature: valueFeature || null, reference, tick, lightsFeature: a.rel.lightPoints ? lightsFeature : null,
     },
     bars,

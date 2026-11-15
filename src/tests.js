@@ -6,6 +6,7 @@ import { FINAL_SUITES } from "./tests-final.js";
 import { UI_SUITES } from "./tests-ui.js";
 import { V10_SUITES } from "./tests-v10.js";
 import { V10UI_SUITES } from "./tests-v10ui.js";
+import "./tests-v10b.js";
 import { setLang } from "./i18n/index.js";
 
 // Тести перевіряють українські тексти двигуна — сторінка тестів завжди українською (вибір мови сайту не змінюється).

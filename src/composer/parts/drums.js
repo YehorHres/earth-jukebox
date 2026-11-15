@@ -10,7 +10,8 @@
  * 3 — звичайний малюнок, 4 — подвійний (double-time). Рух = відносна енергія (drive) + густота змін.
  */
 export function drumLevel(p, rhythm) {
-  const x = 0.65 * (p.drive ?? p.energy ?? 0) + 0.35 * (p.density ?? 0);
+  // v10 (завантажені відео): рівень ударних — лише від «кількості» даних (активний вогонь, точки), без руху в кадрі
+  const x = p.quantity !== undefined ? p.quantity : 0.65 * (p.drive ?? p.energy ?? 0) + 0.35 * (p.density ?? 0);
   const lvl = x < 0.3 ? 0 : x < 0.42 ? 1 : x < 0.56 ? 2 : x < 0.72 ? 3 : 4;
   return rhythm === "sparse" ? Math.min(1, lvl) : rhythm === "slow" ? Math.min(2, lvl) : lvl;
 }
@@ -24,15 +25,15 @@ export default {
     const { bar, o, meter, profile, bars, b } = ctx;
     const p = bar.params, r = profile.rhythm;
     const n = meter.steps, step = bar.dur / n;
-    const drv = p.drive ?? p.energy;
+    const q = p.quantity, drv = q ?? p.drive ?? p.energy;      // v10: у завантажених відео сила ударів — від «кількості» даних
     const e = 0.5 + 0.7 * drv;
     const evNow = bar.events.length > 0, evNext = (bars[b + 1]?.events.length || 0) > 0;
     // брейк: від моменту події до кінця такту ударні мовчать
-    const until = evNow ? Math.min(...bar.events.map(x => x.offset)) * n : n;
+    const until = evNow && !ctx.meta.quantity ? Math.min(...bar.events.map(x => x.offset)) * n : n;      // v10: у завантажених відео знак події короткий — ударні не замовкають
     const hit = (inst, s, vel, extra) => { if (s < until) out.push({ inst, t: bar.t0 + s * step, midi: inst === "timpani" ? 41 : 0, dur: inst === "kick" ? 0.3 : inst === "snare" ? 0.15 : inst === "timpani" ? 0.3 : 0.06, vel: Math.min(1, vel), ...extra }); };
-    let level = r === "rain" || bar.section === "intro" || o <= 0.35 ? 0 : drumLevel(p, r);
+    let level = r === "rain" || bar.section === "intro" || (q === undefined && o <= 0.35) ? 0 : drumLevel(p, r);
     // кульмінація — повний склад: ударні принаймні в половинному розмірі (щітки — для «рідких» тем)
-    if (ctx.grammar && bar.section === "climax" && r !== "rain") level = Math.max(level, r === "sparse" ? 1 : 2);
+    if (ctx.grammar && bar.section === "climax" && r !== "rain" && q === undefined) level = Math.max(level, r === "sparse" ? 1 : 2);
     const hard = r === "driving" || r === "storm";
     const mid = meter.strong[1] ?? meter.beats[Math.ceil(meter.beats.length / 2)] ?? meter.beats[1];
     const tpRoot = 41 + ((ctx.h.root + ctx.h.chords[0].chord.root) % 12) % 7;   // F2..B2

@@ -7,6 +7,9 @@ import { clamp, percentile } from "../util/stats.js";
 
 /** Теми, де дані — окремі точки. */
 export const POINT_TOPICS = new Set(["storms", "nightlights", "co2", "fires"]);
+/** Характер звуків-точок за темою (v10 §2): блискавки — тріск і грім, вогонь — потріскування, CO₂ / аерозолі — «хмари», решта — дзвінкі вогники. */
+export const POINT_STYLE = { storms: "lightning", fires: "fire", co2: "cloud", aerosols: "cloud", nightlights: "lights" };
+export const pointStyleOf = topicId => POINT_STYLE[topicId] || "lights";
 export const KIND_LABEL = { points: "частка точок на видимій поверхні", fire: "активний вогонь, частка видимої поверхні", value: "значення головної величини" };
 
 /** Чи дані цього відео — «точки» (дрібні яскраві плями на темному / однорідному тлі). */
@@ -115,10 +118,10 @@ export const sideText = (col, lang = "uk") => SIDE[sideOf(col)][lang] || SIDE[si
  * points / pointCols — густота й місця звуків-точок; burned — «рахунок втрат» (неспадний); hot — найактивніша зона (соліст);
  * pan — центр мас даних по горизонталі (захід — ліве вухо, схід — праве).
  */
-export function applyUploadVoices(a, bars, { topic = null, pol = 1, model = null, styleOf = () => "lights", stars = false } = {}) {
+export function applyUploadVoices(a, bars, { topic = null, pol = 1, model = null, styleOf = pointStyleOf, stars = false } = {}) {
   const pts = isPoints(a, topic), fire = isFire(a, topic), key = fire ? "qf" : pts ? "qp" : null;
-  const burnedSig = fire && sigOf(a, "burnedShare"), bs = burnedSig ? barMean(a.rel.burnedShare, bars) : null, pv = pts && !fire ? barMean(a.rel.pointShare, bars) : null;
-  let run = 0, prevCol = null;
+  const burnedSig = fire && sigOf(a, "burnedShare"), bs = burnedSig ? (() => { const x = barMean(a.abs.burnedShare, bars), lo = Math.min(...x), hi = Math.max(...x); return x.map(v => (v - lo) / Math.max(hi - lo, 1e-6)); })() : null, pv = pts && !fire ? barMean(a.rel.pointShare, bars) : null;
+  let run = 0;
   const total = new Array(16).fill(0);
   bars.forEach((bar, b) => {
     const p = bar.params, e = bar.explain;
@@ -135,9 +138,6 @@ export function applyUploadVoices(a, bars, { topic = null, pol = 1, model = null
     if (burnedSig) { run = Math.max(run, clamp(bs[b])); p.burned = run; e.burned = [{ source: "згоріла площа (сіре) — накопичений максимум", contrib: run }]; }
     if (dist) {
       let col = 0; for (let c = 1; c < 16; c++) if (dist[c] > dist[col]) col = c;
-      // соліст не «стрибає»: лишається в попередній зоні, поки нова не переважить на 10 %
-      if (prevCol !== null && dist[prevCol] >= 0.9 * dist[col]) col = prevCol;
-      prevCol = col;
       const mx = Math.max(...dist, 1e-9), sorted = dist.slice().sort((x, y) => x - y), med = sorted[8];
       if (dist[col] > 0) p.hot = { col, value: key ? clamp(p.points ?? 0.5) : clamp(dist[col]), strength: clamp((dist[col] - med) / mx) };
       e.hot = p.hot ? [{ source: `найактивніша зона — колонка ${col + 1} із 16 (${sideText(col)})`, contrib: p.hot.strength }] : [];

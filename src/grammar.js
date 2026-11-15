@@ -31,14 +31,14 @@ export const REF_INTRO = 1.5;
 export const DEFAULT_TICK = { seconds: 10, strong: 4, label: "10 секунд", label_en: "10 seconds" };
 
 /** Партії граматики (не супровід). */
-export const LEAD_PARTS = ["dataVoice", "soloists", "reference", "ticks", "earcons"];
+export const LEAD_PARTS = ["dataVoice", "soloists", "reference", "ticks", "earcons", "points", "burned", "hotZone"];
 
 /** v6 — бюджет партій від даних: спокій 2–3 → пік 6–7; у вступі й в останньому такті ≤ 2 (+ короткі знаки). */
 export const PARTS_MAX = 7;
 export const INTRO_PARTS_MAX = 2;
 export const SIGNAL_PARTS = ["earcons", "ticks", "reference"];
 /** Хто отримує місце в такті: спершу дані й знаки (і вогники нічної карти), далі — супровід за розділом форми. */
-const PART_HEAD = ["dataVoice", "reference", "earcons", "ticks", "stars"];
+const PART_HEAD = ["dataVoice", "reference", "earcons", "ticks", "stars", "points", "burned", "hotZone"];
 const PART_BY_SECTION = {
   intro: ["pad", "texture", "bass", "arp"],
   build: ["pad", "bass", "drums", "arp", "counter", "soloists", "texture"],
@@ -170,6 +170,8 @@ export function eventClass(e, pol = 1) {
 }
 /** Одна подія — один знак. */
 export function earconFor(topicId, e, pol = 1) {
+  // v10 §2: спалах блискавок (нові точки) — знак «блискавка» теми, якщо він у неї є
+  if (e.flash) { const l = earconsFor(topicId).find(x => x.id === "lightning"); if (l) return l; }
   const cls = eventClass(e, pol);
   return cls ? earconsFor(topicId).find(x => x.cls === cls) || null : null;
 }

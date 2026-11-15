@@ -1,7 +1,7 @@
 // Таблиця мапінгу для журі й скрінрідера: які ознаки й з якими внесками керують музикою зараз.
 import { PARAM_LABEL, PARAMS, sourceLabel } from "../mapping/mapper.js";
 import { CURVE_LABEL } from "../mapping/curves.js";
-import { t, tr } from "../i18n/index.js";
+import { t, tr, hasKey, getLang } from "../i18n/index.js";
 
 // у цьому файлі змінна tr — рядок таблиці, тому переклад — tr_
 const tr_ = tr;
@@ -22,6 +22,10 @@ export function createMappingTable(root) {
       const ul = document.createElement("ul");
       ul.className = "keys";
       for (const k of ["sound", "motion", "key", "tempo", "meter", "form"]) if (m.why[k]) ul.appendChild(Object.assign(document.createElement("li"), { textContent: tr(m.why[k]) }));
+      // v10: точкові дані / пожежа (два голоси) і «де більше» — тексти з i18n (uk + en)
+      const li = text => ul.appendChild(Object.assign(document.createElement("li"), { textContent: text }));
+      if (m.why.points && m.pointStyle && hasKey(`why.points.${m.pointStyle}`, getLang())) li(t(`why.points.${m.pointStyle}`));
+      if (m.where) li(t("why.where", { where: m.where[getLang()] || m.where.uk }));
       root.appendChild(ul);
     }
     const tbl = document.createElement("table");

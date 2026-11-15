@@ -231,4 +231,9 @@ export default {
   "speech.sample": "Speech rate {r}. All speech will sound like this.",
   "btn.what": "What now?",
   "tip.what": "Say the time or date, where there is most, whether the value is rising and by how much. Key W.",
+  "why.points.lightning": "Lightning: every point is a dry crack at its own place (left ↔ right ear), followed a moment later by distant low thunder; more flashes — denser and more tense.",
+  "why.points.fire": "Two voices sound: the fire that is burning (crackle, sparks, drums and rhythm — the more fire, the more alarming) and the area already burned (a low drone that only grows).",
+  "why.points.cloud": "Point cloud: soft glass notes and breaths of noise at the place of each cluster; more points — denser.",
+  "why.points.lights": "Points of light: bright notes at the place of each point; more points — denser.",
+  "why.where": "Where there is more: {where}. The most active zone sounds as a separate voice: west — left ear, east — right.",
 };

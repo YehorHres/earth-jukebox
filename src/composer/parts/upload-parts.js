@@ -12,8 +12,6 @@ import { snapToMode } from "../theory.js";
 
 /** Скільки звуків-точок у такті для частки точок 0..1 (0 — тиша). */
 export const pointCount = v => (v < 0.02 ? 0 : Math.round(1 + 15 * v));
-export const POINT_STYLE = { storms: "lightning", fires: "fire", co2: "cloud", nightlights: "lights", aerosols: "cloud" };
-export const pointStyleOf = topicId => POINT_STYLE[topicId] || "lights";
 const panOf = c => -0.85 + 1.7 * c / 15;
 
 const SPEC = {
