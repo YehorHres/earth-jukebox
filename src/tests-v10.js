@@ -76,7 +76,7 @@ V10_SUITES.push(async function v10quantity(check) {
     const m = tr.mapping, q = m.bars.map(b => b.params.quantity), intro = m.meta.sections.find(s => s.id === "intro"), cl = m.meta.sections.find(s => s.id === "climax");
     if (!m.meta.quantity) { bad.push(`${tr.id}: немає «кількості»`); continue; }
     if (intro.b1 - intro.b0 > 2) bad.push(`${tr.id}: вступ ${intro.b1 - intro.b0} такти`);
-    if (cl) { const w = mean(q.slice(cl.b0, cl.b1)), top = Math.max(...q.map((_, i) => (i >= intro.b1 && i + cl.b1 - cl.b0 <= m.bars.length - 1 ? mean(q.slice(i, i + cl.b1 - cl.b0)) : 0))); if (w < top - 0.02) bad.push(`${tr.id}: кульмінація не в максимумі (${f2(w)} < ${f2(top)})`); }
+    if (cl) { const w = mean(q.slice(cl.b0, cl.b1)), res = m.meta.sections.find(s => s.id === "resolution"), top = Math.max(...q.map((_, i) => (i >= intro.b1 && i + cl.b1 - cl.b0 <= res.b0 ? mean(q.slice(i, i + cl.b1 - cl.b0)) : 0))); if (w < top - 0.02) bad.push(`${tr.id}: кульмінація не в максимумі (${f2(w)} < ${f2(top)})`); }
     const b = bodyBars(tr);
     for (const p of ["energy", "tension", "register", "bright"]) { const r = R.spearman(b.map(i => q[i]), b.map(i => m.bars[i].params[p])); if (r < 0.9) bad.push(`${tr.id}: ${p} ρ = ${f2(r)}`); }
   }
