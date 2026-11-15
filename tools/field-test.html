@@ -21,6 +21,7 @@ import { compose } from "../src/composer/composer.js";
 import { loadTopics, getTopic } from "../src/topics/topics.js";
 import { spearman } from "../src/audio/report.js";
 import { describeProfile } from "../src/a11y/describe.js";
+import { loadEic, matchEic } from "../src/eic/match.js";
 
 const q = new URLSearchParams(location.search), file = q.get("file"), max = Number(q.get("max") || 60);
 const state = t => (document.getElementById("state").textContent = t);
@@ -28,6 +29,7 @@ const rec = { file: file?.split("/").pop(), path: file, topic: q.get("topic") ||
 const r2 = v => (Number.isFinite(v) ? Math.round(v * 100) / 100 : null);
 try {
   await loadTopics();
+  { const m = matchEic(rec.file, await loadEic("../")); rec.eicCard = m ? m.card.id : null; rec.eicWhy = m?.why || null; }
   const t0 = performance.now();
   let src;
   try { src = await openVideo("../" + file.split("/").map(encodeURIComponent).join("/"), { direct: true, name: rec.file }); rec.opened = true; }
