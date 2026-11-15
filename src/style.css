@@ -132,6 +132,7 @@ main { max-width: 84rem; margin: 0 auto; padding: 0 var(--gutter) 3rem; }
   scrollbar-color: var(--line) transparent; scrollbar-width: thin;
 }
 #gallery { display: block; }
+#gallery:empty::after { content: "Завантаження списку…"; display: block; padding: 1rem 1.25rem; color: var(--muted); }
 #gallery button {
   display: flex; align-items: center; gap: .875rem; width: 100%; text-align: left;
   min-height: 3.25rem; padding: .75rem 1.25rem;
