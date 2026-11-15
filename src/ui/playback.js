@@ -9,7 +9,8 @@ import { loadStyle, loadStyles } from "../styles/index.js";
 import { renderOffline, toWav } from "../audio/render.js";
 import { calibrate } from "../audio/master.js";
 import { scoreHash } from "../audio/report.js";
-import { legendItems, playItem, playLegend, playIntro, stopIntro, setDuckEngine } from "../a11y/legend.js";
+import { legendItems, playItem, playLegend, playShortIntro, stopIntro, setDuckEngine } from "../a11y/legend.js";
+import { introText, whatNow, trackSummary } from "../a11y/explain.js";
 import { speechHooks } from "../a11y/announcer.js";
 import { announce, setMinGap, stopVoice, prefs } from "../a11y/announcer.js";
 import { fmtTime } from "../a11y/describe.js";
@@ -29,7 +30,7 @@ export function setupPlayback(app, { timeline, mappingTable }) {
   const player = new Player(engine, {
     onBar: (b, seeked) => onBar(b, seeked),
     onTick: t => { timeline.setCursor(Math.min(t, app.analysis.profile.durationSec || t)); drawCursor(t); },
-    onEnd: () => { setPlayUI(false); announce(t("end"), { force: true }); },
+    onEnd: () => { setPlayUI(false); showSummary(true); },
   });
   app.player = player;
 
@@ -48,14 +49,25 @@ export function setupPlayback(app, { timeline, mappingTable }) {
       introDone = true; introRunning = true;
       $("play").textContent = t("btn.skipIntro");
       $("play").dataset.icon = "skip";
-      const c = app.catalogItem?.card;
-      const items = legendItems(app.mapping.meta.preset, ctxLegend()).filter(it => it.intro);
-      await playIntro(engine, { title: app.topic && app.topic.id !== "generic" ? pick(app.topic, "name") : (app.catalogItem ? pick(app.catalogItem, "title") : t("intro.yourMap")), years: c ? pick(c, "years") : null, items });
+      const title = app.catalogItem ? pick(app.catalogItem, "title") : app.eicCard ? pick(app.eicCard, "title") : app.topic && app.topic.id !== "generic" ? pick(app.topic, "name") : t("intro.yourMap");
+      await playShortIntro(engine, { text: introText({ title, card: cardOf(), topic: app.topic, colorMore: app.catalogItem?.colorMore }), topicId: app.topic?.id, score: app.score });
       introRunning = false;
     }
     await player.play(); setPlayUI(true);
   }
   let introDone = false, introRunning = false;
+  const cardOf = () => app.eicCard || app.catalogItem?.card || null;
+  const explainCtx = () => ({ analysis: app.analysis, mapping: app.mapping, card: cardOf() });
+  /** Підсумок треку: текстом на сторінці й (після кінця) голосом / aria-live. */
+  function showSummary(say) {
+    const el = $("track-summary");
+    if (!app.analysis || !el) return;
+    el.textContent = trackSummary(explainCtx());
+    el.hidden = false;
+    if (say) announce(`${t("end")} ${el.textContent}`, { force: true });
+  }
+  const whatNowText = () => whatNow(explainCtx(), player.time);
+  $("whatBtn")?.addEventListener("click", () => app.score && announce(whatNowText(), { force: true }));
   const ctxLegend = () => ({ topic: app.topic, colorMore: app.catalogItem?.colorMore, score: app.score });
 
   /* ---- курсор сканування: колонка кадру, яку зараз «грає» мелодія ---- */
@@ -169,6 +181,8 @@ export function setupPlayback(app, { timeline, mappingTable }) {
     $("legendBtn").disabled = false;
     $("wavBtn").disabled = false;
     $("exploreBtn").disabled = false;
+    if ($("whatBtn")) $("whatBtn").disabled = false;
+    showSummary(false);
     // семпли — у фоні; грати можна одразу (поки що синтезатори)
     const insts = app.score.instruments;
     const decoder = new OfflineAudioContext(1, 1, 44100);
@@ -285,6 +299,7 @@ export function setupPlayback(app, { timeline, mappingTable }) {
     if (e.target?.matches?.("input, select, textarea") || e.ctrlKey || e.metaKey || e.altKey || !app.score) return;
     if (e.key === " " && !e.target?.matches?.("button")) { e.preventDefault(); toggle(); }
     else if (e.code === "KeyL") { e.preventDefault(); legend(); }
+    else if (e.code === "KeyW") { e.preventDefault(); announce(whatNowText(), { force: true }); }
     else if (e.code === "KeyM") {
       const b = Math.min(app.mapping.bars.length - 1, Math.floor(player.time / app.score.barDur));
       announce(`${fmtTime(player.time)}, ${tr(app.mapping.bars[b].sectionLabel)}. ${mappingTable.describe(b)}.`, { force: true });
@@ -306,6 +321,7 @@ export function setupPlayback(app, { timeline, mappingTable }) {
     renderLegend();
     describeTimeline();
     onBar(Math.min(app.mapping.bars.length - 1, Math.floor(player.time / app.score.barDur)), true);
+    if (!$("track-summary").hidden) showSummary(false);
   }
 
   return { onMapped, refresh, stop: () => { player.stop(); setPlayUI(false); } };

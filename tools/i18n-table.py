@@ -2,8 +2,8 @@
 # Запуск: python tools/i18n-table.py  (після зміни таблиці; обидва файли генеруються разом, ключі збігаються)
 import json, pathlib
 T = [
- ("doc.title", "EcoSphear", "EcoSphear"),
- ("doc.description", "EcoSphear: візуалізації NASA перетворюються на музику для незрячих і слабозорих слухачів.", "EcoSphear turns NASA visualizations into music for blind and low-vision listeners."),
+ ("doc.title", "EchoSphear", "EchoSphear"),
+ ("doc.description", "EchoSphear: візуалізації NASA перетворюються на музику для незрячих і слабозорих слухачів.", "EchoSphear turns NASA visualizations into music for blind and low-vision listeners."),
  ("skip", "Перейти до керування відтворенням", "Skip to playback controls"),
  ("lang.group", "Мова інтерфейсу", "Interface language"),
  ("lang.announce", "Мова: українська.", "Language: English."),
@@ -145,8 +145,8 @@ T = [
  ("hover.on", "Озвучення під курсором увімкнено. Alt+Shift+S — вимкнути.", "Read-aloud under the cursor is on. Alt+Shift+S turns it off."),
  ("hover.off", "Озвучення під курсором вимкнено.", "Read-aloud under the cursor is off."),
  ("keys.title", "Клавіші", "Keyboard"),
- ("keys.html", "<kbd>Space</kbd> грати/пауза · <kbd>L</kbd> аудіолегенда · <kbd>D</kbd> прочитати картку · <kbd>M</kbd> що зараз керує музикою · <kbd>E</kbd> дослідити карту (стрілки, <kbd>Shift</kbd> — більший крок, <kbd>Esc</kbd> — вийти) · <kbd>1</kbd>–<kbd>9</kbd> вимкнути/увімкнути партію · <kbd>Shift</kbd>+<kbd>1</kbd>–<kbd>9</kbd> соло · <kbd>←</kbd>/<kbd>→</kbd> ±5 с · <kbd>Alt</kbd>+<kbd>Shift</kbd>+<kbd>S</kbd> озвучення під курсором",
-  "<kbd>Space</kbd> play/pause · <kbd>L</kbd> audio legend · <kbd>D</kbd> read the card · <kbd>M</kbd> what drives the music now · <kbd>E</kbd> explore the map (arrows, <kbd>Shift</kbd> — bigger step, <kbd>Esc</kbd> — exit) · <kbd>1</kbd>–<kbd>9</kbd> mute/unmute a part · <kbd>Shift</kbd>+<kbd>1</kbd>–<kbd>9</kbd> solo · <kbd>←</kbd>/<kbd>→</kbd> ±5 s · <kbd>Alt</kbd>+<kbd>Shift</kbd>+<kbd>S</kbd> read aloud under the cursor"),
+ ("keys.html", "<kbd>Space</kbd> грати/пауза · <kbd>L</kbd> аудіолегенда · <kbd>D</kbd> прочитати картку · <kbd>M</kbd> що зараз керує музикою · <kbd>W</kbd> що зараз на карті (де більше, росте чи падає) · <kbd>−</kbd>/<kbd>=</kbd> швидкість мовлення · <kbd>E</kbd> дослідити карту (стрілки, <kbd>Shift</kbd> — більший крок, <kbd>Esc</kbd> — вийти) · <kbd>1</kbd>–<kbd>9</kbd> вимкнути/увімкнути партію · <kbd>Shift</kbd>+<kbd>1</kbd>–<kbd>9</kbd> соло · <kbd>←</kbd>/<kbd>→</kbd> ±5 с · <kbd>Alt</kbd>+<kbd>Shift</kbd>+<kbd>S</kbd> озвучення під курсором",
+  "<kbd>Space</kbd> play/pause · <kbd>L</kbd> audio legend · <kbd>D</kbd> read the card · <kbd>M</kbd> what drives the music now · <kbd>W</kbd> what is on the map now (where most, rising or falling) · <kbd>−</kbd>/<kbd>=</kbd> speech rate · <kbd>E</kbd> explore the map (arrows, <kbd>Shift</kbd> — bigger step, <kbd>Esc</kbd> — exit) · <kbd>1</kbd>–<kbd>9</kbd> mute/unmute a part · <kbd>Shift</kbd>+<kbd>1</kbd>–<kbd>9</kbd> solo · <kbd>←</kbd>/<kbd>→</kbd> ±5 s · <kbd>Alt</kbd>+<kbd>Shift</kbd>+<kbd>S</kbd> read aloud under the cursor"),
  ("dev.summary", "Технічні дані аналізу (для розробників)", "Technical analysis data (for developers)"),
  ("dev.masks", "Показати маски на кадрі (поза областю даних — помаранчевий, суша — зелений, фон — синій, підписи — пурпурний)", "Show masks on the frame (outside the data area — orange, land — green, background — blue, labels — purple)"),
  ("foot.data", "Візуалізації: NASA Earth Information Center", "Visualizations: NASA Earth Information Center"),
@@ -205,6 +205,12 @@ T = [
  ("tip.exportJson", "Завантажити результати аналізу у файл JSON для перевірки.", "Download the analysis results as a JSON file for checking."),
  ("tip.devSummary", "Розгорнути технічні дані аналізу для розробників.", "Expand the technical analysis data for developers."),
  ("tip.skip", "Одразу перейти до кнопок відтворення.", "Jump straight to the playback buttons."),
+ ("opt.speechRate", "Швидкість мовлення", "Speech rate"),
+ ("tip.speechRate", "Швидкість усього озвучення: під курсором, вступ, «Що зараз?» і підсумок. Від 0,5× до 2×; клавіші − і =.", "Rate of all speech: under the cursor, the intro, “What now?” and the summary. From 0.5× to 2×; keys − and =."),
+ ("speech.rateVal", "{r}×", "{r}×"),
+ ("speech.sample", "Швидкість мовлення {r}. Так звучатиме все озвучення.", "Speech rate {r}. All speech will sound like this."),
+ ("btn.what", "Що зараз?", "What now?"),
+ ("tip.what", "Сказати час або дату, де найбільше, чи росте величина і наскільки. Клавіша W.", "Say the time or date, where there is most, whether the value is rising and by how much. Key W."),
 ]
 keys=[k for k,_,_ in T]; assert len(keys)==len(set(keys)), "дублікати ключів"
 root=pathlib.Path(__file__).resolve().parent.parent/"src"/"i18n"

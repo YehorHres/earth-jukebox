@@ -1,7 +1,7 @@
 // Згенеровано tools/i18n-table.py — редагуйте таблицю там.
 export default {
-  "doc.title": "EcoSphear",
-  "doc.description": "EcoSphear turns NASA visualizations into music for blind and low-vision listeners.",
+  "doc.title": "EchoSphear",
+  "doc.description": "EchoSphear turns NASA visualizations into music for blind and low-vision listeners.",
   "skip": "Skip to playback controls",
   "lang.group": "Interface language",
   "lang.announce": "Language: English.",
@@ -154,7 +154,7 @@ export default {
   "hover.on": "Read-aloud under the cursor is on. Alt+Shift+S turns it off.",
   "hover.off": "Read-aloud under the cursor is off.",
   "keys.title": "Keyboard",
-  "keys.html": "<kbd>Space</kbd> play/pause · <kbd>L</kbd> audio legend · <kbd>D</kbd> read the card · <kbd>M</kbd> what drives the music now · <kbd>E</kbd> explore the map (arrows, <kbd>Shift</kbd> — bigger step, <kbd>Esc</kbd> — exit) · <kbd>1</kbd>–<kbd>9</kbd> mute/unmute a part · <kbd>Shift</kbd>+<kbd>1</kbd>–<kbd>9</kbd> solo · <kbd>←</kbd>/<kbd>→</kbd> ±5 s · <kbd>Alt</kbd>+<kbd>Shift</kbd>+<kbd>S</kbd> read aloud under the cursor",
+  "keys.html": "<kbd>Space</kbd> play/pause · <kbd>L</kbd> audio legend · <kbd>D</kbd> read the card · <kbd>M</kbd> what drives the music now · <kbd>W</kbd> what is on the map now (where most, rising or falling) · <kbd>−</kbd>/<kbd>=</kbd> speech rate · <kbd>E</kbd> explore the map (arrows, <kbd>Shift</kbd> — bigger step, <kbd>Esc</kbd> — exit) · <kbd>1</kbd>–<kbd>9</kbd> mute/unmute a part · <kbd>Shift</kbd>+<kbd>1</kbd>–<kbd>9</kbd> solo · <kbd>←</kbd>/<kbd>→</kbd> ±5 s · <kbd>Alt</kbd>+<kbd>Shift</kbd>+<kbd>S</kbd> read aloud under the cursor",
   "dev.summary": "Technical analysis data (for developers)",
   "dev.masks": "Show masks on the frame (outside the data area — orange, land — green, background — blue, labels — purple)",
   "foot.data": "Visualizations: NASA Earth Information Center",
@@ -216,4 +216,10 @@ export default {
   "tip.exportJson": "Download the analysis results as a JSON file for checking.",
   "tip.devSummary": "Expand the technical analysis data for developers.",
   "tip.skip": "Jump straight to the playback buttons.",
+  "opt.speechRate": "Speech rate",
+  "tip.speechRate": "Rate of all speech: under the cursor, the intro, “What now?” and the summary. From 0.5× to 2×; keys − and =.",
+  "speech.rateVal": "{r}×",
+  "speech.sample": "Speech rate {r}. All speech will sound like this.",
+  "btn.what": "What now?",
+  "tip.what": "Say the time or date, where there is most, whether the value is rising and by how much. Key W.",
 };
