@@ -13,6 +13,7 @@ import { setupExplore } from "./ui/explore.js";
 import { GRAMMAR } from "./grammar.js";
 import { setupGalleryMenu } from "./ui/gallery-menu.js";
 import { applyMotion, MOTION_LABEL, MOTION_NOTE } from "./analysis/motion.js";
+import { resolvePolarity } from "./analysis/palette.js";
 import { t, tr, pick, getLang, setLang, onLang, applyDom, registerExact } from "./i18n/index.js";
 import { setupTooltips } from "./ui/tooltip.js";
 import { setupHoverSpeech } from "./ui/hover-speech.js";
@@ -143,9 +144,12 @@ async function loadSource(title, open, item) {
     timeline.set(app.analysis);
 
     // тема: з галереї — підставляється сама; для свого файлу — нейтральна, доки користувач не скаже
-    app.topic = getTopic(item?.topic || "generic");
-    topicInput.set(item?.topic ? app.topic : null);
-    if (!item?.topic) announce(t("status.askTopic"), { force: true });
+    // своє відео: тема й полярність, збережені для цього файлу минулого разу
+    const saved = item ? null : loadRead(src.key);
+    app.polarityChoice = saved?.polarity || "auto";
+    app.topic = getTopic(item?.topic || saved?.topic || "generic");
+    topicInput.set(item?.topic || saved?.topic ? app.topic : null);
+    if (!item?.topic && !saved?.topic) announce(t("status.askTopic"), { force: true });
 
     showReadOptions(item);
     // шари 2–3: мапінг і партитура
@@ -156,8 +160,10 @@ async function loadSource(title, open, item) {
     if (document.activeElement?.closest("#gallery, #drop") || document.activeElement === document.body) $("play").focus();
   } catch (e) {
     console.error(e);
-    setStatus(() => t("status.error", { msg: e.message }));
-    announce(t("status.error", { msg: e.message }), { force: true });
+    // формат, якого браузер не декодує, — зрозуміла порада замість технічної помилки (текст + aria-live)
+    const msg = () => (e.code === "format" ? tr(e.message) : t("status.error", { msg: e.message }));
+    setStatus(msg);
+    announce(msg(), { force: true });
   } finally {
     app.busy = false;
   }
@@ -166,7 +172,11 @@ async function loadSource(title, open, item) {
 /** Мапінг і композиція для поточної теми (без повторного аналізу відео). */
 async function remap() {
   app.preset = await presetFor(app.profile.sceneType, app.topic);
-  app.mapping = mapAnalysis(app.analysis, app.preset, { topic: app.topic, timeUnit: app.catalogItem?.timeUnit || null });
+  // v7 §3: полярність — лише для завантажених файлів (галерея: як задано темою)
+  const polRes = app.catalogItem ? null : resolvePolarity(app.polarityChoice, app.profile, app.topic);
+  app.polarityText = polRes ? polRes.text : "";
+  if (polRes) $("polarity-hint").textContent = tr(polRes.text);
+  app.mapping = mapAnalysis(app.analysis, app.preset, { topic: app.topic, timeUnit: app.catalogItem?.timeUnit || null, polarity: polRes ? polRes.pol : null });
   timeline.setSections(app.mapping.meta.sections.map(s => ({
     label: tr(s.label), t0: s.b0 * app.mapping.meta.barDur, t1: s.b1 * app.mapping.meta.barDur,
   })));
@@ -177,6 +187,7 @@ async function remap() {
 app.setTopic = async topic => {
   app.topic = topic;
   if (!app.analysis || app.busy) return;
+  saveRead();
   const wasPlaying = app.player?.playing;
   await remap();
   setStatus(() => t("status.topic", { name: pick(app.topic, "name"), key: app.score.key, meter: app.score.meter.id, bpm: app.score.bpm }));
@@ -185,9 +196,13 @@ app.setTopic = async topic => {
 
 /* ---------------- v7: як читати завантажене відео (тип руху) ---------------- */
 function showReadOptions(item) {
-  const mo = app.analysis?.motion, show = !item && !!mo && app.source?.kind === "video";
+  const mo = app.analysis?.motion, show = !item && !!app.analysis;
   $("read-opts").hidden = !show;
   if (!show) return;
+  $("polarity").value = app.polarityChoice || "auto";
+  if (app.polarityText) $("polarity-hint").textContent = tr(app.polarityText);
+  $("motion-row").hidden = $("motion-hint").hidden = !mo || app.source?.kind !== "video";
+  if (!mo) return;
   if (![...$("motionType").options].some(o => o.value === mo.type)) $("motionType").add(new Option(tr(MOTION_LABEL[mo.type] || mo.type), mo.type));
   $("motionType").value = mo.type;
   $("motion-hint").textContent = `${t(mo.auto ? "motion.auto" : "motion.manual")}${mo.why ? `: ${tr(mo.why)}` : ""}. ${tr(mo.note || MOTION_NOTE[mo.type] || "")}`;
@@ -201,6 +216,23 @@ $("motionType").addEventListener("change", async e => {
   timeline.set(app.analysis);
   await remap();
   announce(t("motion.announce", { label: tr(MOTION_LABEL[e.target.value]), note: tr(MOTION_NOTE[e.target.value] || "") }), { force: true });
+  if (wasPlaying) app.player.play();
+});
+
+/* ---------------- v7 §3: «що означає більше» — полярність голосу даних ---------------- */
+const READ_KEY = "ecosphear-read:";
+function loadRead(key) { try { return JSON.parse(localStorage.getItem(READ_KEY + key) || "null"); } catch { return null; } }
+function saveRead() {
+  if (app.catalogItem || !app.source) return;
+  try { localStorage.setItem(READ_KEY + app.source.key, JSON.stringify({ topic: app.topic?.id === "generic" ? null : app.topic?.id, polarity: app.polarityChoice })); } catch { /* приватний режим — не зберігаємо */ }
+}
+$("polarity").addEventListener("change", async e => {
+  app.polarityChoice = e.target.value;
+  if (!app.analysis || app.busy) return;
+  const wasPlaying = app.player?.playing;
+  saveRead();
+  await remap();
+  announce($("polarity-hint").textContent, { force: true });
   if (wasPlaying) app.player.play();
 });
 
@@ -313,6 +345,7 @@ for (const tp of app.topics) {
 const topicInput = setupTopicInput({ topics: app.topics, onTopic: t => app.setTopic(t) });
 app.catalog = await loadCatalog();
 app.loadItem = loadItem;
+app.loadFile = loadFile;
 
 // граматика звуку (v5-A): одна таблиця для всіх тем
 function renderGrammar() {

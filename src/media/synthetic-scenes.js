@@ -210,7 +210,7 @@ Object.assign(SCENES, {
     },
     truth(x, y) { const { cx, cy, r } = this.disk(); return (x - cx) ** 2 + (y - cy) ** 2 <= r * r; },
   },
-  // камера їде над статичною картою (3 px за кадр на схід, 0.5 px на південь); дані НЕ змінюються
+  // камера їде над статичною картою (3 px за кадр на схід, 2 px на південь); дані НЕ змінюються
   "pan-map": {
     w: 480, h: 240, duration: 12, fps: 10, shape: "full",
     draw(g, t, W, H) {
@@ -226,8 +226,32 @@ Object.assign(SCENES, {
         this._map = m;
       }
       const f = Math.round(t * this.fps);
-      g.drawImage(this._map, 3 * f, Math.round(0.5 * f), W, H, 0, 0, W, H);
+      g.drawImage(this._map, 3 * f, 2 * f, W, H, 0, 0, W, H);
     },
     truth: () => true,
   },
+});
+
+/* ---------- v7 §2: шкали без легенди (зелена, viridis) — карта на місці, дані змінюються ---------- */
+const lerp3 = (a, b, t) => a.map((x, k) => Math.round(x + (b[k] - x) * t));
+const VIRIDIS = [[68, 1, 84], [59, 82, 139], [33, 145, 140], [94, 201, 98], [253, 231, 37]];
+/** Палітри тестових сцен: значення 0..1 → [r, g, b]. */
+export const PALETTES = {
+  green: v => lerp3([8, 48, 20], [196, 255, 176], Math.max(0, Math.min(1, v))),
+  viridis: v => { const x = Math.max(0, Math.min(0.9999, v)) * 4, k = Math.floor(x); return lerp3(VIRIDIS[k], VIRIDIS[k + 1], x - k); },
+};
+function drawValueMap(g, W, H, t, color) {
+  const css = v => { const [r, gg, b] = color(v); return `rgb(${r},${gg},${b})`; };
+  for (let k = 0; k < H; k += 2) {
+    const lat = 1 - Math.abs((k + 1) / H - 0.5) * 2;
+    for (let x = 0; x < W; x += 8) { g.fillStyle = css(0.1 + 0.6 * lat + 0.12 * Math.sin(t * 0.7 + k * 0.05 + x * 0.02)); g.fillRect(x, k, 8, 2); }
+  }
+  // пляма високих значень: рухається на схід і росте до середини відео
+  const grow = 0.06 + 0.1 * Math.sin(Math.PI * Math.min(1, t / 12));
+  g.fillStyle = css(1); g.beginPath(); g.arc(((0.15 + 0.06 * t) % 1) * W, H * 0.5, H * grow, 0, 7); g.fill();
+  g.fillStyle = css(0.85); g.beginPath(); g.arc(W * 0.7, H * 0.3, H * (0.05 + 0.6 * grow), 0, 7); g.fill();
+}
+Object.assign(SCENES, {
+  "green-map": { w: 480, h: 240, duration: 12, fps: 10, shape: "full", palette: "green", draw(g, t, W, H) { drawValueMap(g, W, H, t, PALETTES.green); }, truth: () => true },
+  "viridis-map": { w: 480, h: 240, duration: 12, fps: 10, shape: "full", palette: "viridis", draw(g, t, W, H) { drawValueMap(g, W, H, t, PALETTES.viridis); }, truth: () => true },
 });

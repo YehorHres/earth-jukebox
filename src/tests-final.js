@@ -75,3 +75,93 @@ FINAL_SUITES.push(async function motion(check) {
   const forced = await analyzeSource(openSynthetic("rotating-globe"), { useCache: false, motion: "temporal" });
   check("Галерея (motion: temporal): аналіз без поля motion — поведінка як раніше", forced.motion === undefined && forced.temporalBase === undefined && forced.events.length === rot.temporalBase.events.length, `подій ${forced.events.length}, провідна ознака ${forced.leadFeature}`);
 });
+
+// C. Шкала без легенди (палітра кадру) і перемикач полярності «що означає більше»
+FINAL_SUITES.push(async function palette(check) {
+  const { openSynthetic } = await import("./media/sources.js");
+  const { passA } = await import("./analysis/pass-a.js");
+  const { analyzeSource } = await import("./analysis/analyze.js");
+  const { scaleValue } = await import("./analysis/frame-context.js");
+  const { resolvePolarity, scaleSense } = await import("./analysis/palette.js");
+  const { PALETTES } = await import("./media/synthetic-scenes.js");
+  const { presetFor, mapAnalysis } = await import("./mapping/mapper.js");
+  const { compose } = await import("./composer/composer.js");
+  const { describeProfile } = await import("./a11y/describe.js");
+  const R = await import("./audio/report.js");
+  const T = await import("./topics/topics.js");
+  await T.loadTopics();
+
+  // 1) зелена шкала й viridis без легенди → paletteValue монотонний
+  const mono = {};
+  for (const id of ["green-map", "viridis-map"]) {
+    const p = await passA(openSynthetic(id), { autoPalette: true });
+    const refs = p.scale?.found ? Float32Array.from(p.scale.refs.flat()) : null, color = PALETTES[id.split("-")[0]];
+    // значення, які справді є у відео (0.1…0.82 і плями 0.85 та 1): палітра будується з кольорів кадру
+    const vs = [...Array.from({ length: 15 }, (_, k) => 0.12 + k * 0.048), 0.85, 1], out = refs ? vs.map(v => scaleValue(refs, ...color(v))) : [];
+    mono[id] = { p, rho: refs ? R.spearman(vs, out) : 0, miss: out.filter(x => x < 0).length, span: out.length ? Math.max(...out) - Math.min(...out) : 0 };
+  }
+  const g = mono["green-map"], v = mono["viridis-map"];
+  check("Зелена шкала без легенди: палітру кадру знайдено, paletteValue монотонний (ρ ≥ 0.98), світліше = більше", g.p.scale?.palette && g.rho >= 0.98 && g.miss === 0 && g.span > 0.7 && g.p.sceneType === "heatmap",
+    `${g.p.sceneDetected} → ${g.p.sceneType}; ρ = ${g.rho.toFixed(3)}, розмах ${g.span.toFixed(2)}, пояснена дисперсія ${g.p.palette?.explained?.toFixed(2)} — ${g.p.palette?.why}`);
+  check("Viridis без легенди: paletteValue монотонний (ρ ≥ 0.98), фіолетове — менше, жовте — більше", v.p.scale?.palette && v.rho >= 0.98 && v.miss === 0 && v.span > 0.7,
+    `${v.p.sceneDetected} → ${v.p.sceneType}; ρ = ${v.rho.toFixed(3)}, розмах ${v.span.toFixed(2)}, пояснена дисперсія ${v.p.palette?.explained?.toFixed(2)}`);
+  const br = await passA(openSynthetic("flatmap"), { autoPalette: true }), off = await passA(openSynthetic("green-map"));
+  check("Шкала «синій → червоний» читається як раніше (за відтінком); без autoPalette (галерея) палітра не вмикається", !br.scale.found && br.sceneType === "heatmap" && !off.scale.found && !off.palette, `flatmap: ${br.palette?.why}; green-map без autoPalette: шкала ${off.scale.found}`);
+
+  // 2) повний аналіз зеленої карти: провідна ознака значуща, опис чесний
+  const a = await analyzeSource(openSynthetic("green-map"), { useCache: false });
+  const text = describeProfile(a.profile, null, a).join(" ");
+  check("Зелена карта: головна ознака — значення за палітрою (не відтінок); опис каже «значення відносні»", a.profile.scale?.palette && ["warmth", "hotShare"].includes(a.leadFeature) && a.norm[a.leadFeature].significant && /значення відносні/.test(text) && /палітр/.test(a.labels[a.leadFeature] + a.labels.warmth),
+    `провідна ознака: ${a.labels[a.leadFeature]}; тип руху: ${a.motion?.type}`);
+
+  // 3) перемикач полярності обертає голос даних
+  const topic = T.getTopic("vegetation"), preset = await presetFor(a.profile.sceneType, topic);
+  const up = resolvePolarity("lighter", a.profile, topic), down = resolvePolarity("darker", a.profile, topic), auto = resolvePolarity("auto", a.profile, topic);
+  const mUp = mapAnalysis(a, preset, { topic, polarity: up.pol }), mDown = mapAnalysis(a, preset, { topic, polarity: down.pol });
+  const pitch = m => { const s = compose(m, { seed: "pol" }), by = m.bars.map(() => []); for (const n of s.notes) if (n.part === "dataVoice") by[Math.min(by.length - 1, Math.floor((n.t + 1e-6) / s.barDur))].push(n.midi); return by.map(x => (x.length ? x.reduce((p, q) => p + q, 0) / x.length : null)); };
+  const pu = pitch(mUp), pd = pitch(mDown), idx = pu.map((_, i) => i).filter(i => pu[i] !== null && pd[i] !== null);
+  const rhoV = R.spearman(mUp.bars.map(b => b.params.value), mDown.bars.map(b => b.params.value)), rhoP = R.spearman(idx.map(i => pu[i]), idx.map(i => pd[i]));
+  check("Перемикач полярності («світліше» ↔ «темніше») обертає голос даних: значення й висота нот дзеркальні", up.pol === 1 && down.pol === -1 && auto.pol === 1 && rhoV <= -0.99 && rhoP <= -0.7 && mDown.meta.polarity === -1,
+    `світліше: ${up.pol}, темніше: ${down.pol}; ρ значень = ${rhoV.toFixed(2)}, ρ висоти тактів = ${rhoP.toFixed(2)}; «${down.text}»`);
+  const hs = scaleSense(br), warm = resolvePolarity("warmer", br, null), light = resolvePolarity("lighter", br, null);
+  check("Полярність: для «синій → червоний» тепліше = більше; вибір озвучується зрозумілим реченням", hs.warmer === 1 && warm.pol === 1 && /тепліше/.test(warm.text) && /автоматично/.test(auto.text) && light.pol === 1, `${warm.text} | ${auto.text}`);
+
+  // 4) UI: перемикачі є, підписані й приховані для галереї
+  const html = await (await fetch("index.html")).text();
+  check("UI: перемикачі «Що рухається у відео» й «Більше значення — це» мають підписи (label for) і підказки (aria-describedby)",
+    /<label for="polarity"[^>]*>/.test(html) && /<select id="polarity" aria-describedby="polarity-hint"[^>]*>/.test(html) && /<label for="motionType"[^>]*>/.test(html) && /id="read-opts"[^>]*hidden/.test(html), "index.html");
+
+  // 5) тема «висота лісу» / canopy height → vegetation
+  const qs = ["висота лісу", "canopy height", "forest", "ліс"], got = qs.map(q => T.matchTopic(q).topic?.id);
+  check("Тема: «висота лісу», «canopy height», «forest», «ліс» → vegetation", got.every(x => x === "vegetation"), qs.map((q, i) => `${q} → ${got[i]}`).join("; "));
+});
+
+// D. Формати: відео, яке браузер не декодує, — зрозуміле повідомлення; великі файли — ≤ 400 кадрів
+FINAL_SUITES.push(async function formats(check) {
+  const S = await import("./media/sources.js");
+  const { planSampling } = await import("./analysis/pass-b.js");
+  const junk = new File([new Uint8Array(4096).map((_, i) => (i * 37) % 251)], "broken_h265.mp4", { type: "video/mp4" });
+  let err = null;
+  try { await S.openVideo(junk); } catch (e) { err = e; }
+  check("Формати: відео, що не декодується, → зрозуміле повідомлення (H.265/HEVC, роздільність, порада MP4 H.264 1080p)", err?.code === "format" && err.message === S.FORMAT_MESSAGE && /H\.265\/HEVC/.test(err.message) && /MP4 H\.264 1080p/.test(err.message) && /NASA SVS/.test(err.message), err ? err.message : "помилки немає");
+
+  const heavy = planSampling({ duration: 300, fps: 30, heavy: true }), normal = planSampling({ duration: 300, fps: 30 }), huge = planSampling({ duration: 3600, fps: 60, heavy: true });
+  check("Великі файли (> 150 МБ або ширші за 2560 px): аналіз ≤ 400 кадрів, один декодер; звичайні відео — як раніше", heavy.count <= 400 && huge.count <= 400 && normal.count === 800 && S.HEAVY_BYTES === 150e6,
+    `важке 5 хв: ${heavy.count} кадрів; важке 1 год: ${huge.count}; звичайне 5 хв: ${normal.count}`);
+
+  // застосунок: повідомлення видно в рядку стану й у aria-live
+  const fr = document.createElement("iframe");
+  fr.style.cssText = "width:900px;height:700px;position:absolute;left:-2000px";
+  fr.src = "index.html?lang=uk";
+  document.body.appendChild(fr);
+  await new Promise(r => fr.addEventListener("load", r, { once: true }));
+  const w = fr.contentWindow, doc = fr.contentDocument;
+  for (let i = 0; i < 40 && !w.jukebox?.loadFile; i++) await new Promise(r => setTimeout(r, 250));
+  const origErr = w.console.error; w.console.error = () => {};      // очікувана помилка — не засмічує консоль
+  await w.jukebox.loadFile(new w.File([new Uint8Array(4096)], "broken_h265.mp4", { type: "video/mp4" }));
+  w.console.error = origErr;
+  for (let i = 0; i < 30 && !/H\.265/.test(doc.getElementById("live").textContent); i++) await new Promise(r => setTimeout(r, 100));
+  const status = doc.getElementById("status").textContent, live = doc.getElementById("live").textContent;
+  check("Формати: у застосунку повідомлення видно текстом (рядок стану) і чутно (aria-live); застосунок лишається робочим", status === S.FORMAT_MESSAGE && live === S.FORMAT_MESSAGE && w.jukebox.busy === false, `стан: «${status.slice(0, 60)}…»`);
+  fr.remove();
+});

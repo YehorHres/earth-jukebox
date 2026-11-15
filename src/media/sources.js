@@ -8,6 +8,14 @@ import { SCENES } from "./synthetic-scenes.js";
 const STD_FPS = [12, 15, 23.976, 24, 25, 29.97, 30, 48, 50, 59.94, 60];
 const snapFps = f => STD_FPS.reduce((a, b) => (Math.abs(b - f) < Math.abs(a - f) ? b : a), 30);
 
+/** Блок D: зрозуміле повідомлення, коли браузер не декодує відео (H.265/HEVC, 4K–6K). */
+export const FORMAT_MESSAGE = "Браузер не може відтворити цей формат (ймовірно H.265/HEVC або дуже висока роздільність). Завантажте MP4 H.264 1080p зі сторінки NASA SVS або сконвертуйте файл.";
+export class VideoFormatError extends Error {
+  constructor(detail = "") { super(FORMAT_MESSAGE); this.name = "VideoFormatError"; this.code = "format"; this.detail = detail; }
+}
+/** «Важке» відео: великий файл або понад 1440p — аналіз ≤ 400 кадрів, один декодер (без збою пам'яті). */
+export const HEAVY_BYTES = 150e6, HEAVY_WIDTH = 2560, DATAURL_MAX_BYTES = 40e6, SEEK_TIMEOUT_MS = 20000;
+
 const VIDEO_ERR = { 1: "завантаження перервано", 2: "мережева помилка", 3: "не вдалося декодувати", 4: "формат або джерело не підтримується" };
 
 function loadVideoSrc(video, src) {
@@ -52,10 +60,14 @@ async function estimateFps(video) {
   return snapFps(1 / d[Math.floor(d.length / 2)]);
 }
 
-function seekVideo(video, t) {
-  return new Promise(res => {
+function seekVideo(video, t, timeoutMs = SEEK_TIMEOUT_MS) {
+  return new Promise((res, rej) => {
     if (Math.abs(video.currentTime - t) < 1e-4 && video.readyState >= 2) return res();
-    video.addEventListener("seeked", () => res(), { once: true });
+    // декодер «завис» або зламався посеред файлу (HEVC, 6K) — не чекаємо вічно
+    const done = () => { clearTimeout(timer); video.removeEventListener("seeked", ok); video.removeEventListener("error", bad); };
+    const ok = () => { done(); res(); }, bad = () => { done(); rej(new VideoFormatError(`помилка декодування на ${t.toFixed(1)} с`)); };
+    const timer = setTimeout(() => { done(); rej(new VideoFormatError(`кадр на ${t.toFixed(1)} с не декодовано за ${timeoutMs / 1000} с`)); }, timeoutMs);
+    video.addEventListener("seeked", ok); video.addEventListener("error", bad);
     video.currentTime = t;
   });
 }
@@ -75,35 +87,52 @@ export async function openVideo(srcOrFile, opts = {}) {
     const url = URL.createObjectURL(srcOrFile);
     try { await loadVideoSrc(video, url); }
     catch (e1) {
+      // великий файл не читаємо в пам'ять цілком: це не блокування blob:, а формат, якого браузер не декодує
+      if (size > DATAURL_MAX_BYTES) throw new VideoFormatError(e1.message);
       // деякі вбудовані браузери блокують blob: для відео — пробуємо data-URL
       const dataUrl = await new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(r.result); r.onerror = () => rej(r.error); r.readAsDataURL(srcOrFile); });
       try { await loadVideoSrc(video, dataUrl); }
-      catch (e2) { throw new Error(`браузер не може відкрити відео: ${e2.message}. Спробуйте Chrome/Edge або конвертуйте в MP4 (H.264) / WebM.`); }
+      catch (e2) { throw new VideoFormatError(e2.message); }
     }
   } else {
     const errors = [];
     let ok = false;
     // Завантажуємо файл повністю в blob: простий сервер (python -m http.server) не підтримує
     // Range-запити, і тоді браузер не дає перемотувати відео — а аналіз кадрів без цього неможливий.
+    let http = false;
     for (const src of [].concat(srcOrFile)) {
       let url = null;
       try {
-        const res = await fetch(src);
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        url = URL.createObjectURL(await res.blob());
-        await loadVideoSrc(video, url);
+        if (opts.direct) {
+          // великий файл із сервера, що підтримує Range (tools/serve.py): не завантажуємо в пам'ять цілком
+          const head = await fetch(src, { method: "HEAD" });
+          if (!head.ok) { http = true; throw new Error(`HTTP ${head.status}`); }
+          size ||= Number(head.headers.get("content-length")) || 0;
+          await loadVideoSrc(video, src);
+        } else {
+          const res = await fetch(src);
+          if (!res.ok) { http = true; throw new Error(`HTTP ${res.status}`); }
+          const blob = await res.blob();
+          size ||= blob.size;
+          url = URL.createObjectURL(blob);
+          await loadVideoSrc(video, url);
+        }
         ok = true; break;
       } catch (e) { errors.push(`${src}: ${e.message}`); if (url) URL.revokeObjectURL(url); }
     }
+    if (!ok && !http) throw new VideoFormatError(errors.join("; "));
     if (!ok) throw new Error(`не вдалося відкрити жоден варіант відео (${errors.join("; ")})`);
     name ??= String([].concat(srcOrFile)[0]).split("/").pop();
   }
+  // заголовок прочитано, але кадрів немає (типово для HEVC без апаратного декодера)
+  if (!video.videoWidth || !video.videoHeight) throw new VideoFormatError("відео без зображення (videoWidth = 0)");
   const duration = await ensureDuration(video);
   const fps = opts.fps || await estimateFps(video);
   await seekVideo(video, 0);
+  const heavy = size > HEAVY_BYTES || video.videoWidth > HEAVY_WIDTH;
   const clamp = t => Math.max(0, Math.min(duration - 0.02, t));
   return {
-    kind: "video", name, el: video, duration, fps, isStatic: false,
+    kind: "video", name, el: video, duration, fps, isStatic: false, heavy, size,
     width: video.videoWidth, height: video.videoHeight,
     key: `${name}|${size}|${duration.toFixed(2)}`,
     async seek(t) { await seekVideo(video, clamp(t)); return video; },

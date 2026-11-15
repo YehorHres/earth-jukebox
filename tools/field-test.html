@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="uk">
+<head>
+<meta charset="utf-8">
+<title>Польовий тест відео</title>
+<link rel="icon" href="data:,">
+</head>
+<body>
+<h1>Польовий тест відео (PROMPT-final, блок E)</h1>
+<p>Параметри: <code>?file=samples/field-tests/назва.mp4&amp;topic=vegetation&amp;max=60&amp;motion=&amp;polarity=auto</code>.
+Результат — один рядок JSON для <code>renders/field-report.json</code>.</p>
+<p id="state" role="status">Запуск…</p>
+<pre id="out"></pre>
+<script type="module">
+import { openVideo } from "../src/media/sources.js";
+import { analyzeSource } from "../src/analysis/analyze.js";
+import { applyMotion } from "../src/analysis/motion.js";
+import { resolvePolarity } from "../src/analysis/palette.js";
+import { presetFor, mapAnalysis } from "../src/mapping/mapper.js";
+import { compose } from "../src/composer/composer.js";
+import { loadTopics, getTopic } from "../src/topics/topics.js";
+import { spearman } from "../src/audio/report.js";
+import { describeProfile } from "../src/a11y/describe.js";
+
+const q = new URLSearchParams(location.search), file = q.get("file"), max = Number(q.get("max") || 60);
+const state = t => (document.getElementById("state").textContent = t);
+const rec = { file: file?.split("/").pop(), path: file, topic: q.get("topic") || "generic", problems: [] };
+const r2 = v => (Number.isFinite(v) ? Math.round(v * 100) / 100 : null);
+try {
+  await loadTopics();
+  const t0 = performance.now();
+  let src;
+  try { src = await openVideo("../" + file.split("/").map(encodeURIComponent).join("/"), { direct: true, name: rec.file }); rec.opened = true; }
+  catch (e) { rec.opened = false; rec.error = e.message; rec.detail = e.detail || null; throw e; }
+  Object.assign(rec, { width: src.width, height: src.height, duration: r2(src.duration), fps: src.fps, heavy: !!src.heavy, sizeMB: Math.round((src.size || 0) / 1e6) });
+  // великі / довгі файли — лише перші max секунд
+  if (src.duration > max) { src = { ...src, duration: max, key: src.key + `|first${max}` }; rec.analyzedSeconds = max; } else rec.analyzedSeconds = rec.duration;
+  let a = await analyzeSource(src, { useCache: false, projection: "other", onProgress: (st, p, msg) => state(`${rec.file}: ${msg || st}`) });
+  rec.autoMotion = a.motion?.type;
+  if (q.get("motion")) a = applyMotion(a, q.get("motion"), { auto: false });
+  const p = a.profile, topic = getTopic(rec.topic);
+  const pol = resolvePolarity(q.get("polarity") || "auto", p, topic);
+  const m = mapAnalysis(a, await presetFor(p.sceneType, topic), { topic, polarity: pol.pol });
+  const s = compose(m, { seed: `${rec.file}|${m.meta.topic}` });
+  const by = m.bars.map(() => []);
+  for (const n of s.notes) if (n.part === "dataVoice") by[Math.min(by.length - 1, Math.floor((n.t + 1e-6) / s.barDur))].push(n.midi);
+  const idx = by.map((_, i) => i).filter(i => by[i].length), lf = a.leadFeature;
+  const feat = i => m.bars[i].frames.reduce((x, k) => x + a.rel[lf][k], 0) / m.bars[i].frames.length;
+  const rho = lf && idx.length > 3 ? spearman(idx.map(i => by[i].reduce((x, y) => x + y, 0) / by[i].length), idx.map(feat)) * pol.pol : null;
+  Object.assign(rec, {
+    frames: a.count, analysisSeconds: r2((performance.now() - t0) / 1000), processor: a.processor,
+    sceneDetected: p.sceneDetected, sceneType: p.sceneType, confidence: r2(p.confidence), region: p.region?.full ? "full" : p.region?.shape,
+    motion: a.motion?.type, motionAuto: a.motion?.auto, motionConfidence: r2(a.motion?.confidence), motionWhy: a.motion?.why, motionStats: a.motion?.stats && Object.fromEntries(Object.entries(a.motion.stats).map(([k, v]) => [k, typeof v === "number" ? r2(v) : v])),
+    scale: p.scale?.palette ? `палітра кадру (${p.palette.kind}, ${r2(p.palette.explained)})` : p.scale?.found ? `шкала в кадрі (${p.scale.orientation})` : p.sceneType === "heatmap" ? "відтінок синій→червоний" : "яскравість",
+    paletteWhy: p.palette?.why || null, sense: (await import("../src/analysis/palette.js")).scaleSense(p), changeScale: p.changeScale,
+    leadFeature: lf, leadLabel: lf ? a.labels[lf] : null, polarity: pol.pol, polarityText: pol.text,
+    rhoVoiceLead: r2(rho), events: a.events.length, eventsWithoutMotion: a.temporalBase?.events.length ?? a.events.length,
+    bpm: s.bpm, key: s.key, notes: s.notes.length, voiceNotes: s.notes.filter(n => n.part === "dataVoice").length, parts: s.parts.map(x => x.id).join(","),
+    cuts: a.cuts.filter(c => !c.edge).length, describe: describeProfile(p, src, a).slice(0, 3).join(" ").slice(0, 300),
+  });
+  if (!lf) rec.problems.push("немає значущої провідної ознаки");
+  if (rho !== null && rho < 0.6) rec.problems.push(`ρ голосу даних із головною ознакою ${r2(rho)} < 0.6`);
+  if (rec.voiceNotes < 5) rec.problems.push("голос даних майже мовчить");
+  if (q.has("render")) {
+    const { renderOffline } = await import("../src/audio/render.js");
+    const { loadFor } = await import("../src/audio/library/index.js");
+    await loadFor(new OfflineAudioContext(1, 1, 44100), s.instruments);
+    const r = await renderOffline(s, m, { from: 0, seconds: 8, sampleRate: 22050 });
+    rec.render = { peak: r2(r.peak), rms: r2(r.rms), ok: r.peak <= 1 && Number.isFinite(r.rms) && r.rms > 0 };
+    if (!rec.render.ok) rec.problems.push("рендер уривка: тиша або кліпінг");
+  }
+} catch (e) {
+  if (rec.opened !== false) { rec.error = e.message; rec.problems.push("виняток: " + e.message); }
+}
+document.getElementById("out").textContent = JSON.stringify(rec);
+state("ГОТОВО");
+window.__field = rec;
+</script>
+</body>
+</html>

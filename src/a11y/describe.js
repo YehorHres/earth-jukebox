@@ -34,7 +34,7 @@ export function describeProfile(p, source, analysis = null) {
   const lines = [];
   const SCENE = SCENE_LABEL(), SCALE = SCALE_LABEL();
   const conf = p.confidence >= 0.7 ? "" : p.confidence >= 0.4 ? L(" (впевненість середня)", " (medium confidence)") : L(" (впевненість низька)", " (low confidence)");
-  lines.push(`${SCENE[p.sceneType]}${conf}.`);
+  lines.push(`${p.scale?.palette ? L("Карта з власною шкалою кольорів (легенди в кадрі немає)", "A map with its own colour scale (no legend in the frame)") : SCENE[p.sceneType]}${conf}.`);
   if (p.scan) lines.push(L(`Зображення: лінія сканування йде ${p.scan.dir === "we" ? "із заходу на схід (зліва направо)" : "з півночі на південь (згори вниз)"} за ${Math.round(p.durationSec)} с; зміни вздовж карти звучать як зміни в часі.`,
     `Image: the scan line moves ${p.scan.dir === "we" ? "from west to east (left to right)" : "from north to south (top to bottom)"} over ${Math.round(p.durationSec)} s; changes along the map sound like changes in time.`));
   else if (p.isStill) lines.push(L("Одне зображення: музика сканує кадр зліва направо, часових змін немає.", "A single image: the music scans the frame left to right; there are no changes over time."));
@@ -90,7 +90,9 @@ export function describeProfile(p, source, analysis = null) {
     lines.push(L(`Область даних: ${what}, ${pct(rg.area)} кадру. Усе навколо (рамки, космос, чорні смуги, підписи) з аналізу виключено.`,
       `Data area: ${what}, ${pct(rg.area)} of the frame. Everything around it (frames, space, black bars, labels) is excluded from the analysis.`));
   }
-  if (p.scale?.found) lines.push(L(`Знайдено шкалу кольорів (${p.scale.orientation === "vertical" ? "вертикальну" : "горизонтальну"}) — значення читаються за нею, сама шкала з аналізу вирізана.`,
+  if (p.scale?.palette) lines.push(L(`Шкали кольорів у кадрі немає — ${p.palette?.why || "палітру визначено з кольорів кадру"}. Автоматичний режим: значення відносні; напрямок можна змінити перемикачем «Більше значення — це».`,
+    `There is no colour scale in the frame — ${tr(p.palette?.why) || "the palette was derived from the frame colours"}. Automatic mode: values are relative; you can change the direction with the “A larger value means” switch.`));
+  else if (p.scale?.found) lines.push(L(`Знайдено шкалу кольорів (${p.scale.orientation === "vertical" ? "вертикальну" : "горизонтальну"}) — значення читаються за нею, сама шкала з аналізу вирізана.`,
     `A ${p.scale.orientation === "vertical" ? "vertical" : "horizontal"} colour scale was found — values are read from it, and the scale itself is cut out of the analysis.`));
   else if (p.sceneType === "heatmap") lines.push(L("Шкали кольорів у кадрі немає — значення оцінюємо за відтінком: синій — менше, червоний — більше.", "There is no colour scale in the frame — values are estimated from the hue: blue is less, red is more."));
   const excl = [];

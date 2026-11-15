@@ -83,6 +83,17 @@ const EXACT = {
   "найбільша площа теплої води": "largest area of warm water", "найбільше світла": "most light", "найбільше хмар і льоду": "most clouds and ice",
   "найвище значення": "highest value", "найяскравіший момент": "brightest moment", "Аналіз узято з кешу": "Analysis loaded from cache",
   "Готовий аналіз завантажено": "Precomputed analysis loaded", "Оцінка рівня шуму…": "Estimating the noise level…", "Огляд завершено": "Overview finished", "задано вручну": "set manually", "нульовий меридіан": "prime meridian",
+  // --- палітра без легенди, полярність, формат відео (v7)
+  "Значення за палітрою кадру": "Value from the frame palette", "Частка високих значень": "Share of high values", "Частка низьких значень": "Share of low values",
+  "найбільша площа високих значень": "largest area of high values", "замало пікселів даних": "too few data pixels",
+  "шкала «синій → червоний» — значення за відтінком": "a “blue → red” scale — values read from the hue",
+  "кольори даних не лягають на одну шкалу": "the data colours do not fit a single scale", "кольори даних майже однакові": "the data colours are almost the same",
+  "палітра надто бідна": "the palette is too poor", "палітру впорядковано за світлотою: світліше = більше": "the palette is ordered by lightness: lighter = more",
+  "палітру впорядковано за відтінком: тепліше = більше": "the palette is ordered by hue: warmer = more", "палітру визначено з кольорів кадру": "the palette was derived from the frame colours",
+  "автоматично": "automatic", "світліше": "lighter", "темніше": "darker", "тепліше (червоніше)": "warmer (redder)",
+  "тепліше = більше": "warmer = more", "світліше = більше": "lighter = more", "червоне = більше": "red = more", "за шкалою в кадрі": "from the scale in the frame",
+  "Браузер не може відтворити цей формат (ймовірно H.265/HEVC або дуже висока роздільність). Завантажте MP4 H.264 1080p зі сторінки NASA SVS або сконвертуйте файл.":
+    "The browser cannot play this format (probably H.265/HEVC or a very high resolution). Download an MP4 H.264 1080p from the NASA SVS page or convert the file.",
   // --- пресети мапінгу: назви й пояснення
   "Універсальний (графіки й змішані візуалізації)": "Universal (charts and mixed visualizations)", "Теплова карта (температура, кольорова шкала)": "Heat map (temperature, colour scale)",
   "Нічна карта вогнів": "Night-lights map", "Супутниковий знімок у справжніх кольорах": "True-colour satellite image",
@@ -181,7 +192,10 @@ const RULES = [
   // рух
   [/^Глобус обертається: (.+)$/, () => "The globe rotates: you hear what is at the centre of the disc right now — the meridian facing the listener; the west of the disc is on the left, the east on the right. Rotation is a survey of space, not a change in the data, so it creates no events and does not control loudness."],
   [/^глобального зсуву кадру немає \((\d+) % кадрів\) — змінюються самі дані$/, (m, p) => `no global frame shift (${p}% of frames) — the data itself changes`],
-  [/^текстура всередині диска стало зсувається горизонтально \((\d+) % кадрів, в один бік — (\d+) %\)$/, (m, a, b) => `texture inside the disc shifts steadily sideways (${a}% of frames, ${b}% in one direction)`],
+  [/^текстура (всередині диска|в центрі кадру) стало зсувається горизонтально \((\d+) % кадрів, в один бік — (\d+) %\)$/, (m, w, a, b) => `texture ${w === "в центрі кадру" ? "at the centre of the frame" : "inside the disc"} shifts steadily sideways (${a}% of frames, ${b}% in one direction)`],
+  [/^Більше значення — автоматично: (.+?)( \(тема обертає напрямок\))?\.$/, (m, how, inv) => `A larger value — automatic: ${T(how)}${inv ? " (the topic reverses the direction)" : ""}.`],
+  [/^Більше значення — це (.+?): (вищий голос даних|голос даних обернено: вищий звук) — (.+?)\.( \(Шкала не розрізняє цього напрямку — узято напрямок за замовчуванням\.\))?$/, (m, c, how, c2, nos) =>
+    `A larger value means ${T(c)}: ${how === "вищий голос даних" ? "a higher data voice" : "the data voice is inverted: a higher sound"} — ${T(c2)}.${nos ? " (The scale cannot tell this direction apart — the default direction is used.)" : ""}`],
   [/^увесь кадр зсувається або масштабується разом \(зсув — (\d+) % кадрів, наближення — (\d+) %\)$/, (m, a, b) => `the whole frame pans or zooms together (pan — ${a}% of frames, zoom — ${b}%)`],
   // гармонія
   [/^(.+) \(світлість ([\d.]+)\), (спокійна|помірна|напружена) прогресія \(напруга ([\d.]+)\), акорд: (.+)$/, (m, mode, b, lv, tn, ch) =>
