@@ -4,6 +4,7 @@ import { openVideo, openImage, openSynthetic } from "./media/sources.js";
 import { passA } from "./analysis/pass-a.js";
 import { FINAL_SUITES } from "./tests-final.js";
 import { UI_SUITES } from "./tests-ui.js";
+import { V10_SUITES } from "./tests-v10.js";
 import { setLang } from "./i18n/index.js";
 
 // Тести перевіряють українські тексти двигуна — сторінка тестів завжди українською (вибір мови сайту не змінюється).
@@ -854,6 +855,7 @@ SUITES.push(async function stage_v6() {
 
 for (const f of FINAL_SUITES) SUITES.push(Object.defineProperty(() => f(check), "name", { value: f.name }));
 for (const f of UI_SUITES) SUITES.push(Object.defineProperty(() => f(check), "name", { value: f.name }));
+for (const f of V10_SUITES) SUITES.push(Object.defineProperty(() => f(check), "name", { value: f.name }));
 
 // ?only=golden,motion — лише названі набори (для швидких ітерацій; перед комітом — повний прогін)
 const ONLY = new URLSearchParams(location.search).get("only")?.split(",");

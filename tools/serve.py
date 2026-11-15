@@ -51,7 +51,7 @@ class Handler(http.server.SimpleHTTPRequestHandler):
 
     def do_POST(self):
         """Лише для tools/precompute.html: зберегти готовий аналіз у samples/<id>.analysis.json."""
-        m = re.fullmatch(r"/__save/(samples)/([\w.-]+\.analysis\.json)", self.path) or             re.fullmatch(r"/__save/(renders)/([\w.-]+\.(?:wav|json))", self.path)
+        m = re.fullmatch(r"/__save/(samples)/([\w.-]+\.analysis\.json)", self.path) or             re.fullmatch(r"/__save/(renders|renders/field)/([\w.-]+\.(?:wav|json))", self.path) or re.fullmatch(r"/__save/(tests/field)/([\w.-]+\.analysis\.json)", self.path)
         if not m:
             self.send_error(403, "only samples/*.analysis.json and renders/*.wav|json")
             return

@@ -35,7 +35,7 @@ const STORY = {
 export async function analyzeSource(source, { sceneOverride = null, projection = "equirect", onProgress = () => {}, useCache = true, precomputedUrl = null, scaleHint = null, motion = null, palette = null, layout = false } = {}) {
   // layout (блок F, лише завантажені відео): static → сканування кадру, chart → лінії графіка, composite → найбільша панель
   // motion: null — тип руху визначається автоматично (завантажені відео); "temporal" — галерея (поведінка як раніше)
-  const key = `v${ANALYSIS_VERSION}|${source.key}|${sceneOverride || ""}|${projection}${motion ? "" : "|m2"}${layout ? "|L1" : ""}`;
+  const key = `v${ANALYSIS_VERSION}|${source.key}|${sceneOverride || ""}|${projection}${motion ? "" : "|m3"}${layout ? "|L1" : ""}`;
   const autoPalette = palette ?? !motion;          // палітра без легенди — лише для завантажених файлів
   if (useCache) {
     const hit = await cacheGet(key);

@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="uk"><head><meta charset="utf-8"><title>Фікстура польового відео</title><link rel="icon" href="data:,"></head>
+<body><h1>Аналіз польового відео → tests/field/&lt;name&gt;.analysis.json</h1>
+<p><code>?file=samples/field-tests/назва.mp4&amp;name=iss&amp;max=240&amp;motion=</code> (оригінали відео не комітимо — тести читають ці фікстури).</p>
+<p id="state" role="status">Запуск…</p><pre id="out"></pre>
+<script type="module">
+import { openVideo } from "../src/media/sources.js";
+import { analyzeSource } from "../src/analysis/analyze.js";
+import { applyMotion } from "../src/analysis/motion.js";
+import { serializeAnalysis } from "../src/analysis/serialize.js";
+const q = new URLSearchParams(location.search), file = q.get("file"), name = q.get("name"), max = Number(q.get("max") || 600);
+const state = t => (document.getElementById("state").textContent = t), rec = { name, file };
+try {
+  const t0 = performance.now();
+  let src = await openVideo("../" + file.split("/").map(encodeURIComponent).join("/"), { direct: true, name: file.split("/").pop() });
+  if (src.duration > max) src = { ...src, duration: max, key: src.key + `|first${max}` };
+  let a = await analyzeSource(src, { useCache: false, projection: "other", layout: true, onProgress: (st, p, msg) => state(`${name}: ${msg || st}`) });
+  if (q.get("motion")) a = applyMotion(a, q.get("motion"), { auto: false });
+  const body = JSON.stringify(serializeAnalysis(a));
+  const res = await fetch(`/__save/${q.get("dir") || "tests/field"}/${name}.analysis.json`, { method: "POST", body });
+  const st = f => { const x = Array.from(a.abs[f] || []).sort((p, r) => p - r); return x.length ? [x[0], x[x.length >> 1], x[x.length - 1]].map(v => +v.toFixed(3)) : null; };
+  Object.assign(rec, { saved: await res.text(), kb: Math.round(body.length / 1024), seconds: Math.round((performance.now() - t0) / 1000), frames: a.count, duration: src.duration, scene: a.profile.sceneType,
+    motion: a.motion?.type, lead: a.leadFeature, region: a.profile.region?.full ? "full" : a.profile.region?.shape, dynamicBg: !!a.profile.dynamicBg, events: a.events.length,
+    sig: Object.keys(a.norm).filter(k => a.norm[k].significant).join(","),
+    surface: st("surface"), pointShare: st("pointShare"), fireShare: st("fireShare"), burnedShare: st("burnedShare"), gainShare: st("gainShare"), lossShare: st("lossShare") });
+} catch (e) { rec.error = e.message; }
+document.getElementById("out").textContent = JSON.stringify(rec);
+state("ГОТОВО"); window.__cap = rec;
+</script></body></html>

@@ -1,6 +1,7 @@
 // Просторові масштаби: сітка 16×8, колонки (кроки мелодії), широтні пояси, півкулі.
 // Значення в зоні — «головна величина» пікселя для типу сцени.
 import { logLight } from "./scene.js";
+import { quantityOf } from "./quantity.js";
 
 export const COLS = 16, ROWS = 8;
 // широтні пояси для рівнокутної карти: 90–60 / 60–30 / 30N–30S / 30–60 / 60–90
@@ -64,5 +65,6 @@ export function computeZones(ctx) {
   return {
     cols, colsCover, grid, gridCover, activity, bands,
     hemi: { west: wC ? wS / wC : null, east: eC ? eS / eC : null },
+    ...quantityOf(ctx).cols,     // v10: де саме точки / вогонь / зміни (16 колонок, частка видимої поверхні колонки)
   };
 }

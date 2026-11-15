@@ -69,3 +69,34 @@ export function computeForm(nBars, { climaxBar = null, energy = [], noChange = f
   if (noChange) for (let b = 0; b < nBars; b++) formCurve[b] *= 0.7;
   return { sections, formCurve, phrase };
 }
+
+/**
+ * v10 §1 — форма для завантажених відео: ТІЛЬКИ з ряду «кількості» даних (0..1 за такт).
+ * Вступ ≤ 2 такти; кульмінація — вікно, де даних найбільше; рівні дані — без штучної кульмінації.
+ * Крива форми = сама «кількість»: позиція в треку нічого не додає до гучності й складу.
+ */
+export function computeFormByQuantity(nBars, q) {
+  const phrase = nBars >= 12 ? 4 : 2;
+  const introLen = Math.min(2, Math.max(1, Math.floor(nBars / 4)));
+  const resLen = Math.min(phrase, Math.max(1, Math.floor(nBars / 4)));
+  const span = Math.max(...q) - Math.min(...q), sections = [];
+  const climaxLen = nBars >= 32 ? 2 * phrase : phrase;
+  if (span < 0.2 || nBars < 6 || nBars - introLen - resLen < climaxLen) {
+    const c = Math.max(introLen, nBars - resLen);
+    sections.push({ id: "intro", b0: 0, b1: introLen });
+    if (c > introLen) sections.push({ id: "theme", b0: introLen, b1: c });
+    if (nBars > c) sections.push({ id: "resolution", b0: c, b1: nBars });
+  } else {
+    const win = s => { let v = 0; for (let b = s; b < s + climaxLen; b++) v += q[b]; return v / climaxLen; };
+    let c0 = introLen;
+    for (let s = introLen; s <= nBars - resLen - climaxLen; s++) if (win(s) > win(c0) + 1e-9) c0 = s;
+    const c1 = c0 + climaxLen, r0 = nBars - resLen;
+    sections.push({ id: "intro", b0: 0, b1: introLen });
+    if (c0 > introLen) sections.push({ id: "build", b0: introLen, b1: c0 });
+    sections.push({ id: "climax", b0: c0, b1: c1 });
+    if (r0 > c1) sections.push({ id: "development", b0: c1, b1: r0 });
+    sections.push({ id: "resolution", b0: Math.max(c1, r0), b1: nBars });
+  }
+  for (const s of sections) s.label = SECTION_LABEL[s.id];
+  return { sections, formCurve: q.slice(), phrase };
+}

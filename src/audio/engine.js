@@ -18,6 +18,8 @@ export const TARGET_LUFS = -16, CEILING = 0.88;      // 0.88 ≈ −1.1 dBFS
 export function levelDb(mapping, b) {
   const bars = mapping.bars, u = k => c01(bars[k].params.drive ?? bars[k].params.energy);
   const x = b > 0 ? 0.75 * u(b) + 0.25 * u(b - 1) : u(b);
+  // v10 §1 (завантажені відео): гучність — лише від «кількості» даних; форма й позиція в треку нічого не додають (вступ ≤ 2 такти — трохи тихіше)
+  if (mapping.meta?.quantity) return LEVEL_DB[0] + (LEVEL_DB[1] - LEVEL_DB[0]) * x + (bars[b].section === "intro" ? -1.5 : 0);
   // форма: вступ — тихо (нижня третина діапазону), кульмінація — найгучніше (верх діапазону + 1 дБ)
   const sec = bars[b].section, y = sec === "intro" ? 0.25 * x : sec === "climax" ? Math.max(x, 0.75) : x;
   return LEVEL_DB[0] + (LEVEL_DB[1] - LEVEL_DB[0]) * y + (sec === "climax" ? 1 : sec === "intro" ? -2 : 0);
@@ -34,7 +36,8 @@ export const PART_EQ = {
 export const dipFor = (mapping, b) => {
   const fx = mapping?.meta?.soundProfile?.fx || [];
   if (fx.includes("choke")) return 1500 + 16500 * (1 - chokeFor(mapping, b)) ** 2;
-  if (!fx.includes("dip")) return 20000;
+  // v10 §1: більше даних — яскравіший тембр (фільтр відкривається), менше — м'якший
+  if (!fx.includes("dip")) return mapping?.meta?.quantity ? 2600 + 17000 * c01(mapping.bars[b]?.params?.bright) ** 1.5 : 20000;
   const e = c01(mapping.bars[b]?.params?.energy);
   return 500 + 14000 * e * e;
 };
