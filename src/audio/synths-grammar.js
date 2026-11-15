@@ -2,7 +2,7 @@
 // Чистий Web Audio — працюють офлайн і однаково в кожній темі.
 export function grammarSynths({ out, mtof }) {
   return {
-    /** Голос даних: чіткий «вокальний» лід; колір (хвиля, форманта) — від теми; гліссандо від попередньої ноти. */
+    /** Голос даних: чіткий «вокальний» лід; запасний синтез (без семплів); без гліссандо (v6). */
     voice(eng, dest, n, t) {
       const ctx = eng.ctx, f = mtof(n.midi), c = n.color || {};
       const end = t + Math.max(0.08, n.dur), peak = 0.42 * n.vel;
@@ -14,11 +14,10 @@ export function grammarSynths({ out, mtof }) {
       g.gain.setTargetAtTime(0.0001, end, 0.05);
       const lp = ctx.createBiquadFilter(); lp.type = "lowpass"; lp.frequency.value = Math.min(9000, f * 7); lp.Q.value = 0.5;
       const fm = ctx.createBiquadFilter(); fm.type = "peaking"; fm.frequency.value = c.formant || 1400; fm.Q.value = 1.3; fm.gain.value = 8;
-      const from = n.from && n.from !== n.midi ? mtof(n.from) : null;
       for (const [type, amp, det] of [[c.wave || "triangle", 0.55, 0], ["triangle", 0.75, 5]]) {
         const o = ctx.createOscillator(), og = ctx.createGain();
         o.type = type; o.detune.value = det; og.gain.value = type === "sine" || type === "triangle" ? amp : amp * 0.45;
-        if (from) { o.frequency.setValueAtTime(from, t); o.frequency.exponentialRampToValueAtTime(f, t + 0.07); } else o.frequency.setValueAtTime(f, t);
+        o.frequency.setValueAtTime(f, t);
         o.connect(og).connect(lp);
         o.start(t); o.stop(end + 0.4);
       }

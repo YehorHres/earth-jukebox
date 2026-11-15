@@ -18,7 +18,7 @@ import stars from "./parts/stars.js";
 import texture from "./parts/texture.js";
 import { colorByTopic } from "./topic-color.js";
 import { GRAMMAR_PARTS, soloTimbres } from "./parts/grammar-parts.js";
-import { LEAD_PARTS, FOREGROUND_MAX, earconsFor, partPriority, PARTS_MAX, SIGNAL_PARTS, partsCap } from "../grammar.js";
+import { LEAD_PARTS, FOREGROUND_MAX, earconsFor, partPriority, PARTS_MAX, SIGNAL_PARTS, partsCap, voiceOf, motifFor } from "../grammar.js";
 
 // порядок = номери клавіш 1–9 для mute/solo
 export const PARTS = [pad, bass, arp, drums, melody, counter, accents, stars, texture];
@@ -32,9 +32,10 @@ const DEFAULT_PARTS = ["pad", "bass", "arp", "drums", "melody", "counter", "acce
 
 /**
  * @param {object} opts { seed, style, grammar } — style (етап 11) перекриває лише інструменти партій;
- *   grammar: false — без партій граматики звуку (голос даних, солісти, точка відліку, тіки, ерікони)
+ *   grammar: false — без партій граматики звуку (голос даних, солісти, точка відліку, тіки, ерікони);
+ *   drone / ticks (v6, вимкнено за замовчуванням) — дрон-орієнтир і тіки шкали часу
  */
-export function compose(mapping, { seed = "earth-jukebox", style = null, grammar = true } = {}) {
+export function compose(mapping, { seed = "earth-jukebox", style = null, grammar = true, drone = false, ticks = false } = {}) {
   const rng = makeRng(seed);
   const { bars, meta } = mapping;
   const sp = meta.soundProfile || {};
@@ -42,6 +43,10 @@ export function compose(mapping, { seed = "earth-jukebox", style = null, grammar
   const harmony = planHarmony(mapping, rng);
   const instr = { ...DEFAULT_INSTRUMENTS, ...(sp.instruments || {}), ...(style?.instruments || {}) };
   const allowed = new Set(sp.parts || DEFAULT_PARTS);
+  // v6: голос даних — справжній інструмент теми (стиль може перекрити)
+  const voice = voiceOf(meta.topic);
+  if (grammar && !style?.instruments?.dataVoice) instr.dataVoice = voice.inst;
+  const opts = { drone, ticks }, lights = grammar && allowed.has("stars");
   // голос даних — перша партія (клавіша 1); решта партій граматики — після супроводу
   const G = grammar ? GRAMMAR_PARTS : [];
   const parts = [...G.slice(0, 1), ...PARTS.filter(p => allowed.has(p.id)), ...G.slice(1)];
@@ -59,12 +64,17 @@ export function compose(mapping, { seed = "earth-jukebox", style = null, grammar
 
   for (let b = 0; b < bars.length; b++) {
     const bar = bars[b], o = bar.params.orchestration;
-    const ctx = { bar, h: harmony.bars[b], nextH: harmony.bars[b + 1], prevH: harmony.bars[b - 1], beat, rng, meta, meter, profile, instr, o, bars, b, grammar };
+    const last = b === bars.length - 1, climax = grammar && bar.section === "climax";
+    const ctx = { bar, h: harmony.bars[b], nextH: harmony.bars[b + 1], prevH: harmony.bars[b - 1], beat, rng, meta, meter, profile, instr, o, bars, b, grammar, opts };
     const active = [], lead = [];
-    const cap = grammar ? partsCap(bar, b === bars.length - 1) : Infinity;
+    // вогники нічної карти — головна текстура: поза вступом і фіналом не забирають місце в супроводу
+    const cap = grammar ? Math.min(PARTS_MAX, partsCap(bar, last) + (lights && bar.section !== "intro" && !last ? 1 : 0)) : Infinity;
+    const dark = lights && bar.params.dark && !last;
     let sustained = 0, signals = 0;
     for (const part of grammar ? orderFor(bar.section) : parts) {
-      if (!part.active(o, ctx)) continue;
+      // кульмінація — повний склад: партії теми вступають незалежно від порога оркестровки
+      if (!part.active(climax ? Math.max(o, 0.8) : o, ctx)) continue;
+      if (dark && (part.id === "pad" || part.id === "bass" || part.id === "arp")) continue;   // темрява — тиша, а не гул
       const signal = SIGNAL_PARTS.includes(part.id);
       if (!signal && sustained >= Math.min(cap, PARTS_MAX - signals)) continue;      // місць немає — партія чекає
       const out = [];
@@ -80,11 +90,11 @@ export function compose(mapping, { seed = "earth-jukebox", style = null, grammar
     }
     // ліміт уваги: на першому плані ≤ 3 потоки даних (голос даних + до 2 солістів зон)
     const streams = (lead.includes("dataVoice") ? 1 : 0) + (lead.includes("soloists") ? Math.min(FOREGROUND_MAX - 1, bar.params.soloZones?.length || 0) : 0);
-    barInfo.push({ active, lead, streams, count: sustained + signals, cap, why: harmony.bars[b].why, mode: harmony.bars[b].mode.label, level: harmony.bars[b].level });
+    barInfo.push({ active, lead, streams, count: sustained + signals, sustained, cap, why: harmony.bars[b].why, mode: harmony.bars[b].mode.label, level: harmony.bars[b].level });
   }
 
   // акорди підлаштовуються під регістр голосу даних: педи й арпеджіо не піднімаються до нього (октавою нижче)
-  if (grammar) {
+  if (grammar && voice.range[0] >= 60) {
     const floor = [];
     for (const n of notes) if (n.part === "dataVoice") { const b = Math.min(bars.length - 1, Math.floor(n.t / meta.barDur + 1e-6)); floor[b] = Math.min(floor[b] ?? 127, n.midi); }
     for (const n of notes) if (n.part === "pad" || n.part === "arp") {
@@ -106,6 +116,9 @@ export function compose(mapping, { seed = "earth-jukebox", style = null, grammar
     bpm: meta.bpm, barDur: meta.barDur, duration: bars.length * meta.barDur, topic: meta.topic, meter,
     key: harmony.keyName, harmony, notes,
     lead: grammar ? LEAD_PARTS : null,
+    voice: grammar ? { instrument: instr.dataVoice, range: voice.range, motif: motifFor(meta.topic, meter).id } : null,
+    // усі тембри треку (разом із шарами подвоєнь) — для завантаження семплів
+    instruments: [...new Set(notes.flatMap(n => [n.inst, ...(n.layers || []).map(l => l.inst)]))],
     grammar: grammar ? { reference: meta.reference || null, tick: meta.tick || null, polarity: meta.polarity ?? 1, earcons: earconsFor(meta.topic) } : null, bars: barInfo, why: { ...(meta.why || {}), ...(colorWhy.length ? { color: colorWhy.join("; ") } : {}) }, kit: { id: kitId, label: kit.label }, style: style?.id || null,
     // партії, які справді звучать у цьому треку
     parts: parts.filter(p => byPart[p.id]).map(p => ({ id: p.id, label: p.label, instrument: instr[p.id] || "perc", role: p.role })),

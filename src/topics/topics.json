@@ -59,11 +59,14 @@
         "drums": "perc",
         "melody": "saxophone",
         "counter": "trombone",
-        "accents": "brass"
+        "accents": "brass",
+        "arp": "harp"
       },
       "parts": [
         "pad",
         "bass",
+        "arp",
+        "drums",
         "melody",
         "counter",
         "accents"
@@ -198,7 +201,7 @@
       "en": "faster current"
     },
     "moreMeans": "up",
-    "preset": null,
+    "preset": "ocean-currents",
     "soundProfile": {
       "key": {
         "rule": "data"
@@ -312,11 +315,14 @@
         "drums": "perc",
         "melody": "feltpiano",
         "counter": "harmonics",
-        "accents": "feltpiano"
+        "accents": "feltpiano",
+        "bass": "cello"
       },
       "parts": [
         "pad",
+        "bass",
         "arp",
+        "drums",
         "melody",
         "counter",
         "accents"
@@ -723,12 +729,12 @@
       ],
       "meter": "4/4",
       "instruments": {
-        "pad": "strings",
+        "pad": "warmpad",
         "bass": "drone",
         "arp": "harp",
         "drums": "perc",
         "melody": "flute",
-        "counter": "xylophone",
+        "counter": "harp",
         "accents": "celesta",
         "stars": "celesta"
       },
@@ -736,6 +742,7 @@
         "pad",
         "bass",
         "arp",
+        "counter",
         "melody",
         "accents",
         "stars"

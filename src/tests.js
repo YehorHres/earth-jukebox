@@ -486,7 +486,8 @@ SUITES.push(async function stage14() {
   // рівень від даних: лише ±4 дБ і від відносної енергії (наближення камери не робить гучніше)
   const m = window.__mapEcco, lv = m.bars.map((_, b) => 20 * Math.log10(levelFor(m, b)));
   const zoomed = { ...m, bars: m.bars.map(b => ({ ...b, params: { ...b.params, level: 1 } })) };
-  check("Динаміка від даних у межах ±4 дБ, не залежить від абсолютної яскравості/площі", Math.max(...lv) <= 4.01 && Math.min(...lv) >= -4.01 && zoomed.bars.every((_, b) => levelFor(zoomed, b) === levelFor(m, b)), `${Math.min(...lv).toFixed(1)}…${Math.max(...lv).toFixed(1)} дБ`);
+  // v6 (ТЗ «контраст»): усередині треку гучність керується енергією даних у широкому діапазоні (було ±4 дБ вирівнювання)
+  check("Динаміка від даних: діапазон ≥ 6 дБ на рівні мастера (у межах −9…+4 дБ), не залежить від абсолютної яскравості/площі", Math.max(...lv) <= 4.01 && Math.min(...lv) >= -9.01 && Math.max(...lv) - Math.min(...lv) >= 6 && zoomed.bars.every((_, b) => levelFor(zoomed, b) === levelFor(m, b)), `${Math.min(...lv).toFixed(1)}…${Math.max(...lv).toFixed(1)} дБ`);
   check("EQ партій: HPF усім, крім басу; бас — LPF і HPF 32 Гц; виріз 350 Гц у педів і арпеджіо", PART_EQ.bass.lp && PART_EQ.bass.hp <= 35 && PART_EQ.pad.hp >= 150 && PART_EQ.pad.cut[1] < 0 && PART_EQ.arp.cut[1] < 0 && ["melody", "counter", "texture", "stars"].every(p => PART_EQ[p].hp >= 100), "");
   // збережений звіт 5 треків галереї: критерії + актуальність (партитура та сама, що дає композитор зараз)
   const rep = await (await fetch("renders/audio-report.json")).json();
@@ -495,7 +496,7 @@ SUITES.push(async function stage14() {
   for (const it of cat) { const row = rep.rows.find(r => r.id === it.id); const tr = await buildTrack(it); if (!row || row.hash !== scoreHash(tr.score)) stale.push(it.id); }
   check("Аудіозвіт галереї актуальний (перерендерено після останніх змін композитора)", !stale.length, stale.length ? `застарів для: ${stale.join(", ")} — запустіть tools/audio-report.html?run` : `${rep.rows.length} треків, ${rep.createdAt.slice(0, 16)}`);
   const lu = rep.rows.map(r => r.lufs);
-  check("Аудіозвіт: пік ≤ −1 dBFS; різниця гучності ≤ 1 LU; < 60 Гц ≤ 25 % (шторми в кульмінації ≤ 40 %); |L−R| ≤ 0.5 дБ", rep.ok && !rep.problems.length && Math.max(...lu) - Math.min(...lu) <= CRITERIA.lufsSpread,
+  check("Аудіозвіт: пік ≤ −1 dBFS; −16 LUFS ± 0.5; < 60 Гц ≤ 25 % (шторми в кульмінації ≤ 40 %); |L−R| ≤ 0.5 дБ; критерії v6 (контраст, різні треки)", rep.ok && !rep.problems.length && Math.max(...lu) - Math.min(...lu) <= CRITERIA.lufsSpread,
     rep.problems.join("; ") || rep.rows.map(r => `${r.id.split("_")[0]}: ${r.lufs.toFixed(1)} LUFS, пік ${r.peakDb.toFixed(1)}, <60 Гц ${(r.bands[0] * 100).toFixed(0)} %`).join(" · "));
   // живий контроль: уривок одного треку зі збереженим мастером — пік під стелею
   const tr = await buildTrack(cat.find(i => i.id === "hurricane_beryl")), row = rep.rows.find(r => r.id === "hurricane_beryl");
@@ -571,20 +572,26 @@ SUITES.push(async function stageA() {
     `макс. потоків ${maxStreams}, нот солістів ${solo.length} (${[...new Set(solo.map(x => x.inst))].join(", ") || "—"})`);
 
   // 3) голос даних гучніший за супровід на ≥ 6 дБ; акорди не перекривають його регістр
-  const leadDb = await leadOverAccomp(s, me, { from: me.meta.duration * 0.4, seconds: 8 });
+  // v6: голос даних — лише на +3…+4 дБ над супроводом (було ≥ 6): підсилення голосу підбирає калібрування (voiceTrim)
+  const { voiceTrim } = await import("./audio/master.js");
+  const vdb = await voiceTrim(s, me, { seconds: 8 });
+  const leadDb = await leadOverAccomp(s, me, { from: me.meta.duration * 0.4, seconds: 8, master: { gainDb: 0, balanceDb: 0, voiceDb: vdb } });
   const floor = [];
   for (const x of s.notes) if (x.part === "dataVoice") { const b = Math.floor(x.t / s.barDur + 1e-6); floor[b] = Math.min(floor[b] ?? 127, x.midi); }
   const over = s.notes.filter(x => (x.part === "pad" || x.part === "arp") && x.midi >= 48 && floor[Math.round(x.t / s.barDur - 0.5 + 1e-3)] !== undefined && x.midi > floor[Math.floor(x.t / s.barDur + 0.02)] - 3).length;
-  check("A: голос даних гучніший за супровід на ≥ 6 дБ; педи й арпеджіо нижче за його регістр", leadDb >= 6 && over === 0, `різниця ${leadDb.toFixed(1)} дБ (уривок 8 с ECCO2); нот супроводу в регістрі голосу: ${over}`);
+  check("A (v6): голос даних над супроводом на 2…5 дБ (ціль +3.5), супровід не приглушено; педи й арпеджіо нижче за його регістр", leadDb >= 2 && leadDb <= 5 && G.ACCOMP_DB === 0 && G.VOICE_CUT.db >= -3 && over === 0, `різниця ${leadDb.toFixed(1)} дБ (уривок 8 с ECCO2, підсилення голосу ${vdb.toFixed(1)} дБ); нот супроводу в регістрі голосу: ${over}`);
 
   // 4) точка відліку й тіки шкали часу
   const ref = s.notes.filter(x => x.part === "reference"), dv = s.notes.filter(x => x.part === "dataVoice"), tk = s.notes.filter(x => x.part === "ticks");
   const intro = ref.find(x => x.ref === "intro");
-  const tickOk = tk.length === Math.ceil(s.duration / 10) - 1 && tk.every((x, k) => Math.abs(x.t - (k + 1) * 10) < 1e-6 && x.strong === ((k + 1) % 4 === 0));
-  check("A: референсний тон 1–2 с на початку (голос даних — після нього), далі дрон; тіки кожні 10 с, сильніший — кожен 4-й; обидві партії вимикаються",
-    intro && intro.t === 0 && intro.dur >= 1 && intro.dur <= 2 && dv[0].t >= intro.dur && new Set(ref.map(x => x.midi)).size === 1 && ref.filter(x => x.ref === "drone").length === me.bars.length && tickOk
-      && ["reference", "ticks", "dataVoice"].every(id => s.parts.some(q => q.id === id)) && s.parts[0].id === "dataVoice",
-    `референс ${intro?.dur} с, MIDI ${intro?.midi}; голос даних із ${dv[0].t.toFixed(2)} с; тіків ${tk.length}`);
+  // v6: референсний тон — лише 1–2 с на початку; дрон-орієнтир і тіки вимкнено за замовчуванням, лишаються як опція
+  const so = compose(me, { seed: "ecco", drone: true, ticks: true }), refO = so.notes.filter(x => x.part === "reference"), tkO = so.notes.filter(x => x.part === "ticks");
+  const tickOk = tkO.length === Math.ceil(so.duration / 10) - 1 && tkO.every((x, k) => Math.abs(x.t - (k + 1) * 10) < 1e-6 && x.strong === ((k + 1) % 4 === 0));
+  check("A (v6): референсний тон 1–2 с лише на початку (голос даних — після нього); дрон і тіки вимкнено за замовчуванням; з опцією — дрон у кожному такті, тіки кожні 10 с",
+    intro && intro.t === 0 && intro.dur >= 1 && intro.dur <= 2 && dv[0].t >= intro.dur && ref.length === 1 && tk.length === 0
+      && new Set(refO.map(x => x.midi)).size === 1 && refO.filter(x => x.ref === "drone").length === me.bars.length && tickOk
+      && ["reference", "dataVoice"].every(id => s.parts.some(q => q.id === id)) && so.parts.some(q => q.id === "ticks") && s.parts[0].id === "dataVoice",
+    `референс ${intro?.dur} с, MIDI ${intro?.midi}; голос даних із ${dv[0].t.toFixed(2)} с; за замовчуванням: нот дрона ${ref.length - 1}, тіків ${tk.length}; з опцією: ${refO.length - 1} і ${tkO.length}`);
 
   // 5) ерікони: ≤ 100 мс від події, одна подія — один знак, кожен знак є в легенді
   const pol = me.meta.polarity, evs = me.bars.flatMap(b => b.events).filter(e => G.eventClass(e, pol)), ec = s.notes.filter(x => x.part === "earcons");
@@ -629,25 +636,32 @@ SUITES.push(async function stage16() {
   const barOf = (s, n) => Math.min(s.bars.length - 1, Math.floor((n.t + (n.fixed ? 1e-6 : 0.03)) / s.barDur));
   const stat = [];
   for (const it of cat) {
-    const { mapping: m, score: s } = await buildTrack(it);
+    const { mapping: m, score: s, analysis: a } = await buildTrack(it);
     const per = s.bars.map(() => new Set());
     for (const n of s.notes) per[barOf(s, n)].add(n.part);
     const sust = per.map(x => [...x].filter(id => !G.SIGNAL_PARTS.includes(id)).length);
-    stat.push({ id: it.id.split("_")[0], item: it, m, s, per, sust, max: Math.max(...per.map(x => x.size)),
+    stat.push({ id: it.id.split("_")[0], item: it, m, s, a, per, sust, max: Math.max(...per.map(x => x.size)),
       intro: Math.max(...sust.filter((_, b) => m.bars[b].section === "intro")) });
   }
 
   // 1) перевантаження
-  check("16: одночасно ≤ 6 партій на всіх треках галереї; у вступі ≤ 3 (+ короткі знаки: тік, ерікон)",
+  check("16 (v6: бюджет 7): одночасно ≤ 7 партій на всіх треках галереї; у вступі ≤ 2 (+ короткі знаки: референсний тон, ерікон)",
     stat.length >= 4 && stat.every(x => x.max <= G.PARTS_MAX && x.intro <= G.INTRO_PARTS_MAX && x.s.bars.every(b => b.count <= G.PARTS_MAX)),
     stat.map(x => `${x.id}: макс. ${x.max}, вступ ${x.intro}`).join(" · "));
   check("16: голос даних і melody не звучать одночасно; події позначає тільки ерікон (accents мовчать)",
     stat.every(x => !x.per.some(p => p.has("dataVoice") && p.has("melody")) && !x.s.notes.some(n => n.part === "accents" || n.part === "melody")) && stat.some(x => x.s.notes.some(n => n.part === "earcons")),
     `еріконів: ${stat.map(x => x.s.notes.filter(n => n.part === "earcons").length).join(", ")}`);
+  // v6 (ТЗ «дзинь-дзелень»): вогники — головна текстура nightlights (було: рідка фонова); кількість нот за такт = кількість вогнів
   const starBars = stat.map(x => x.per.filter(p => p.has("stars")));
-  check("16: «зоряний дощ» — лише фонова текстура nightlights, рідко (≤ кожен 4-й такт), не в такті з еріконом",
-    stat.every((x, i) => (!starBars[i].length || x.m.meta.topic === "nightlights") && starBars[i].length <= x.s.bars.length / 4 + 1 && !starBars[i].some(p => p.has("earcons"))),
-    stat.map((x, i) => `${x.id}: ${starBars[i].length} з ${x.s.bars.length} тактів`).join(" · "));
+  const { starsPerBar, spearman } = await import("./audio/report.js");
+  const nl = stat.find(x => x.m.meta.topic === "nightlights"), sp = nl && starsPerBar(nl.s, nl.m), sRho = nl ? spearman(sp.counts, sp.lights) : 0;
+  const lpAbs = nl ? nl.m.bars.map(b => b.frames.reduce((q, i) => q + nl.a.abs[nl.m.meta.lightsFeature][i], 0) / b.frames.length) : [], sRhoAbs = nl ? spearman(sp.counts, lpAbs) : 0;
+  const darkOk = !nl || nl.m.bars.every((b, i) => !b.params.dark || sp.counts[i] === 0);
+  const starN = nl ? nl.s.notes.filter(n => n.part === "stars" && !n.chord && !n.spark) : [];
+  check("v6: вогники — лише в nightlights; нот за такт ↔ кількість вогнів (lightPoints; якщо вона насичена — lightLog) ρ ≥ 0.8; темрява — тиша; панорама ноти = позиція вогню; короткі дзвінкі тембри",
+    stat.every((x, i) => !starBars[i].length || x.m.meta.topic === "nightlights") && nl && sRho >= 0.8 && sRhoAbs >= 0.8 && darkOk && Math.max(...sp.counts) >= 2 * Math.max(1, Math.min(...sp.counts.filter(c => c > 0)))
+      && starN.every(n => Math.abs(n.pan - (-0.85 + 1.7 * n.col / 15)) < 1e-6 && n.dur <= 0.3 && n.midi >= 76 && ["xylophone", "celesta", "glockenspiel"].includes(n.inst)),
+    nl ? `ρ = ${sRho.toFixed(2)} (з абсолютною кількістю вогнів ${sRhoAbs.toFixed(2)}); нот за такт ${Math.min(...sp.counts)}…${Math.max(...sp.counts)}; усього ${starN.length}` : "немає треку nightlights");
   const ctrSec = new Set(stat.flatMap(x => x.s.notes.filter(n => n.part === "counter").map(n => x.m.bars[barOf(x.s, n)].section)));
   const soloOk = stat.every(x => { const ci = new Set(x.s.notes.filter(n => n.part === "counter").map(n => n.inst)); return x.s.notes.filter(n => n.part === "soloists").every(n => !ci.has(n.inst)); });
   check("16: контрмелодія — лише в наростанні й кульмінації; солісти зон — інший тембр", [...ctrSec].every(x => x === "build" || x === "climax") && soloOk,
@@ -691,12 +705,12 @@ SUITES.push(async function stage16() {
       if (n.part !== "drums" || n.fixed) continue;
       const bi = barOf(x.s, n), bar = x.m.bars[bi], rel = (n.t - bar.t0) / step;
       if (Math.round(rel) % 2 !== 0) odd++;
-      if (!n.build && drumLevel(bar.params, r) === 0) calmHits++;
+      if (!n.build && drumLevel(bar.params, r) === 0 && bar.section !== "climax") calmHits++;      // v6: у кульмінації — повний склад
       if (bar.events.length && rel > Math.min(...bar.events.map(e => e.offset)) * meter.steps + 0.5) afterEvent++;
     }
     x.per.forEach(p => (p.has("drums") ? drumBars++ : quietBars++));
   }
-  check("16: ударні — без постійних шістнадцятих; спокійні дані — тиша; у такті з подією — брейк", odd === 0 && calmHits === 0 && afterEvent === 0 && drumBars > 0 && quietBars > 0,
+  check("16: ударні — без постійних шістнадцятих; спокійні дані — тиша (крім кульмінації — повний склад); у такті з подією — брейк", odd === 0 && calmHits === 0 && afterEvent === 0 && drumBars > 0 && quietBars > 0,
     `ударів на шістнадцятих ${odd}, у спокої ${calmHits}, після події в такті ${afterEvent}; тактів з ударними ${drumBars}, без них ${quietBars}`);
 
   // 4) артикуляція з даних (таблиця команди) — на треку галереї з підставленими параметрами
@@ -717,9 +731,83 @@ SUITES.push(async function stage16() {
   // 5) темп, настрій, крапка
   const darkBad = stat.filter(x => { const tm = T.getTopic(x.item.topic).soundProfile.modes || []; return tm.some(id => id !== "aeolian" && id !== "phrygian") && x.s.harmony.bars.some(h => h.level !== "tense" && ["aeolian", "phrygian"].includes(h.mode.id)); }).length;
   const endOk = stat.every(x => { const r0 = x.m.bars.findIndex(b => b.section === "resolution"); return x.sust[x.sust.length - 1] <= G.INTRO_PARTS_MAX && (r0 < 0 || x.sust[x.sust.length - 1] <= x.sust[r0]); });
-  check("16: BPM ≤ 130 (шторм — ≤ 160) і один на трек; темні лади — лише на аномаліях (висока напруга); розв'язка знімає шари (у кінці ≤ 3 партії)",
+  check("16: BPM ≤ 130 (шторм — ≤ 160) і один на трек; темні лади — лише на аномаліях (висока напруга); розв'язка знімає шари (у кінці ≤ 2 партії)",
     stat.every(x => x.s.bpm <= bpmCapFor(T.getTopic(x.item.topic))) && darkBad === 0 && endOk,
     stat.map(x => `${x.id}: ${x.s.bpm} BPM, лади ${[...new Set(x.s.harmony.bars.map(h => h.mode.label))].join("/")}, у кінці ${x.sust[x.sust.length - 1]}`).join(" · "));
+});
+
+SUITES.push(async function stage_v6() {
+  // v6 «музика й контраст»: справжній інструмент і мотив теми, різні треки, контраст розділів, варіації мотиву
+  const G = await import("./grammar.js");
+  const R = await import("./audio/report.js");
+  const { SAMPLE_SETS } = await import("./audio/samples.js");
+  const { drumLevel } = await import("./composer/parts/drums.js");
+  const { LEVEL_DB } = await import("./audio/engine.js");
+  const T = await import("./topics/topics.js");
+  const cat = (await (await fetch("samples/catalog.json")).json()).filter(i => i.kind === "video" && i.analysis);
+  const rep = await (await fetch("renders/audio-report.json")).json();
+  const tr = [];
+  for (const it of cat) tr.push({ id: it.id.split("_")[0], full: it.id, ...(await R.buildTrack(it)) });
+  const barOf = (s, n) => Math.min(s.bars.length - 1, Math.floor((n.t + 1e-6) / s.barDur));
+  const row = x => rep.rows.find(r => r.id === x.full) || {};
+
+  // 1) голос даних — семплований інструмент теми, без гліссандо й без осциляторного «голосу»
+  const voiceOk = tr.every(x => { const vo = G.voiceOf(x.mapping.meta.topic), dv = x.score.notes.filter(n => n.part === "dataVoice");
+    return dv.length > 10 && SAMPLE_SETS[vo.inst] && dv.every(n => n.inst === vo.inst && n.from === undefined && n.midi >= vo.range[0] - 2 && n.midi <= vo.range[1] + 2) && x.score.instruments.includes(vo.inst); });
+  check("v6: голос даних грає справжнім (семплованим) інструментом теми у своєму регістрі; гліссандо немає", voiceOk && !tr.some(x => x.score.notes.some(n => n.inst === "voice")),
+    tr.map(x => `${x.id}: ${x.score.voice.instrument}`).join(" · "));
+
+  // 2) мотив теми: 4–8 нот, транспозиція за даними, не однаково більше 2 разів поспіль
+  let motifBad = 0, repBad = 0, rhoMin = 1;
+  for (const x of tr) {
+    const mo = G.motifFor(x.mapping.meta.topic, x.score.meter), dv = x.score.notes.filter(n => n.part === "dataVoice");
+    if (mo.notes.length < 4 || mo.notes.length > 8 || mo.steps !== x.score.meter.steps || dv.some(n => n.motif !== mo.id)) motifBad++;
+    const by = x.score.bars.map(() => []);
+    for (const n of dv) by[barOf(x.score, n)].push(n);
+    const sig = by.map(v => (v.length ? v[0].sig : null));
+    for (let b = 2; b < sig.length; b++) if (sig[b] && sig[b] === sig[b - 1] && sig[b] === sig[b - 2]) repBad++;
+    const bi = by.map((v, b) => b).filter(b => by[b].length);
+    rhoMin = Math.min(rhoMin, R.spearman(bi.map(b => x.mapping.bars[b].params.value), bi.map(b => by[b].reduce((q, n) => q + n.midi, 0) / by[b].length)));
+  }
+  check("v6: мелодія — мотив теми (4–8 нот), транспонується за даними (ρ значення ↔ висота такту ≥ 0.8); однаково — не більше 2 разів поспіль", motifBad === 0 && repBad === 0 && rhoMin >= 0.8,
+    `мотиви: ${tr.map(x => x.score.voice.motif).join(", ")}; три однакові такти поспіль: ${repBad}; мін. ρ = ${rhoMin.toFixed(2)}`);
+
+  // 3) треки галереї звучать по-різному
+  const sh = tr.map(x => ({ id: x.id, ...R.trackShape(x.score, x.mapping), drums: T.getTopic(x.item.topic).soundProfile.rhythm, centroid: row(x).centroid, nd: row(x).noteDensity }));
+  const same = [], close = [];
+  for (let i = 0; i < sh.length; i++) for (let j = i + 1; j < sh.length; j++) {
+    const p = sh[i], q = sh[j], rel = (u, v) => Math.abs(u - v) / Math.max(u, v, 1e-9);
+    if (p.voice === q.voice && p.motif === q.motif && Math.abs(p.bpm - q.bpm) <= 5) same.push(`${p.id}=${q.id}`);
+    if (!(rel(p.centroid, q.centroid) >= R.CRITERIA.centroidGap) || !(rel(p.nd, q.nd) >= R.CRITERIA.densityGap)) close.push(`${p.id}≈${q.id}`);
+  }
+  check("v6: жодні два треки галереї не мають однакових (інструмент голосу + мотив + темп ±5 BPM); у кожної теми свій голос і мотив; спектральний центр і густота нот різні",
+    tr.length >= 5 && !same.length && !close.length && new Set(sh.map(x => x.voice)).size === sh.length && new Set(sh.map(x => x.motif)).size === sh.length,
+    sh.map(x => `${x.id}: ${x.voice}, «${x.motif}», ${x.bpm} BPM, ${x.meter}, ${x.key}, ударні ${x.drums}, центр ${Math.round(x.centroid)} Гц, ${x.nd?.toFixed(1)} нот/с`).join(" · ") + (same.length || close.length ? ` — збіги: ${[...same, ...close].join(", ")}` : ""));
+
+  // 4) розділи відрізняються: кульмінація — повний склад, найгучніше, найвищий регістр
+  const secBad = tr.filter(x => { const s = R.trackShape(x.score, x.mapping), r = row(x); return !(s.partsClimax - s.partsIntro >= 3) || !(r.climaxLufs - r.introLufs >= 6); });
+  const dbl = tr.every(x => x.score.notes.some(n => n.part === "dataVoice" && n.layers && x.mapping.bars[barOf(x.score, n)].section === "climax"));
+  check("v6: кульмінація ≥ вступ + 6 дБ і + 3 партії; у кульмінації голос подвоєно (другий інструмент / октава)", !secBad.length && dbl,
+    tr.map(x => { const s = R.trackShape(x.score, x.mapping), r = row(x); return `${x.id}: партій ${s.partsIntro?.toFixed(1)} → ${s.partsClimax?.toFixed(1)}, гучність +${(r.climaxLufs - r.introLufs).toFixed(1)} дБ`; }).join(" · "));
+
+  // 5) контраст на слух: звіт — ρ(енергія, гучність 3 с) ≥ 0.7, LRA ≥ 8 LU, пік ≤ −1 dBFS, −16 LUFS ± 0.5
+  const cBad = rep.rows.filter(r => !(r.rho >= 0.7) || !(r.lra >= 8) || !(r.peakDb <= -1) || !(Math.abs(r.lufs + 16) <= 0.5));
+  check("v6: кореляція енергії даних із короткочасною гучністю (3 с, після вступу) ρ ≥ 0.7; LRA ≥ 8 LU; пік ≤ −1 dBFS; −16 LUFS ± 0.5 — для кожного треку", rep.rows.length >= 5 && !cBad.length && LEVEL_DB[1] - LEVEL_DB[0] >= 8,
+    rep.rows.map(r => `${r.id.split("_")[0]}: ρ ${r.rho?.toFixed(2)}, LRA ${r.lra?.toFixed(1)}, ${r.lufs.toFixed(1)} LUFS, пік ${r.peakDb.toFixed(1)}`).join(" · "));
+
+  // 6) ударні від даних: тиша → щітки → половинний → звичайний → подвійний; шторм — більше шарів на піках
+  const lv = [0.1, 0.36, 0.5, 0.65, 0.9].map(d => drumLevel({ drive: d, density: d }, "storm"));
+  const st = tr.find(x => x.mapping.meta.topic === "storms"), kinds = {};
+  if (st) for (const n of st.score.notes) if (n.part === "drums") { const l = drumLevel(st.mapping.bars[barOf(st.score, n)].params, "storm"); (kinds[l] ||= new Set()).add(n.inst); }
+  const kn = Object.keys(kinds).map(Number).sort(), layersUp = kn.length >= 2 && kinds[kn[kn.length - 1]].size > kinds[kn[0]].size;
+  check("v6: ударні — 5 рівнів від даних (тиша, щітки, половинний, звичайний, подвійний розмір); шторм: сильніший шторм — більше шарів ударних і брасу", lv.join() === "0,1,2,3,4" && drumLevel({ drive: 1, density: 1 }, "sparse") === 1 && st && layersUp,
+    `рівні ${lv.join(" → ")}; шторм: ${kn.map(l => `рівень ${l} — ${kinds[l].size} тембрів`).join(", ")}`);
+
+  // 7) океан: тепле → світліший лад; пресет теми не обертає світлість
+  const oc = tr.find(x => x.mapping.meta.topic === "ocean-currents");
+  const br = oc ? R.spearman(oc.mapping.bars.map(b => b.params.brightness), oc.mapping.bars.map(b => b.frames.reduce((q, i) => q + oc.analysis.rel.hotShare[i], 0) / b.frames.length)) : 0;
+  check("v6: океанічні течії — більше теплої води → світліший лад (мажор), холодна → мінор, низькі струнні й low-pass", oc && br >= 0.6 && G.voiceOf("ocean-currents").cold && G.voiceOf("ocean-currents").warm,
+    `ρ(частка теплої води, світлість ладу) = ${br.toFixed(2)}; лади: ${oc ? [...new Set(oc.score.harmony.bars.map(h => h.mode.label))].join(" / ") : "—"}`);
 });
 
 (async () => {

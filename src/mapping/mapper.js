@@ -27,7 +27,7 @@ export const PARAM_LABEL = {
   brightness: "Світлість ладу", register: "Регістр мелодії", pan: "Панорама (захід ↔ схід)", motion: "Рухливість",
   articulation: "Артикуляція (легато ↔ стакато)", space: "Простір (реверберація)", accent: "Акценти подій",
   dynamics: "Крещендо / димінуендо (тренд за 20 кадрів)", tutti: "Тутті ↔ соло (частка зон, що змінюються)", staccato: "Стакато (подія коротша за 5 кадрів)",
-  orchestration: "Оркестровка", contour: "Контур мелодії", value: "Значення головної величини (висота голосу даних)",
+  orchestration: "Оркестровка", drive: "Відносна енергія (гучність ≈ 12 дБ, кількість партій, ударні)", lights: "Вогники (кількість нот за такт)", contour: "Контур мелодії", value: "Значення головної величини (висота голосу даних)",
 };
 export const CHANNEL_LABEL = { abs: "абс.", rel: "відн.", rank: "ранг", d1: "зміна за кадр", speed10: "швидкість", accel20: "прискорення", trend40: "тренд" };
 const TEMPORAL = new Set(["d1", "speed10", "accel20", "trend40"]);
@@ -178,6 +178,8 @@ export function mapAnalysis(a, preset, { topic = null, timeUnit = null } = {}) {
   const valueSeries = !still && !noChange && valueFeature ? a.rel[valueFeature] : null;
   const valueLabel = a.labels?.[valueFeature] || getFeature(valueFeature)?.label || valueFeature || "—";
   let prevSolo = [], prevContour = null;
+  // v6: lights source = lightPoints; if it is saturated / not significant in this video (stuck at one value), use the amount of light (lightLog)
+  const lightsFeature = a.norm?.lightPoints?.significant || !a.rel.lightLog ? "lightPoints" : "lightLog";
 
   // ---- параметри по тактах
   const bars = [];
@@ -234,6 +236,13 @@ export function mapAnalysis(a, preset, { topic = null, timeUnit = null } = {}) {
     params.tutti = seen ? moved / seen : 0.5;
     explain.tutti = [{ source: "частка зон кадру, що змінюються", contrib: params.tutti }];
     prevContour = contour;
+    // нічні вогні (v6): кількість вогнів і кластерів — густота «вогників»; темрява (майже немає світла) — тиша
+    if (a.rel.lightPoints && a.abs.lightPoints) {
+      params.lights = clamp(aggregate(a.rel[lightsFeature], idx));
+      params.clusters = a.rel.lightClusters ? clamp(aggregate(a.rel.lightClusters, idx)) : 0;
+      params.dark = aggregate(a.abs.lightPoints, idx) < 0.02 ? 1 : 0;
+      explain.lights = [{ source: `${a.labels?.[lightsFeature] || lightsFeature} (rel)`, contrib: params.lights }];
+    }
     // солісти зон: до 2 колонок, що найбільше відхиляються, не ближче ніж 3 зони
     params.soloZones = pickSoloZones(contour, pol, prevSolo);
     prevSolo = params.soloZones.map(z => z.col);
@@ -254,6 +263,17 @@ export function mapAnalysis(a, preset, { topic = null, timeUnit = null } = {}) {
     explain.staccato = params.staccato ? [{ source: "подія коротша за 5 кадрів", contrib: 1 }] : [];
 
     bars.push({ bar: b, t0, dur: barDur, frames: idx, params, explain, events: evs, allEvents: all });
+  }
+
+  // ---- відносна енергія (v6): енергія, розтягнута в межах відео (5–95 перцентиль) — контраст гучності, складу й ударних.
+  // Якщо енергія майже не змінюється (розмах < 0.2), розтяг пропорційно слабший — рівний трек лишається рівним.
+  {
+    const es = bars.map(x => x.params.energy), e5 = percentile(es, 5), e95 = percentile(es, 95), span = e95 - e5, kk = Math.min(1, span / 0.2);
+    for (const bar of bars) {
+      const u = clamp((bar.params.energy - e5) / Math.max(span, 1e-6));
+      bar.params.drive = still || noChange ? clamp(bar.params.energy) : kk * u + (1 - kk) * clamp(bar.params.energy);
+      bar.explain.drive = [{ source: "енергія даних, розтягнута в межах відео", contrib: bar.params.drive }];
+    }
   }
 
   // ---- форма треку
@@ -309,7 +329,7 @@ export function mapAnalysis(a, preset, { topic = null, timeUnit = null } = {}) {
       preset: preset.id, presetTitle: preset.title, bpm, barDur, nBars, phrase, sections, still, noChange, scaleNote,
       tempoWhy: tp.why, tempoX, sceneType: p.sceneType, duration: still ? nBars * barDur : dur,
       meter, key, topic: topic?.id || "generic", soundProfile: sp, why,
-      polarity: pol, valueFeature: valueFeature || null, reference, tick,
+      polarity: pol, valueFeature: valueFeature || null, reference, tick, lightsFeature: a.rel.lightPoints ? lightsFeature : null,
     },
     bars,
   };

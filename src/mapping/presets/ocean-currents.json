@@ -1,0 +1,25 @@
+{
+  "id": "ocean-currents",
+  "title": "тема ocean-currents",
+  "params": {
+    "brightness": {
+      "base": 0.0,
+      "sources": [
+        {
+          "feature": "hotShare",
+          "channel": "rel",
+          "weight": 0.6,
+          "curve": "smooth"
+        },
+        {
+          "feature": "warmth",
+          "channel": "rel",
+          "weight": 0.4,
+          "curve": "linear"
+        }
+      ],
+      "why": "Більше теплої води — світліший лад (мажор), вищі й яскравіші інструменти; холодна — мінор, низькі струнні, приглушений тембр"
+    }
+  },
+  "accent": {}
+}
