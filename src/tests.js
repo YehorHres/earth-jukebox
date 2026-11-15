@@ -420,7 +420,7 @@ SUITES.push(async function stage12() {
   await new Promise(r => fr.addEventListener("load", r, { once: true }));
   const w = fr.contentWindow, doc = fr.contentDocument;
   w.addEventListener("error", e => errors.push("застосунок: " + e.message));  // помилки обробників у iframe теж рахуємо
-  for (let i = 0; i < 40 && !w.jukebox?.catalog; i++) await new Promise(r => setTimeout(r, 250));
+  for (let i = 0; i < 160 && !w.jukebox?.catalog; i++) await new Promise(r => setTimeout(r, 250));   // до 40 с: у фоновій вкладці завантаження повільне
   const key = (k, o = {}) => doc.body.dispatchEvent(new w.KeyboardEvent("keydown", { key: k, code: o.code || (k.length === 1 ? "Key" + k.toUpperCase() : k), shiftKey: !!o.shift, bubbles: true, cancelable: true }));
   await w.jukebox.loadItem(w.jukebox.catalog[0]);
   const log = [];

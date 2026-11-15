@@ -94,6 +94,18 @@ const EXACT = {
   "тепліше = більше": "warmer = more", "світліше = більше": "lighter = more", "червоне = більше": "red = more", "за шкалою в кадрі": "from the scale in the frame",
   "Браузер не може відтворити цей формат (ймовірно H.265/HEVC або дуже висока роздільність). Завантажте MP4 H.264 1080p зі сторінки NASA SVS або сконвертуйте файл.":
     "The browser cannot play this format (probably H.265/HEVC or a very high resolution). Download an MP4 H.264 1080p from the NASA SVS page or convert the file.",
+  // --- типи відео: статичне, графік, кілька панелей (v8)
+  "Дані у відео майже не змінюються, камера стоїть: кадр звучить як зображення — лінія сканування йде із заходу на схід.": "The data in the video barely changes and the camera is still: the frame sounds like an image — the scan line moves from west to east.",
+  "Графік: час треку — це вісь x (зліва направо), висота голосу даних — висота лінії.": "Chart: track time is the x axis (left to right), the pitch of the data voice is the height of the line.",
+  "У кадрі кілька панелей: звучить найбільша.": "There are several panels in the frame: the largest one is heard.",
+  "Друга лінія — другий голос (нижче, праворуч); перетин ліній позначає короткий звук-знак.": "The second line is a second voice (lower, on the right); a crossing of the lines is marked by a short sound sign.",
+  "зміни у відео менші за шум": "changes in the video are smaller than noise", "Висота лінії графіка": "Chart line height", "Висота другої лінії графіка": "Second chart line height",
+  "перетин ліній графіка": "chart lines cross", "найвища точка лінії графіка": "highest point of the chart line",
+  "знайдено одну лінію графіка": "one chart line found", "знайдено дві лінії графіка": "two chart lines found",
+  "Другий голос (друга лінія графіка)": "Second voice (second chart line)",
+  "Друга лінія графіка: вища лінія — вища нота; інший тембр, октавою нижче, у правому вусі": "Second chart line: a higher line is a higher note; a different timbre, an octave lower, in the right ear",
+  "Дані": "Data", "Одиниці": "Units", "Кольори": "Colours", "Регіон": "Region", "Період": "Period", "Автори": "Authors",
+  "Що означає «більше», джерело не пояснює — напрямок голосу даних визначено автоматично; його можна змінити перемикачем.": "The source does not explain what “more” means — the direction of the data voice was detected automatically; you can change it with the switch.",
   // --- пресети мапінгу: назви й пояснення
   "Універсальний (графіки й змішані візуалізації)": "Universal (charts and mixed visualizations)", "Теплова карта (температура, кольорова шкала)": "Heat map (temperature, colour scale)",
   "Нічна карта вогнів": "Night-lights map", "Супутниковий знімок у справжніх кольорах": "True-colour satellite image",
@@ -193,6 +205,12 @@ const RULES = [
   [/^Глобус обертається: (.+)$/, () => "The globe rotates: you hear what is at the centre of the disc right now — the meridian facing the listener; the west of the disc is on the left, the east on the right. Rotation is a survey of space, not a change in the data, so it creates no events and does not control loudness."],
   [/^глобального зсуву кадру немає \((\d+) % кадрів\) — змінюються самі дані$/, (m, p) => `no global frame shift (${p}% of frames) — the data itself changes`],
   [/^текстура (всередині диска|в центрі кадру) стало зсувається горизонтально \((\d+) % кадрів, в один бік — (\d+) %\)$/, (m, w, a, b) => `texture ${w === "в центрі кадру" ? "at the centre of the frame" : "inside the disc"} shifts steadily sideways (${a}% of frames, ${b}% in one direction)`],
+  [/^Графік: час треку — це вісь x \(зліва направо\), висота голосу даних — висота лінії\.(.*)$/, (m, rest) => `Chart: track time is the x axis (left to right), the pitch of the data voice is the height of the line.${rest ? " " + T(rest.trim()) : ""}`],
+  [/^У кадрі кілька панелей: звучить найбільша\. Панелей: (\d+); найбільша займає (\d+) % кадру\.$/, (m, n, p) => `There are several panels in the frame: the largest one is heard. Panels: ${n}; the largest takes ${p}% of the frame.`],
+  [/^знайдено (\d+) панелі, розділені суцільними смугами$/, (m, n) => `${n} panels found, separated by solid bars`],
+  [/^Що на відео \(картка NASA EIC, SVS (\d+)\): (.+)$/s, (m, id, d) => `What the video shows (NASA EIC card, SVS ${id}): ${T(d)}`],
+  [/^номер SVS (\d+) у назві файлу$/, (m, id) => `SVS number ${id} in the file name`],
+  [/^слова «(.+)» у назві файлу$/, (m, k) => `the words “${k}” in the file name`],
   [/^Більше значення — автоматично: (.+?)( \(тема обертає напрямок\))?\.$/, (m, how, inv) => `A larger value — automatic: ${T(how)}${inv ? " (the topic reverses the direction)" : ""}.`],
   [/^Більше значення — це (.+?): (вищий голос даних|голос даних обернено: вищий звук) — (.+?)\.( \(Шкала не розрізняє цього напрямку — узято напрямок за замовчуванням\.\))?$/, (m, c, how, c2, nos) =>
     `A larger value means ${T(c)}: ${how === "вищий голос даних" ? "a higher data voice" : "the data voice is inverted: a higher sound"} — ${T(c2)}.${nos ? " (The scale cannot tell this direction apart — the default direction is used.)" : ""}`],

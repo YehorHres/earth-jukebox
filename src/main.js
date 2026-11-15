@@ -14,6 +14,7 @@ import { GRAMMAR } from "./grammar.js";
 import { setupGalleryMenu } from "./ui/gallery-menu.js";
 import { applyMotion, MOTION_LABEL, MOTION_NOTE } from "./analysis/motion.js";
 import { resolvePolarity } from "./analysis/palette.js";
+import { loadEic, matchEic, cardSettings, cardLines } from "./eic/match.js";
 import { t, tr, pick, getLang, setLang, onLang, applyDom, registerExact } from "./i18n/index.js";
 import { setupTooltips } from "./ui/tooltip.js";
 import { setupHoverSpeech } from "./ui/hover-speech.js";
@@ -88,6 +89,7 @@ async function loadSource(title, open, item) {
   stopVoice();
   playback.stop();
   app.profile = app.analysis = app.mapping = app.score = null;
+  app.eicCard = null; app.eicMatch = null; $("eic-offer").hidden = true;
   $("mapping-wrap").hidden = true;
   $("parts-wrap").hidden = true;
   explore.setOn(false);
@@ -122,6 +124,7 @@ async function loadSource(title, open, item) {
       useCache: !NO_CACHE,
       scaleHint,
       motion: item ? item.motionType || "temporal" : null,   // галерея — як раніше; своє відео — тип руху визначається сам
+      layout: !item,                                           // static / chart / composite — лише для своїх відео
       onProgress: (stage, p, msg, profile) => {
         if (stage === "A") { setProgress(p * 0.15); setStatus(msg); }
         if (stage === "A-done") { app.profile = profile; renderCard(false); drawMasks(); }
@@ -133,6 +136,8 @@ async function loadSource(title, open, item) {
       },
     });
     app.profile = app.analysis.profile;
+    // статичне відео або графік: звучить сканування кадру — показуємо цей кадр і лінію сканування
+    if (app.analysis.replacedSource) { src = app.source = app.analysis.replacedSource; showMedia(src); }
     const dt = ((performance.now() - t0) / 1000).toFixed(1);
     setProgress(1);
     const an = app.analysis;
@@ -152,6 +157,7 @@ async function loadSource(title, open, item) {
     if (!item?.topic && !saved?.topic) announce(t("status.askTopic"), { force: true });
 
     showReadOptions(item);
+    if (!item) offerEic(src.name, saved);
     // шари 2–3: мапінг і партитура
     await remap();
     $("exportBtn").disabled = false;
@@ -201,7 +207,8 @@ function showReadOptions(item) {
   if (!show) return;
   $("polarity").value = app.polarityChoice || "auto";
   if (app.polarityText) $("polarity-hint").textContent = tr(app.polarityText);
-  $("motion-row").hidden = $("motion-hint").hidden = !mo || app.source?.kind !== "video";
+  $("motion-row").hidden = $("motion-hint").hidden = !mo || (app.source?.kind !== "video" && !app.source?.scan) || !!app.stillProfile;
+  $("motionType").disabled = ["static", "chart"].includes(mo?.type);   // ці типи вже замінили відео скануванням кадру
   if (!mo) return;
   if (![...$("motionType").options].some(o => o.value === mo.type)) $("motionType").add(new Option(tr(MOTION_LABEL[mo.type] || mo.type), mo.type));
   $("motionType").value = mo.type;
@@ -224,7 +231,7 @@ const READ_KEY = "ecosphear-read:";
 function loadRead(key) { try { return JSON.parse(localStorage.getItem(READ_KEY + key) || "null"); } catch { return null; } }
 function saveRead() {
   if (app.catalogItem || !app.source) return;
-  try { localStorage.setItem(READ_KEY + app.source.key, JSON.stringify({ topic: app.topic?.id === "generic" ? null : app.topic?.id, polarity: app.polarityChoice })); } catch { /* приватний режим — не зберігаємо */ }
+  try { localStorage.setItem(READ_KEY + app.source.key, JSON.stringify({ topic: app.topic?.id === "generic" ? null : app.topic?.id, polarity: app.polarityChoice, eic: app.eicCard?.id ?? (app.eicDeclined ? 0 : null) })); } catch { /* приватний режим — не зберігаємо */ }
 }
 $("polarity").addEventListener("change", async e => {
   app.polarityChoice = e.target.value;
@@ -234,6 +241,54 @@ $("polarity").addEventListener("change", async e => {
   await remap();
   announce($("polarity-hint").textContent, { force: true });
   if (wasPlaying) app.player.play();
+});
+
+/* ---------------- v8: картка NASA EIC за назвою файлу ---------------- */
+/** Поле картки мовою інтерфейсу: card[field + "_en"] в англійському режимі (якщо є). */
+const cardField = (card, f) => (getLang() === "en" ? card[f + "_en"] ?? tr(card[f]) : card[f]);
+/** Картка з полями мовою інтерфейсу — для cardLines (src/eic/match.js не змінюємо). */
+const localCard = card => (getLang() === "en"
+  ? { ...card, desc: cardField(card, "desc"), variable: cardField(card, "variable"), units: cardField(card, "units"), colors: cardField(card, "colors"),
+      region: cardField(card, "region"), years: cardField(card, "years"), credit: cardField(card, "credit") }
+  : card);
+const eicLines = card => cardLines(localCard(card)).map(tr);
+function showEicOffer() {
+  const m = app.eicMatch;
+  $("eic-text").textContent = t("eic.offer", { title: pick(m.card, "title"), why: tr(m.why) });
+}
+function offerEic(fileName, saved) {
+  app.eicDeclined = saved?.eic === 0;
+  const m = matchEic(fileName, app.eic);
+  if (!m || app.eicDeclined) return;
+  app.eicMatch = m;
+  if (saved?.eic === m.card.id) { app.eicCard = m.card; return; }          // уже підтверджено минулого разу
+  showEicOffer();
+  $("eic-offer").hidden = false;
+  announce($("eic-text").textContent + " " + t("eic.offerHint"), { force: true });
+}
+/** Застосувати картку: тема, тип руху, полярність, опис. */
+app.applyEicCard = async card => {
+  app.eicCard = card; app.eicDeclined = false;
+  $("eic-offer").hidden = true;
+  if (!app.analysis || app.busy) return;
+  const set = cardSettings(card), wasPlaying = app.player?.playing;
+  if (set.topic) { app.topic = getTopic(set.topic); topicInput.set(app.topic); }
+  app.polarityChoice = set.polarity;
+  if (set.motion && app.analysis.motion && app.analysis.motion.type !== set.motion && !app.analysis.replacedSource) app.analysis = applyMotion(app.analysis, set.motion, { auto: false });
+  showReadOptions(null);
+  saveRead();
+  renderCard(false);
+  timeline.set(app.analysis);
+  await remap();
+  announce(t("eic.applied", { title: pick(card, "title"), topic: pick(app.topic, "name"), line: eicLines(card)[0] }), { force: true });
+  $("play").focus();
+  if (wasPlaying) app.player.play();
+};
+$("eic-yes").addEventListener("click", () => app.eicMatch && app.applyEicCard(app.eicMatch.card));
+$("eic-no").addEventListener("click", () => {
+  app.eicDeclined = true; $("eic-offer").hidden = true; saveRead();
+  announce(t("eic.declined"), { force: true });
+  $("topic").focus();
 });
 
 /** Плоска карта світу має пропорцію ~2:1; глобус і графіки — ні (тоді без широт/довгот у підписах). */
@@ -257,6 +312,7 @@ function renderCard(speak = true) {
   const p = app.profile;
   const lines = describeProfile(p, app.source, app.analysis);
   const card = app.catalogItem?.card;
+  if (app.eicCard) lines.unshift(...eicLines(app.eicCard));
   if (card) lines.unshift(t("card.data", { variable: pick(card, "variable"), units: pick(card, "units"), region: pick(card, "region"), years: pick(card, "years"), authors: pick(card, "authors") }));
   if (app.catalogItem?.desc) lines.unshift(t("card.whatOn", { desc: pick(app.catalogItem, "desc") }));
   if (!app.analysis) lines.push(t("card.pending"));
@@ -336,6 +392,7 @@ const drop = $("drop");
 drop.addEventListener("drop", e => { app.lastFile = e.dataTransfer.files[0]; fileName(); loadFile(app.lastFile); });
 
 app.topics = await loadTopics();
+app.eic = await loadEic().catch(() => []);
 // пари «українською → англійською» з даних: тексти модулів звуку (напр. «… + тема «Океанські течії»») перекладаються на виході
 for (const tp of app.topics) {
   registerExact(tp.name?.uk, tp.name?.en);
@@ -382,6 +439,7 @@ onLang(() => {
   $("scanDir").textContent = t(app.scanDir === "we" ? "scan.we" : "scan.ns");
   if (app.profile) renderCard(false);
   if (app.analysis) { timeline.set(app.analysis); showReadOptions(app.catalogItem); }
+  if (app.eicMatch && !$("eic-offer").hidden) showEicOffer();
   if (app.mapping) {
     timeline.setSections(app.mapping.meta.sections.map(s => ({ label: tr(s.label), t0: s.b0 * app.mapping.meta.barDur, t1: s.b1 * app.mapping.meta.barDur })));
     mappingTable.set(app.mapping, app.preset, app.analysis);

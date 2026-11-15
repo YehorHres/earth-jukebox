@@ -10,7 +10,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&family=Unbounded:wght@300;400;500&display=swap">
-<link rel="stylesheet" href="src/style.css?v=ecosphear-2">
+<link rel="stylesheet" href="src/style.css?v=ui-en-1">
 <!-- мова до першого малювання: без «блимання» української для англомовних -->
 <script>try{var q=new URLSearchParams(location.search).get("lang"),s=localStorage.getItem("ecosphear.lang"),l=q||s||((navigator.language||"").toLowerCase().indexOf("uk")===0?"uk":"en");document.documentElement.lang=l==="en"?"en":"uk";}catch(e){}</script>
 </head>
@@ -85,6 +85,14 @@
         </div>
         <p id="topic-hint" class="keys" data-i18n="topic.none">Тему не вибрано.</p>
         <ul id="topic-list" class="topic-list" hidden data-i18n-attr="aria-label:topic.listAria" aria-label="Теми"></ul>
+        <!-- v8: пропозиція картки NASA EIC за назвою файлу -->
+        <div id="eic-offer" class="read-opts" role="group" aria-labelledby="eic-text" hidden>
+          <p id="eic-text"></p>
+          <div class="row">
+            <button id="eic-yes" type="button" data-tip="tip.eicYes" data-i18n="eic.yes">Так, це воно</button>
+            <button id="eic-no" type="button" data-tip="tip.eicNo" data-i18n="eic.no">Ні</button>
+          </div>
+        </div>
         <!-- v7: як читати завантажене відео (для галереї приховано — там усе відомо з картки) -->
         <div id="read-opts" class="read-opts" hidden>
           <div class="row" id="motion-row">
@@ -214,6 +222,6 @@
 
 <div id="tip" class="tooltip" role="tooltip" hidden></div>
 <div id="live" class="sr-only" aria-live="polite"></div>
-<script type="module" src="src/main.js?v=ecosphear-2"></script>
+<script type="module" src="src/main.js?v=ui-en-1"></script>
 </body>
 </html>

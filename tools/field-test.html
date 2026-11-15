@@ -21,6 +21,7 @@ import { compose } from "../src/composer/composer.js";
 import { loadTopics, getTopic } from "../src/topics/topics.js";
 import { spearman } from "../src/audio/report.js";
 import { describeProfile } from "../src/a11y/describe.js";
+import { loadEic, matchEic } from "../src/eic/match.js";
 
 const q = new URLSearchParams(location.search), file = q.get("file"), max = Number(q.get("max") || 60);
 const state = t => (document.getElementById("state").textContent = t);
@@ -28,6 +29,7 @@ const rec = { file: file?.split("/").pop(), path: file, topic: q.get("topic") ||
 const r2 = v => (Number.isFinite(v) ? Math.round(v * 100) / 100 : null);
 try {
   await loadTopics();
+  { const m = matchEic(rec.file, await loadEic("../")); rec.eicCard = m ? m.card.id : null; rec.eicWhy = m?.why || null; }
   const t0 = performance.now();
   let src;
   try { src = await openVideo("../" + file.split("/").map(encodeURIComponent).join("/"), { direct: true, name: rec.file }); rec.opened = true; }
@@ -35,7 +37,7 @@ try {
   Object.assign(rec, { width: src.width, height: src.height, duration: r2(src.duration), fps: src.fps, heavy: !!src.heavy, sizeMB: Math.round((src.size || 0) / 1e6) });
   // великі / довгі файли — лише перші max секунд
   if (src.duration > max) { src = { ...src, duration: max, key: src.key + `|first${max}` }; rec.analyzedSeconds = max; } else rec.analyzedSeconds = rec.duration;
-  let a = await analyzeSource(src, { useCache: false, projection: "other", onProgress: (st, p, msg) => state(`${rec.file}: ${msg || st}`) });
+  let a = await analyzeSource(src, { useCache: false, projection: "other", layout: true, onProgress: (st, p, msg) => state(`${rec.file}: ${msg || st}`) });
   rec.autoMotion = a.motion?.type;
   if (q.get("motion")) a = applyMotion(a, q.get("motion"), { auto: false });
   const p = a.profile, topic = getTopic(rec.topic);
@@ -52,7 +54,7 @@ try {
     sceneDetected: p.sceneDetected, sceneType: p.sceneType, confidence: r2(p.confidence), region: p.region?.full ? "full" : p.region?.shape,
     motion: a.motion?.type, motionAuto: a.motion?.auto, motionConfidence: r2(a.motion?.confidence), motionWhy: a.motion?.why, motionStats: a.motion?.stats && Object.fromEntries(Object.entries(a.motion.stats).map(([k, v]) => [k, typeof v === "number" ? r2(v) : v])),
     scale: p.scale?.palette ? `палітра кадру (${p.palette.kind}, ${r2(p.palette.explained)})` : p.scale?.found ? `шкала в кадрі (${p.scale.orientation})` : p.sceneType === "heatmap" ? "відтінок синій→червоний" : "яскравість",
-    paletteWhy: p.palette?.why || null, sense: (await import("../src/analysis/palette.js")).scaleSense(p), changeScale: p.changeScale,
+    paletteWhy: p.palette?.why || null, panels: p.panels ? p.panels.map(x => `${Math.round(x.area * 100)}%@${x.x0.toFixed(2)},${x.y0.toFixed(2)}`).join(" ") : null, layout: a.layout?.type || null, sense: (await import("../src/analysis/palette.js")).scaleSense(p), changeScale: p.changeScale,
     leadFeature: lf, leadLabel: lf ? a.labels[lf] : null, polarity: pol.pol, polarityText: pol.text,
     rhoVoiceLead: r2(rho), events: a.events.length, eventsWithoutMotion: a.temporalBase?.events.length ?? a.events.length,
     bpm: s.bpm, key: s.key, notes: s.notes.length, voiceNotes: s.notes.filter(n => n.part === "dataVoice").length, parts: s.parts.map(x => x.id).join(","),
