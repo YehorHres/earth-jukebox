@@ -9,10 +9,11 @@ import { describeRange, median, percentile, autocorr, clamp } from "../util/stat
 import { detectRegion, detectScale } from "./region.js";
 import { frameBackground, regionFromFrames, detectDynamicText } from "./region-dynamic.js";
 import { detectPalette } from "./palette.js";
+import { findPanels } from "./layout.js";
 
 const N_SAMPLES = 32, N_NOISE_PAIRS = 4, MASK_W = 160;
 
-export async function passA(source, { onProgress = () => {}, sceneOverride = null, scaleHint = null, autoPalette = false } = {}) {
+export async function passA(source, { onProgress = () => {}, sceneOverride = null, scaleHint = null, autoPalette = false, autoLayout = false } = {}) {
   const { w, h } = analysisSize(source, MASK_W);
   const n = w * h, dur = source.duration;
   const isStill = source.isStatic || !dur;
@@ -108,6 +109,17 @@ export async function passA(source, { onProgress = () => {}, sceneOverride = nul
     for (let i = 0; i < n; i++) if (bgCount[i] > 0.1 * F && bgCount[i] < 0.9 * F) sometimes++;
     dynamicBg = sometimes / n > 0.04;
     if (dynamicBg) region = regionFromFrames(bgCount, F, w, h);
+  }
+  // блок F: кілька панелей поруч (composite) — читаємо найбільшу
+  let panels = null;
+  if (autoLayout && !isStill && !source.scan) {
+    const found = findPanels({ w, h, meanRGB, pxStd, staticThr });
+    if (found.length >= 2) {
+      panels = found.map(q => ({ x0: q.x0 / w, y0: q.y0 / h, x1: (q.x1 + 1) / w, y1: (q.y1 + 1) / h, area: q.area }));
+      const P = found[0], mask = new Uint8Array(n);
+      for (let y = P.y0; y <= P.y1; y++) for (let x = P.x0; x <= P.x1; x++) mask[y * w + x] = 1;
+      region = { mask, shape: "rect", disk: null, area: P.area, full: false, bbox: { x0: P.x0, y0: P.y0, x1: P.x1, y1: P.y1 }, norm: { bbox: panels[0], disk: null } };
+    }
   }
   // дата / змінний текст у кутах — службовий елемент навіть тоді, коли він не статичний
   const text = isStill || source.scan ? { mask: new Uint8Array(n), boxes: [] } : detectDynamicText({ w, h, pxStd, maxVal, minSat });
@@ -216,7 +228,7 @@ export async function passA(source, { onProgress = () => {}, sceneOverride = nul
     region: { shape: region.shape, area: region.area, full: region.full, bbox: region.bbox, disk: region.disk, norm: region.norm },
     dynamicBg, textBoxes: text.boxes,
     scale: scale.found ? { found: true, orientation: scale.orientation, refs: scale.refs, norm: scale.norm, ...(scale.palette && { palette: true }) } : { found: false },
-    ...(palette && { palette }),
+    ...(palette && { palette }), ...(panels && { panels }),
     shares: { static: share(staticMask), land: share(landMask), bg: share(bgMask), overlay: share(overlayMask) },
     ranges, featureNoise, noiseFloor, noiseCell, mainFeature, changeRatio, changeScale, changeAmp, changeArea,
     mainSpread: spread, cuts: [], serviceTimes, period,

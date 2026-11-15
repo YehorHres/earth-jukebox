@@ -38,7 +38,8 @@ export function describeProfile(p, source, analysis = null) {
   }
   // v7 §1: тип руху — що саме змінюється в кадрі (дані чи точка зору)
   const mo = analysis?.motion;
-  if (mo && mo.type !== "temporal") lines.push(`Тип руху${mo.auto ? " (визначено автоматично)" : " (вибрано вручну)"}: ${mo.label}. ${mo.note}`);
+  if (mo && mo.type !== "temporal") lines.push(`Тип відео${mo.auto ? " (визначено автоматично)" : " (вибрано вручну)"}: ${mo.label}. ${mo.note}`);
+  else if (analysis?.layout?.note) lines.push(analysis.layout.note);
   if (!p.isStill) {
     const what = p.sceneType === "heatmap" ? "значення за кольоровою шкалою" : "яскравість";
     let s;
