@@ -1,0 +1,11 @@
+{
+  "note": "Золотий тест (PROMPT-v7 §0): відбитки партитур 5 відео галереї. Змінювати лише свідомо: tools/golden.html → скопіювати нові значення.",
+  "hash": "goldenHash (src/audio/report.js): bpm, barDur, key, meter, parts, усі ноти (part, inst, t, midi, dur, vel, pan, layers)",
+  "scores": {
+    "ecco2_sst_flow": { "hash": "gb24ahk77n-24h2l5u5omp", "bpm": 63, "notes": 411, "key": "F♯" },
+    "night_lights_rotating": { "hash": "1qu01i48uc4-1du5vcys72v", "bpm": 92, "notes": 284, "key": "E" },
+    "hurricane_beryl": { "hash": "1sozloo9upb-s8m387o526", "bpm": 137, "notes": 808, "key": "C" },
+    "co2_oco2_year": { "hash": "1fnas3pegpm-luss4iddri", "bpm": 50, "notes": 111, "key": "D" },
+    "sea_ice_2022": { "hash": "1e2nrlyvzyr-25ni6dbp52n", "bpm": 68, "notes": 243, "key": "E" }
+  }
+}

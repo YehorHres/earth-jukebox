@@ -1,0 +1,11 @@
+<!doctype html>
+<html lang="uk"><head><meta charset="utf-8"><title>Золоті відбитки партитур</title><link rel="icon" href="data:,"></head>
+<body><h1>Золоті відбитки партитур галереї</h1>
+<p>Скопіюйте в <code>tests/golden-scores.json</code> → <code>scores</code> лише після свідомої зміни звучання галереї.</p>
+<pre id="out" role="status">Рахую…</pre>
+<script type="module">
+import { buildTrack, goldenHash } from "../src/audio/report.js";
+const cat = (await (await fetch("../samples/catalog.json")).json()).filter(i => i.kind === "video" && i.analysis), out = {};
+for (const it of cat) { const { score } = await buildTrack(it, "../"); out[it.id] = { hash: goldenHash(score), bpm: score.bpm, notes: score.notes.length, key: score.key }; }
+document.getElementById("out").textContent = JSON.stringify(out, null, 2);
+</script></body></html>
