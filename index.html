@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>EcoSphear</title>
-<meta name="description" content="EcoSphear: візуалізації NASA перетворюються на музику для незрячих і слабозорих слухачів.">
+<title>EchoSphear</title>
+<meta name="description" content="EchoSphear: візуалізації NASA перетворюються на музику для незрячих і слабозорих слухачів.">
 <link rel="icon" href="data:,">
 <!-- шрифти з CDN; без інтернету — системні Segoe UI / Arial (див. src/style.css) -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -24,7 +24,7 @@
       <button id="lang-en" type="button" aria-pressed="false" lang="en" data-tip="tip.lang">EN</button>
     </span>
   </div>
-  <h1>EcoSphear</h1>
+  <h1>EchoSphear</h1>
   <p class="hero-tagline" data-i18n="hero.tagline">Почуйте Землю. Оберіть супутникову візуалізацію NASA — і вона зазвучить: кожна нота пояснюється даними, тож карту можна зрозуміти навіть не бачачи її.</p>
 </header>
 
@@ -45,6 +45,9 @@
         <label class="opt"><input type="checkbox" id="voice" data-tip="tip.voice"> <span data-i18n="opt.voice">Озвучувати голосом</span></label>
         <label class="opt"><input type="checkbox" id="drone" data-tip="tip.drone"> <span data-i18n="opt.drone">Дрон-орієнтир (тихий референсний тон упродовж треку)</span></label>
         <label class="opt"><input type="checkbox" id="ticks" data-tip="tip.ticks"> <span data-i18n="opt.ticks">Тіки шкали часу</span></label>
+        <label class="opt speech-rate" for="speechRate"><span data-i18n="opt.speechRate">Швидкість мовлення</span>
+          <input type="range" id="speechRate" min="0.5" max="2" step="0.25" value="1" aria-keyshortcuts="- =" data-tip="tip.speechRate">
+          <output id="speechRateVal" for="speechRate">1×</output></label>
         <label class="opt"><input type="checkbox" id="intro" checked data-tip="tip.intro"> <span data-i18n="opt.intro">Голосовий вступ перед треком (тема, роки, що означає «більше»)</span></label>
       </fieldset>
 
@@ -133,6 +136,7 @@
           <button id="play" class="primary" disabled aria-keyshortcuts="Space" data-icon="play" data-tip="tip.play" data-i18n="btn.play">Грати</button>
           <button id="legendBtn" disabled aria-keyshortcuts="L" data-icon="sound" data-tip="tip.legend" data-i18n="btn.legend">Аудіолегенда</button>
           <button id="exploreBtn" disabled aria-pressed="false" aria-keyshortcuts="E" data-icon="explore" data-tip="tip.explore" data-i18n="btn.explore">Дослідити карту</button>
+          <button id="whatBtn" disabled aria-keyshortcuts="W" data-icon="sound" data-tip="tip.what" data-i18n="btn.what">Що зараз?</button>
           <button id="wavBtn" disabled data-icon="download" data-tip="tip.wav" data-i18n="btn.wav">Трек у WAV</button>
         </div>
         <label class="opt style-pick" for="style"><span data-i18n="style.label">Стиль звучання</span>
@@ -140,6 +144,7 @@
         </label>
       </div>
       <p id="status" role="status" data-i18n="status.none">Файл не завантажено.</p>
+      <p id="track-summary" class="track-summary" hidden></p>
       <p id="style-hint" class="keys" data-i18n="style.hint">Стиль змінює лише інструменти й набір ударних; гармонія, ритм і форма — з даних.</p>
       <p id="explore-readout" class="explore-readout" hidden></p>
     </div>
@@ -216,7 +221,7 @@
 </main>
 
 <footer class="site-foot">
-  <span>EcoSphear</span>
+  <span>EchoSphear</span>
   <span data-i18n="foot.data">Візуалізації: NASA Earth Information Center</span>
 </footer>
 

@@ -4,6 +4,7 @@
 // Затримка ~0.3 с; нове наведення перериває попереднє мовлення; під час мовлення музика приглушується (engine.duck).
 import { t, speechLang } from "../i18n/index.js";
 import { announce, speechHooks } from "../a11y/announcer.js";
+import { utterRate } from "../a11y/speech.js";
 import { tipTarget, tipText } from "./tooltip.js";
 
 const KEY = "ecosphear.hoverSpeech", DELAY = 300;
@@ -35,7 +36,7 @@ export function setupHoverSpeech() {
     if (!window.speechSynthesis || !text) return;
     speechSynthesis.cancel();                       // нове наведення перериває попереднє
     const u = new SpeechSynthesisUtterance(text);
-    u.lang = speechLang(); u.rate = 1.05;
+    u.lang = speechLang(); u.rate = utterRate(1.05);
     u.onstart = () => speechHooks.duck?.(true);     // приглушити музику (функція плеєра)
     u.onend = u.onerror = () => { if (!speechSynthesis.speaking && !speechSynthesis.pending) speechHooks.duck?.(false); };
     speechSynthesis.speak(u);

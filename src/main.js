@@ -15,9 +15,10 @@ import { setupGalleryMenu } from "./ui/gallery-menu.js";
 import { applyMotion, MOTION_LABEL, MOTION_NOTE } from "./analysis/motion.js";
 import { resolvePolarity } from "./analysis/palette.js";
 import { loadEic, matchEic, cardSettings, cardLines } from "./eic/match.js";
-import { t, tr, pick, getLang, setLang, onLang, applyDom, registerExact } from "./i18n/index.js";
+import { t, tr, pick, getLang, setLang, onLang, applyDom, registerExact, speechLang } from "./i18n/index.js";
 import { setupTooltips } from "./ui/tooltip.js";
 import { setupHoverSpeech } from "./ui/hover-speech.js";
+import { getSpeechRate, setSpeechRate, utterRate, RATE_STEP } from "./a11y/speech.js";
 
 const $ = id => document.getElementById(id);
 const NO_CACHE = new URLSearchParams(location.search).has("nocache");   // ?nocache — завжди аналізувати заново
@@ -370,9 +371,30 @@ $("exportBtn").addEventListener("click", () => {
 $("announce").addEventListener("change", e => (prefs.announce = e.target.checked));
 $("voice").addEventListener("change", e => (prefs.voice = e.target.checked));
 $("intro").addEventListener("change", e => (prefs.intro = e.target.checked));
+// v10 §7: швидкість мовлення (0.5×–2×) — повзунок і клавіші − / =; після зміни — фраза-приклад
+const rateEl = $("speechRate");
+const showRate = () => {
+  const r = getSpeechRate(), txt = t("speech.rateVal", { r: String(r).replace(".", getLang() === "uk" ? "," : ".") });
+  rateEl.value = r; $("speechRateVal").textContent = txt; rateEl.setAttribute("aria-valuetext", txt);
+};
+function changeRate(v) {
+  setSpeechRate(v); showRate();
+  const text = t("speech.sample", { r: $("speechRateVal").textContent });
+  if (window.speechSynthesis) {
+    speechSynthesis.cancel();
+    const u = new SpeechSynthesisUtterance(text);
+    u.lang = speechLang(); u.rate = utterRate(1.05);
+    speechSynthesis.speak(u);
+  }
+  announce(text, { force: true });
+}
+rateEl.addEventListener("change", e => changeRate(e.target.value));
+showRate();
 document.addEventListener("keydown", e => {
   if (e.target?.matches?.("input, select, textarea") || e.ctrlKey || e.metaKey || e.altKey) return;
   const k = e.key.toLowerCase();
+  if (k === "-" || k === "_") { e.preventDefault(); changeRate(getSpeechRate() - RATE_STEP); return; }
+  if (k === "=" || k === "+") { e.preventDefault(); changeRate(getSpeechRate() + RATE_STEP); return; }
   if (e.code === "KeyD" && app.profile) {
     announce(t("card.announce") + " " + describeProfile(app.profile, app.source, app.analysis).join(" "), { force: true });
   }
@@ -431,6 +453,7 @@ for (const l of ["uk", "en"]) $(`lang-${l}`).addEventListener("click", () => {
 /** Перемалювати все, що створює JS: галерея, граматика, картка, таймлайн, мапінг, плеєр. */
 onLang(() => {
   syncLangButtons();
+  showRate();
   for (const b of $("gallery").querySelectorAll("button")) { const it = app.catalog.find(x => x.id === b.dataset.id); if (it) labelGalleryItem(b, it); }
   galleryMenu.refresh();
   renderGrammar();
