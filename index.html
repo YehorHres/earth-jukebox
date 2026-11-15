@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Earth Jukebox</title>
-<meta name="description" content="Earth Jukebox: візуалізації NASA перетворюються на музику для незрячих і слабозорих слухачів.">
+<title>EcoSphear</title>
+<meta name="description" content="EcoSphear: візуалізації NASA перетворюються на музику для незрячих і слабозорих слухачів.">
 <link rel="icon" href="data:,">
 <!-- шрифти з CDN; без інтернету — системні Segoe UI / Arial (див. src/style.css) -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -16,30 +16,29 @@
 <a class="skip-link" href="#transport">Перейти до керування відтворенням</a>
 
 <header class="hero">
-  <div class="hero-meta" aria-hidden="true">
-    <span>NASA Space Apps Challenge</span>
-    <span>2026</span>
-  </div>
-  <h1>Earth Jukebox</h1>
-  <p class="hero-tagline">Двигун спершу «дивиться» все відео NASA, розуміє, що в ньому відбувається, а потім пише до нього музику.</p>
+  <h1>EcoSphear</h1>
+  <p class="hero-tagline">Почуйте Землю. Оберіть супутникову візуалізацію NASA — і вона зазвучить: кожна нота пояснюється даними, тож карту можна зрозуміти навіть не бачачи її.</p>
 </header>
 
 <main>
   <!-- 01 — вибір карти -->
   <section class="chapter chapter-source" aria-labelledby="stage-title">
-    <div class="chapter-head">
-      <span class="chapter-no" aria-hidden="true">01</span>
-      <h2 id="stage-title">Візуалізація</h2>
-    </div>
+    <h2 id="stage-title" class="sr-only">Візуалізація</h2>
     <div class="source-grid">
-      <div class="row" id="gallery" role="group" aria-label="Галерея візуалізацій"></div>
-      <div class="source-side">
-        <div id="drop">
-          <label for="file">Або перетягніть сюди своє відео / фото, чи виберіть файл: </label>
-          <input type="file" id="file" accept="video/*,image/*">
-          <button id="scanDir" type="button" hidden>↔ Сканування: захід → схід</button>
+      <div class="picker">
+        <button id="galleryToggle" class="picker-trigger" type="button" aria-expanded="false" aria-controls="gallery-panel">
+          <span class="picker-label">Вибрати візуалізацію…</span>
+        </button>
+        <div id="gallery-panel" class="picker-panel" hidden>
+          <div class="row" id="gallery" role="group" aria-label="Галерея візуалізацій"></div>
         </div>
-        <div class="topic-box">
+      </div>
+      <div id="drop">
+        <label for="file">Або перетягніть сюди своє відео / фото, чи виберіть файл: </label>
+        <input type="file" id="file" accept="video/*,image/*">
+        <button id="scanDir" type="button" hidden>↔ Сканування: захід → схід</button>
+      </div>
+      <div class="topic-box">
           <label for="topic"><strong>Що на цій карті?</strong> Тема задає звучання: тембр = тема, ноти = дані.</label>
           <div class="row topic-row">
             <input id="topic" type="text" autocomplete="off" spellcheck="false" aria-describedby="topic-hint"
@@ -53,14 +52,13 @@
           <p id="topic-hint" class="keys">Тему не вибрано.</p>
           <ul id="topic-list" class="topic-list" hidden aria-label="Теми"></ul>
         </div>
-      </div>
     </div>
   </section>
 
   <!-- 02 — екран і пульт -->
   <section class="chapter chapter-stage" aria-label="Екран і керування">
     <div class="viewer" id="viewer">
-      <div class="placeholder" id="placeholder">Оберіть візуалізацію в галереї вище.</div>
+      <div class="placeholder" id="placeholder">Оберіть візуалізацію у списку вище.</div>
       <canvas id="overlay" aria-hidden="true"></canvas>
       <canvas id="cursor" aria-hidden="true"></canvas>
     </div>
@@ -101,7 +99,6 @@
   <!-- 04 — звук зараз -->
   <section class="chapter chapter-sound" aria-labelledby="sound-title">
     <div class="chapter-head">
-      <span class="chapter-no" aria-hidden="true">02</span>
       <h2 id="sound-title">Звук</h2>
     </div>
     <div class="sound-grid">
@@ -125,7 +122,6 @@
   <!-- 05 — правила -->
   <section class="chapter chapter-rules" aria-labelledby="rules-title">
     <div class="chapter-head">
-      <span class="chapter-no" aria-hidden="true">03</span>
       <h2 id="rules-title">Як дані стають музикою</h2>
     </div>
     <div class="rules-grid">
@@ -148,7 +144,6 @@
   <!-- 06 — доступність -->
   <section class="chapter chapter-access" aria-labelledby="access-title">
     <div class="chapter-head">
-      <span class="chapter-no" aria-hidden="true">04</span>
       <h2 id="access-title">Доступність</h2>
     </div>
     <div class="access-grid">
@@ -184,7 +179,7 @@
 </main>
 
 <footer class="site-foot">
-  <span>Earth Jukebox</span>
+  <span>EcoSphear</span>
   <span>Візуалізації: NASA Earth Information Center</span>
 </footer>
 

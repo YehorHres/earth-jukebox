@@ -74,11 +74,7 @@ h3, legend { margin: 0 0 1.125rem; font-size: 1rem; font-weight: 400; line-heigh
   /* планета плавно розчиняється в сторінці, без різкого краю */
   -webkit-mask-image: linear-gradient(#000 72%, transparent 100%); mask-image: linear-gradient(#000 72%, transparent 100%);
 }
-.hero-meta {
-  align-self: stretch; display: flex; justify-content: space-between;
-  font-size: .8125rem; font-weight: 600; letter-spacing: .22em; text-transform: uppercase; color: var(--muted);
-}
-.hero h1 { margin-top: clamp(2.5rem, 11vh, 7rem); }
+.hero h1 { margin-top: clamp(4rem, 16vh, 10rem); }
 .hero-tagline {
   margin: 1.5rem auto 0; max-width: 46ch; color: var(--muted); font-size: 1.0625rem;
   text-transform: none; letter-spacing: .02em;
@@ -109,36 +105,53 @@ main { max-width: 84rem; margin: 0 auto; padding: 0 var(--gutter) 3rem; }
 .chapter { padding: clamp(2.5rem, 7vh, 5rem) 0; border-top: 1px solid var(--rule); }
 .chapter:first-child { border-top: 0; }
 .chapter-head { display: flex; align-items: baseline; gap: 1.25rem; margin-bottom: clamp(1.5rem, 4vh, 2.75rem); }
-.chapter-no {
-  font-family: var(--display); font-weight: 300; font-size: 1rem; letter-spacing: .1em; color: var(--ice);
-  padding-right: 1.25rem; border-right: 1px solid var(--line); line-height: 1.6;
-}
+/* ---------- вибір джерела ---------- */
+.source-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 1.5rem clamp(1.5rem, 4vw, 3rem); align-items: stretch; }
+.source-grid > .topic-box { grid-column: 1 / -1; }
 
-/* ---------- 01: джерело ---------- */
-.source-grid { display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr); gap: clamp(1.5rem, 4vw, 3.5rem); align-items: start; }
-#gallery {
-  display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: 2rem; gap: 0 2rem;
-  counter-reset: item; border-top: 1px solid var(--rule);
+/* спливаючий список візуалізацій */
+.picker { position: relative; min-width: 0; display: flex; flex-direction: column; }
+.picker-trigger {
+  flex: 1; width: 100%; min-height: 4.5rem; padding: 1rem 3.5rem 1rem 1.25rem; position: relative;
+  display: flex; align-items: center; justify-content: flex-start; text-align: left;
+  font-family: var(--display); font-weight: 300; font-size: clamp(1rem, 1.6vw, 1.25rem); letter-spacing: .04em; text-transform: uppercase; line-height: 1.3;
+  background: var(--surface); border: 1px solid var(--line); color: var(--text);
 }
+.picker-trigger::after {
+  content: ""; position: absolute; right: 1.375rem; top: 50%; width: .625rem; height: .625rem;
+  border-right: 1.5px solid var(--ice); border-bottom: 1.5px solid var(--ice);
+  transform: translateY(-70%) rotate(45deg); transition: transform .15s;
+}
+.picker-trigger[aria-expanded="true"] { border-color: var(--ice); box-shadow: inset 0 -3px 0 var(--ice); }
+.picker-trigger[aria-expanded="true"]::after { transform: translateY(-25%) rotate(-135deg); }
+.picker-panel {
+  position: absolute; z-index: 30; left: 0; right: 0; top: calc(100% - 1px);
+  max-height: min(26rem, 60vh); overflow-y: auto; overscroll-behavior: contain;
+  background: var(--surface-solid); border: 1px solid var(--ice); border-top-color: var(--rule);
+  box-shadow: 0 1.5rem 4rem rgba(0, 0, 0, .7);
+  scrollbar-color: var(--line) transparent; scrollbar-width: thin;
+}
+#gallery { display: block; }
 #gallery button {
-  counter-increment: item;
-  display: flex; align-items: baseline; gap: 1rem; text-align: left;
-  min-height: 4.75rem; padding: 1.125rem .25rem; width: 100%;
-  background: transparent; border: 0; border-bottom: 1px solid var(--rule);
-  font-size: 1rem; font-weight: 500; letter-spacing: .01em; text-transform: none; color: var(--text);
+  display: flex; align-items: center; gap: .875rem; width: 100%; text-align: left;
+  min-height: 3.25rem; padding: .75rem 1.25rem;
+  background: transparent; border: 0; border-top: 1px solid var(--rule);
+  font-size: 1rem; font-weight: 500; letter-spacing: .01em; text-transform: none; line-height: 1.4; color: var(--text);
 }
-#gallery button::before {
-  content: counter(item, decimal-leading-zero); flex: none;
-  font-family: var(--display); font-weight: 300; font-size: .875rem; letter-spacing: .08em; color: var(--ice);
-}
-#gallery button[data-kind="synthetic"]::before { color: var(--muted); }
-#gallery button:hover { background: var(--ice-wash); color: var(--ice); box-shadow: inset 0 -2px 0 var(--ice); }
+#gallery button:first-child { border-top: 0; }
+/* маркер ліворуч: тире; у вибраного — заповнений квадрат (стан не лише кольором) */
+#gallery button::before { content: ""; flex: none; width: .75rem; height: 1px; background: var(--muted); }
+#gallery button[aria-current="true"] { color: var(--ice); font-weight: 700; background: var(--ice-wash); }
+#gallery button[aria-current="true"]::before { height: .75rem; background: var(--ice); }
+#gallery button:hover, #gallery button:focus-visible { background: var(--ice-wash); color: var(--ice); }
+#gallery button:focus-visible { outline-offset: -3px; }
+#gallery button[data-kind="synthetic"] { color: var(--muted); }
+#gallery button[data-kind="synthetic"][aria-current="true"] { color: var(--ice); }
 
-.source-side { display: grid; gap: 1.75rem; }
-#drop { border: 1px dashed var(--line); padding: 1.25rem; color: var(--muted); background: var(--surface); display: grid; gap: .75rem; justify-items: start; }
+#drop { border: 1px dashed var(--line); padding: 1.25rem; align-content: center; color: var(--muted); background: var(--surface); display: grid; gap: .75rem; justify-items: start; }
 #drop.over { border-style: solid; border-color: var(--ice); color: var(--text); background: var(--ice-wash); }
 input[type="file"] { color: var(--muted); font: inherit; width: 100%; max-width: 100%; min-width: 0; }
-.source-side, .source-side > * { min-width: 0; }
+#drop, .topic-box { min-width: 0; }
 input[type="file"]::file-selector-button {
   font: inherit; font-size: .875rem; font-weight: 600; letter-spacing: .08em; text-transform: uppercase;
   color: var(--text); background: transparent; border: 1px solid var(--line); min-height: var(--target); padding: .5rem 1rem; margin-right: .875rem; cursor: pointer;
@@ -336,8 +349,6 @@ pre.debug { font-size: .875rem; max-height: 22rem; overflow: auto; background: v
   .hero { min-height: 30rem; }
   .style-pick { flex-wrap: wrap; width: 100%; }
   .style-pick select { width: 100%; }
-  #gallery { grid-template-columns: minmax(0, 1fr); }
-  .hero-meta { font-size: .75rem; letter-spacing: .14em; }
   .topic-row { flex-wrap: wrap; gap: .5rem; }
   .topic-row > button, .topic-row .lang button { margin-left: 0; }
   .topic-box input { flex-basis: 100%; }
