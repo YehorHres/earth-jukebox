@@ -144,8 +144,10 @@ async function loadSource(title, open, item) {
     if (document.activeElement?.closest("#gallery, #drop") || document.activeElement === document.body) $("play").focus();
   } catch (e) {
     console.error(e);
-    setStatus("Помилка: " + e.message);
-    announce("Помилка: " + e.message, { force: true });
+    // формат, якого браузер не декодує, — зрозуміла порада замість технічної помилки (текст + aria-live)
+    const msg = e.code === "format" ? e.message : "Помилка: " + e.message;
+    setStatus(msg);
+    announce(msg, { force: true });
   } finally {
     app.busy = false;
   }
@@ -318,6 +320,7 @@ app.topics = await loadTopics();
 const topicInput = setupTopicInput({ topics: app.topics, onTopic: t => app.setTopic(t) });
 app.catalog = await loadCatalog();
 app.loadItem = loadItem;
+app.loadFile = loadFile;
 
 // граматика звуку (v5-A): одна таблиця для всіх тем
 {
