@@ -5,3 +5,6 @@ Thumbs.db
 .idea/
 .vscode/
 renders/*.wav
+
+samples/field-tests/*
+!samples/field-tests/NOTES.md
