@@ -27,10 +27,22 @@ export const PART_EQ = {
 
 /** Спецефект «провал у спектрі» (озон, аерозолі): менше значення — нижча частота зрізу. */
 export const dipFor = (mapping, b) => {
-  if (!mapping?.meta?.soundProfile?.fx?.includes("dip")) return 20000;
+  const fx = mapping?.meta?.soundProfile?.fx || [];
+  if (fx.includes("choke")) return 1500 + 16500 * (1 - chokeFor(mapping, b)) ** 2;
+  if (!fx.includes("dip")) return 20000;
   const e = c01(mapping.bars[b]?.params?.energy);
   return 500 + 14000 * e * e;
 };
+/**
+ * «Задуха» (етап 17, CO₂): ріст величини (тренд за 20 кадрів, dynamics > 0.5) закриває фільтр і звужує стерео,
+ * спад — розширює й відкриває. 0 — вільно, 1 — найтісніше.
+ */
+export const chokeFor = (mapping, b) => {
+  if (!mapping?.meta?.soundProfile?.fx?.includes("choke")) return 0;
+  return c01(((mapping.bars[b]?.params?.dynamics ?? 0.5) - 0.5) * 2.2);
+};
+/** Ширина стерео такту: 1 — повна, 0.25 — майже моно. */
+export const widthFor = (mapping, b) => 1 - 0.75 * chokeFor(mapping, b);
 
 export class Engine {
   constructor() {
@@ -73,7 +85,11 @@ export class Engine {
     this.levelNode.gain.value = 1;
     this.dip = ctx.createBiquadFilter(); this.dip.type = "lowpass"; this.dip.frequency.value = 20000; this.dip.Q.value = 0.7;
     this.master.connect(this.dip).connect(comp).connect(this.levelNode).connect(this.normGain).connect(split);
-    split.connect(this.balL, 0); split.connect(this.balR, 1);
+    // ширина стерео (етап 17): L' = a·L + b·R, R' = a·R + b·L; a = (1 + w) / 2, b = (1 − w) / 2
+    this.wA = [ctx.createGain(), ctx.createGain()]; this.wB = [ctx.createGain(), ctx.createGain()];
+    this.wA.forEach(g => (g.gain.value = 1)); this.wB.forEach(g => (g.gain.value = 0));
+    split.connect(this.wA[0], 0); split.connect(this.wB[0], 1); this.wA[0].connect(this.balL); this.wB[0].connect(this.balL);
+    split.connect(this.wA[1], 1); split.connect(this.wB[1], 0); this.wA[1].connect(this.balR); this.wB[1].connect(this.balR);
     this.balL.connect(merge, 0, 0); this.balR.connect(merge, 0, 1);
     // ducking: музика приглушується під час мовлення (після мастера — не впливає на калібрування гучності)
     this.duckNode = ctx.createGain();
@@ -167,6 +183,13 @@ export class Engine {
     if (!this.ctx) return;
     this.level = v;
     this.levelNode.gain.setTargetAtTime(v, at ?? this.ctx.currentTime, 1.5);
+  }
+
+  setWidth(w, at) {
+    if (!this.ctx) return;
+    const t = at ?? this.ctx.currentTime, a = (1 + w) / 2, b = (1 - w) / 2;
+    for (const g of this.wA) g.gain.setTargetAtTime(a, t, 1.2);
+    for (const g of this.wB) g.gain.setTargetAtTime(b, t, 1.2);
   }
 
   setDip(freq, at) { if (this.ctx) this.dip.frequency.setTargetAtTime(freq, at ?? this.ctx.currentTime, 0.8); }

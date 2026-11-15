@@ -16,6 +16,7 @@ import counter from "./parts/counter.js";
 import accents from "./parts/accents.js";
 import stars from "./parts/stars.js";
 import texture from "./parts/texture.js";
+import { colorByTopic } from "./topic-color.js";
 import { GRAMMAR_PARTS, soloTimbres } from "./parts/grammar-parts.js";
 import { LEAD_PARTS, FOREGROUND_MAX, earconsFor, partPriority, PARTS_MAX, SIGNAL_PARTS, partsCap } from "../grammar.js";
 
@@ -92,6 +93,9 @@ export function compose(mapping, { seed = "earth-jukebox", style = null, grammar
     }
   }
 
+  // етап 17: колір теми — як звучать ноти (фільтр, тремоло, панорама, легато), не які
+  const colorWhy = colorByTopic(notes, { bars, barDur: meta.barDur, fx: profile.fx, barInfo });
+
   // «людське» виконання — окремо для кожної партії (seeded)
   const byPart = {};
   for (const n of notes) (byPart[n.part] ||= []).push(n);
@@ -102,7 +106,7 @@ export function compose(mapping, { seed = "earth-jukebox", style = null, grammar
     bpm: meta.bpm, barDur: meta.barDur, duration: bars.length * meta.barDur, topic: meta.topic, meter,
     key: harmony.keyName, harmony, notes,
     lead: grammar ? LEAD_PARTS : null,
-    grammar: grammar ? { reference: meta.reference || null, tick: meta.tick || null, polarity: meta.polarity ?? 1, earcons: earconsFor(meta.topic) } : null, bars: barInfo, why: meta.why || {}, kit: { id: kitId, label: kit.label }, style: style?.id || null,
+    grammar: grammar ? { reference: meta.reference || null, tick: meta.tick || null, polarity: meta.polarity ?? 1, earcons: earconsFor(meta.topic) } : null, bars: barInfo, why: { ...(meta.why || {}), ...(colorWhy.length ? { color: colorWhy.join("; ") } : {}) }, kit: { id: kitId, label: kit.label }, style: style?.id || null,
     // партії, які справді звучать у цьому треку
     parts: parts.filter(p => byPart[p.id]).map(p => ({ id: p.id, label: p.label, instrument: instr[p.id] || "perc", role: p.role })),
   };

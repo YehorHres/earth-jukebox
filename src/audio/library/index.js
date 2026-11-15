@@ -17,7 +17,8 @@ export const families = () => [...new Set(listInstruments().map(i => i.family))]
 
 /** Завантажити семпли для набору інструментів (лише тих, що мають kind:"sample"). */
 export function loadFor(ctx, ids, onProgress) {
-  const want = [...new Set(ids)].filter(id => LIB.get(id)?.kind === "sample");
+  // інструмент-«обробка» семплів іншого (feltpiano → piano) тягне їхні семпли
+  const want = [...new Set(ids.map(id => LIB.get(id)?.loads || id))].filter(id => LIB.get(id)?.kind === "sample");
   return loadSamples(ctx, want, onProgress);
 }
 
@@ -52,10 +53,11 @@ const SYNTHS = {
   brass: ["brass", [45, 79]], lead: ["electronic", [55, 91]], pluck: ["electronic", [45, 91]],
   thunder: ["fx", [20, 40]], swell: ["fx", [0, 127]],
   wind: ["textures", [0, 127]], rain: ["textures", [0, 127]], waves: ["textures", [0, 127]], crackle: ["textures", [0, 127]], air: ["textures", [0, 127]], granular: ["textures", [0, 127]],
+  feltpiano: ["keys", [36, 96]],
   shaker: ["perc", [0, 127]], kick: ["perc", [0, 127]], snare: ["perc", [0, 127]], timpani: ["perc", [36, 55]],
   cymbal: ["perc", [0, 127]], kick808: ["perc", [0, 127]], clap: ["perc", [0, 127]], hihat: ["perc", [0, 127]], tom: ["perc", [36, 60]],
   woodblock: ["perc", [0, 127]], stone: ["perc", [0, 127]], waterdrop: ["perc", [0, 127]], logdrum: ["perc", [36, 60]], softkick: ["perc", [0, 127]], brush: ["perc", [0, 127]],
 };
 const known = new Set(synthNames());
 for (const [id, [family, range]] of Object.entries(SYNTHS))
-  if (known.has(id) && !LIB.has(id)) registerInstrument({ id, family, kind: "synth", range });
+  if (known.has(id) && !LIB.has(id)) registerInstrument({ id, family, kind: "synth", range, ...(id === "feltpiano" ? { loads: "piano", tags: ["м'яке", "приглушене"] } : {}) });

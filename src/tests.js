@@ -620,7 +620,7 @@ SUITES.push(async function stage16() {
   // етап 16: бюджет партій, голос даних = мелодія за сольфеджіо, ударні як перкусія, артикуляція з даних
   const G = await import("./grammar.js");
   const { buildTrack } = await import("./audio/report.js");
-  const { BPM_CAP } = await import("./mapping/mapper.js");
+  const { bpmCapFor } = await import("./mapping/mapper.js");
   const { compose } = await import("./composer/composer.js");
   const { chordPcs } = await import("./composer/parts/common.js");
   const { drumLevel } = await import("./composer/parts/drums.js");
@@ -717,8 +717,8 @@ SUITES.push(async function stage16() {
   // 5) темп, настрій, крапка
   const darkBad = stat.filter(x => { const tm = T.getTopic(x.item.topic).soundProfile.modes || []; return tm.some(id => id !== "aeolian" && id !== "phrygian") && x.s.harmony.bars.some(h => h.level !== "tense" && ["aeolian", "phrygian"].includes(h.mode.id)); }).length;
   const endOk = stat.every(x => { const r0 = x.m.bars.findIndex(b => b.section === "resolution"); return x.sust[x.sust.length - 1] <= G.INTRO_PARTS_MAX && (r0 < 0 || x.sust[x.sust.length - 1] <= x.sust[r0]); });
-  check("16: BPM ≤ 130 і один на трек; темні лади — лише на аномаліях (висока напруга); розв'язка знімає шари (у кінці ≤ 3 партії)",
-    stat.every(x => x.s.bpm <= BPM_CAP) && darkBad === 0 && endOk,
+  check("16: BPM ≤ 130 (шторм — ≤ 160) і один на трек; темні лади — лише на аномаліях (висока напруга); розв'язка знімає шари (у кінці ≤ 3 партії)",
+    stat.every(x => x.s.bpm <= bpmCapFor(T.getTopic(x.item.topic))) && darkBad === 0 && endOk,
     stat.map(x => `${x.id}: ${x.s.bpm} BPM, лади ${[...new Set(x.s.harmony.bars.map(h => h.mode.label))].join("/")}, у кінці ${x.sust[x.sust.length - 1]}`).join(" · "));
 });
 
