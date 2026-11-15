@@ -10,7 +10,19 @@
 </head>
 <body>
 <header>
-  <h1>🌍🎵 Earth Jukebox</h1>
+  <h1>
+    <svg class="logo" viewBox="0 0 48 48" aria-hidden="true" focusable="false">
+      <defs>
+        <radialGradient id="planet" cx="38%" cy="32%" r="70%"><stop offset="0" stop-color="#9ff0ff"/><stop offset=".55" stop-color="#5a7dff"/><stop offset="1" stop-color="#2a1a6e"/></radialGradient>
+        <linearGradient id="ring" x1="0" x2="1"><stop offset="0" stop-color="#b3a6ff"/><stop offset="1" stop-color="#6fe0ff"/></linearGradient>
+      </defs>
+      <path d="M6 30c-4 5 1 8 12 5 9-2 20-8 25-14 3-4 1-6-4-5.5" fill="none" stroke="url(#ring)" stroke-width="2.4" stroke-linecap="round" opacity=".55"/>
+      <circle cx="24" cy="24" r="12.5" fill="url(#planet)"/>
+      <path d="M6 30c4 4 15 1 25-5" fill="none" stroke="url(#ring)" stroke-width="2.4" stroke-linecap="round"/>
+      <circle cx="40" cy="9" r="1.6" fill="#fff"/><circle cx="9" cy="12" r="1" fill="#cfd6ff"/>
+    </svg>
+    <span class="brand">Earth Jukebox</span>
+  </h1>
   <p>Двигун спершу «дивиться» все відео NASA, розуміє, що в ньому відбувається, а потім пише до нього музику.</p>
 </header>
 
@@ -28,7 +40,7 @@
       <div class="row">
         <input id="topic" type="text" autocomplete="off" spellcheck="false" aria-describedby="topic-hint"
                placeholder="напр. «викиди CO₂», «ураган», «морський лід», «sea surface temperature»">
-        <button id="mic" type="button" hidden aria-pressed="false" aria-label="Сказати тему голосом">🎤</button>
+        <button id="mic" type="button" hidden aria-pressed="false" aria-label="Сказати тему голосом" data-icon="mic"></button>
         <span role="group" aria-label="Мова теми й голосу" class="row">
           <button id="lang-uk" type="button" aria-pressed="true" lang="uk">UA</button>
           <button id="lang-en" type="button" aria-pressed="false" lang="en">EN</button>
@@ -64,7 +76,7 @@
       <summary>Технічні дані аналізу (для розробників)</summary>
       <div class="row" style="margin-top:8px">
         <label class="opt"><input type="checkbox" id="showMasks"> Показати маски на кадрі (поза областю даних — помаранчевий, суша — зелений, фон — синій, підписи — пурпурний)</label>
-        <button id="exportBtn" disabled>⬇ Аналіз у JSON</button>
+        <button id="exportBtn" disabled data-icon="download">Аналіз у JSON</button>
       </div>
       <pre class="debug" id="debug"></pre>
     </details>
@@ -72,10 +84,10 @@
 
   <aside class="panel stack" aria-label="Керування">
     <div class="row" id="controls">
-      <button id="play" class="primary" disabled aria-keyshortcuts="Space">▶ Грати</button>
-      <button id="legendBtn" disabled aria-keyshortcuts="L">🔊 Аудіолегенда</button>
-      <button id="wavBtn" disabled>⬇ Трек у WAV</button>
-      <button id="exploreBtn" disabled aria-pressed="false" aria-keyshortcuts="E">🖐 Дослідити карту</button>
+      <button id="play" class="primary" disabled aria-keyshortcuts="Space" data-icon="play">Грати</button>
+      <button id="legendBtn" disabled aria-keyshortcuts="L" data-icon="sound">Аудіолегенда</button>
+      <button id="wavBtn" disabled data-icon="download">Трек у WAV</button>
+      <button id="exploreBtn" disabled aria-pressed="false" aria-keyshortcuts="E" data-icon="explore">Дослідити карту</button>
     </div>
 
     <label class="opt" for="style">Стиль звучання:

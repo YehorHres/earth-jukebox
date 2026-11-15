@@ -39,7 +39,8 @@ async function loadCatalog() {
   const g = $("gallery");
   for (const it of items) {
     const b = document.createElement("button");
-    b.textContent = (it.kind === "synthetic" ? "🧪 " : "🎧 ") + it.title;
+    b.textContent = it.title;
+    b.dataset.kind = it.kind;
     b.title = it.desc;
     b.setAttribute("aria-description", it.desc);
     b.addEventListener("click", () => loadItem(it));
