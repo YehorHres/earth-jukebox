@@ -36,6 +36,9 @@ export function describeProfile(p, source, analysis = null) {
     const frames = analysis ? `${analysis.count} кадрів аналізу (${analysis.rate.toFixed(analysis.rate % 1 ? 1 : 0)} за секунду), ` : "";
     lines.push(`${frames}${p.durationSec.toFixed(1)} с, ${Math.round(p.fps)} кадрів/с у відео.`);
   }
+  // v7 §1: тип руху — що саме змінюється в кадрі (дані чи точка зору)
+  const mo = analysis?.motion;
+  if (mo && mo.type !== "temporal") lines.push(`Тип руху${mo.auto ? " (визначено автоматично)" : " (вибрано вручну)"}: ${mo.label}. ${mo.note}`);
   if (!p.isStill) {
     const what = p.sceneType === "heatmap" ? "значення за кольоровою шкалою" : "яскравість";
     let s;

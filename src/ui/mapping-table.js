@@ -18,7 +18,7 @@ export function createMappingTable(root) {
     if (m.why) {
       const ul = document.createElement("ul");
       ul.className = "keys";
-      for (const k of ["sound", "key", "tempo", "meter", "form"]) if (m.why[k]) ul.appendChild(Object.assign(document.createElement("li"), { textContent: m.why[k] }));
+      for (const k of ["sound", "motion", "key", "tempo", "meter", "form"]) if (m.why[k]) ul.appendChild(Object.assign(document.createElement("li"), { textContent: m.why[k] }));
       root.appendChild(ul);
     }
     const t = document.createElement("table");

@@ -12,6 +12,7 @@ import { setupPlayback } from "./ui/playback.js";
 import { setupExplore } from "./ui/explore.js";
 import { GRAMMAR } from "./grammar.js";
 import { setupGalleryMenu } from "./ui/gallery-menu.js";
+import { applyMotion, MOTION_LABEL, MOTION_NOTE } from "./analysis/motion.js";
 
 const $ = id => document.getElementById(id);
 const NO_CACHE = new URLSearchParams(location.search).has("nocache");   // ?nocache — завжди аналізувати заново
@@ -105,6 +106,7 @@ async function loadSource(title, open, item) {
       precomputedUrl: NO_CACHE ? null : item?.analysis || null,
       useCache: !NO_CACHE,
       scaleHint,
+      motion: item ? item.motionType || "temporal" : null,   // галерея — як раніше; своє відео — тип руху визначається сам
       onProgress: (stage, p, msg, profile) => {
         if (stage === "A") { setProgress(p * 0.15); setStatus(msg); }
         if (stage === "A-done") { app.profile = profile; renderCard(false); drawMasks(); }
@@ -129,6 +131,7 @@ async function loadSource(title, open, item) {
     topicInput.set(item?.topic ? app.topic : null);
     if (!item?.topic) announce("Що на цій карті? Напишіть або скажіть тему в полі «Що на цій карті?» — від неї залежить звучання.", { force: true });
 
+    showReadOptions(item);
     // шари 2–3: мапінг і партитура
     await remap();
     $("exportBtn").disabled = false;
@@ -163,6 +166,27 @@ app.setTopic = async t => {
   setStatus(`Тема: ${t.name.uk}. ${app.score.key}, ${app.score.meter.id}, ${app.score.bpm} BPM.`);
   if (wasPlaying) app.player.play();
 };
+
+/* ---------------- v7: як читати завантажене відео (тип руху) ---------------- */
+function showReadOptions(item) {
+  const mo = app.analysis?.motion, show = !item && !!mo && app.source?.kind === "video";
+  $("read-opts").hidden = !show;
+  if (!show) return;
+  if (![...$("motionType").options].some(o => o.value === mo.type)) $("motionType").add(new Option(MOTION_LABEL[mo.type] || mo.type, mo.type));
+  $("motionType").value = mo.type;
+  $("motion-hint").textContent = `${mo.auto ? "Визначено автоматично" : "Вибрано вручну"}${mo.why ? `: ${mo.why}` : ""}. ${mo.note || MOTION_NOTE[mo.type] || ""}`;
+}
+$("motionType").addEventListener("change", async e => {
+  if (!app.analysis || app.busy) return;
+  const wasPlaying = app.player?.playing;
+  app.analysis = applyMotion(app.analysis, e.target.value, { auto: false });
+  showReadOptions(null);
+  renderCard(false);
+  timeline.set(app.analysis);
+  await remap();
+  announce(`Тип руху: ${MOTION_LABEL[e.target.value]}. ${MOTION_NOTE[e.target.value] || ""}`, { force: true });
+  if (wasPlaying) app.player.play();
+});
 
 /** Плоска карта світу має пропорцію ~2:1; глобус і графіки — ні (тоді без широт/довгот у підписах). */
 export function projectionOf(src, item) {

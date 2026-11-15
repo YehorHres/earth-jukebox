@@ -51,6 +51,18 @@
           </div>
           <p id="topic-hint" class="keys">Тему не вибрано.</p>
           <ul id="topic-list" class="topic-list" hidden aria-label="Теми"></ul>
+          <!-- v7: як читати завантажене відео (для галереї приховано — там усе відомо з картки) -->
+          <div id="read-opts" class="read-opts" hidden>
+            <div class="row">
+              <label for="motionType">Що рухається у відео:</label>
+              <select id="motionType" aria-describedby="motion-hint">
+                <option value="temporal">дані змінюються, карта на місці</option>
+                <option value="rotating-globe">глобус обертається</option>
+                <option value="camera-pan-zoom">камера рухається над картою</option>
+              </select>
+            </div>
+            <p id="motion-hint" class="keys"></p>
+          </div>
         </div>
     </div>
   </section>
