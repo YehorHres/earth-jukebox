@@ -10,180 +10,187 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&family=Unbounded:wght@300;400;500&display=swap">
-<link rel="stylesheet" href="src/style.css?v=ecosphear-1">
+<link rel="stylesheet" href="src/style.css?v=ecosphear-2">
+<!-- мова до першого малювання: без «блимання» української для англомовних -->
+<script>try{var q=new URLSearchParams(location.search).get("lang"),s=localStorage.getItem("ecosphear.lang"),l=q||s||((navigator.language||"").toLowerCase().indexOf("uk")===0?"uk":"en");document.documentElement.lang=l==="en"?"en":"uk";}catch(e){}</script>
 </head>
 <body>
-<a class="skip-link" href="#transport">Перейти до керування відтворенням</a>
+<a class="skip-link" href="#transport" data-i18n="skip" data-tip="tip.skip">Перейти до керування відтворенням</a>
 
 <header class="hero">
+  <div class="topbar">
+    <span role="group" class="lang" data-i18n-attr="aria-label:lang.group" aria-label="Мова інтерфейсу">
+      <button id="lang-uk" type="button" aria-pressed="true" lang="uk" data-tip="tip.lang">UA</button>
+      <button id="lang-en" type="button" aria-pressed="false" lang="en" data-tip="tip.lang">EN</button>
+    </span>
+  </div>
   <h1>EcoSphear</h1>
-  <p class="hero-tagline">Почуйте Землю. Оберіть супутникову візуалізацію NASA — і вона зазвучить: кожна нота пояснюється даними, тож карту можна зрозуміти навіть не бачачи її.</p>
+  <p class="hero-tagline" data-i18n="hero.tagline">Почуйте Землю. Оберіть супутникову візуалізацію NASA — і вона зазвучить: кожна нота пояснюється даними, тож карту можна зрозуміти навіть не бачачи її.</p>
 </header>
 
 <main>
-  <!-- 01 — вибір карти -->
-  <section class="chapter chapter-source" aria-labelledby="stage-title">
-    <h2 id="stage-title" class="sr-only">Візуалізація</h2>
-    <div class="source-grid">
-      <div class="picker">
-        <button id="galleryToggle" class="picker-trigger" type="button" aria-expanded="false" aria-controls="gallery-panel">
-          <span class="picker-label">Вибрати візуалізацію…</span>
-        </button>
-        <div id="gallery-panel" class="picker-panel" hidden>
-          <div class="row" id="gallery" role="group" aria-label="Галерея візуалізацій"></div>
+  <!-- доступність — першою: озвучення під курсором і орієнтири доступні одразу з клавіатури -->
+  <section class="chapter chapter-access" aria-labelledby="access-title">
+    <div class="chapter-head">
+      <h2 id="access-title" data-i18n="access.title">Доступність</h2>
+    </div>
+    <div class="access-grid">
+      <fieldset>
+        <legend data-i18n="access.voiceLegend">Озвучення й орієнтири</legend>
+        <div class="hover-speak">
+          <button id="hoverSpeak" type="button" aria-pressed="false" aria-keyshortcuts="Alt+Shift+S" aria-describedby="hover-hint" data-tip="tip.hoverSpeak" data-i18n="hover.btn">Озвучення під курсором</button>
+          <p id="hover-hint" class="keys" data-i18n="hover.hint">Наведіть мишу на кнопку чи поле — підказку буде прочитано вголос. Увімкнути або вимкнути: Alt+Shift+S.</p>
         </div>
+        <label class="opt"><input type="checkbox" id="announce" checked data-tip="tip.announce"> <span data-i18n="opt.announce">Повідомляти події для скрінрідера</span></label>
+        <label class="opt"><input type="checkbox" id="voice" data-tip="tip.voice"> <span data-i18n="opt.voice">Озвучувати голосом</span></label>
+        <label class="opt"><input type="checkbox" id="drone" data-tip="tip.drone"> <span data-i18n="opt.drone">Дрон-орієнтир (тихий референсний тон упродовж треку)</span></label>
+        <label class="opt"><input type="checkbox" id="ticks" data-tip="tip.ticks"> <span data-i18n="opt.ticks">Тіки шкали часу</span></label>
+        <label class="opt"><input type="checkbox" id="intro" checked data-tip="tip.intro"> <span data-i18n="opt.intro">Голосовий вступ перед треком (тема, роки, що означає «більше»)</span></label>
+      </fieldset>
+
+      <div class="shortcuts">
+        <h3 data-i18n="keys.title">Клавіші</h3>
+        <p class="keys" data-i18n-html="keys.html"></p>
       </div>
-      <div id="drop">
-        <label for="file">Або перетягніть сюди своє відео / фото, чи виберіть файл: </label>
-        <input type="file" id="file" accept="video/*,image/*">
-        <button id="scanDir" type="button" hidden>↔ Сканування: захід → схід</button>
-      </div>
-      <div class="topic-box">
-          <label for="topic"><strong>Що на цій карті?</strong> Тема задає звучання: тембр = тема, ноти = дані.</label>
-          <div class="row topic-row">
-            <input id="topic" type="text" autocomplete="off" spellcheck="false" aria-describedby="topic-hint"
-                   placeholder="напр. «викиди CO₂», «ураган», «морський лід», «sea surface temperature»">
-            <button id="mic" type="button" hidden aria-pressed="false" aria-label="Сказати тему голосом" data-icon="mic"></button>
-            <span role="group" aria-label="Мова теми й голосу" class="row lang">
-              <button id="lang-uk" type="button" aria-pressed="true" lang="uk">UA</button>
-              <button id="lang-en" type="button" aria-pressed="false" lang="en">EN</button>
-            </span>
-          </div>
-          <p id="topic-hint" class="keys">Тему не вибрано.</p>
-          <ul id="topic-list" class="topic-list" hidden aria-label="Теми"></ul>
-          <!-- v7: як читати завантажене відео (для галереї приховано — там усе відомо з картки) -->
-          <div id="read-opts" class="read-opts" hidden>
-            <div class="row">
-              <label for="motionType">Що рухається у відео:</label>
-              <select id="motionType" aria-describedby="motion-hint">
-                <option value="temporal">дані змінюються, карта на місці</option>
-                <option value="rotating-globe">глобус обертається</option>
-                <option value="camera-pan-zoom">камера рухається над картою</option>
-              </select>
-            </div>
-            <p id="motion-hint" class="keys"></p>
-          </div>
-        </div>
     </div>
   </section>
 
-  <!-- 02 — екран і пульт -->
-  <section class="chapter chapter-stage" aria-label="Екран і керування">
+  <!-- вибір карти -->
+  <section class="chapter chapter-source" aria-labelledby="stage-title">
+    <h2 id="stage-title" class="sr-only" data-i18n="stage.title">Візуалізація</h2>
+    <div class="source-grid">
+      <div class="picker">
+        <button id="galleryToggle" class="picker-trigger" type="button" aria-expanded="false" aria-controls="gallery-panel" data-tip="tip.picker">
+          <span class="picker-label" data-i18n="picker.choose">Вибрати візуалізацію…</span>
+        </button>
+        <div id="gallery-panel" class="picker-panel" hidden>
+          <div class="row" id="gallery" role="group" data-i18n-attr="aria-label:gallery.aria;data-empty:picker.loading" aria-label="Галерея візуалізацій"></div>
+        </div>
+      </div>
+      <div id="drop">
+        <label for="file" data-i18n="drop.label">Або перетягніть сюди своє відео / фото, чи виберіть файл:</label>
+        <div class="file-row">
+          <input type="file" id="file" class="file-input" accept="video/*,image/*" data-tip="tip.file">
+          <label for="file" class="file-btn" aria-hidden="true" data-i18n="drop.choose">Вибрати файл</label>
+          <span id="file-name" class="file-name" aria-hidden="true" data-i18n="drop.none">Файл не вибрано</span>
+        </div>
+        <button id="scanDir" type="button" hidden data-tip="tip.scanDir">↔ Сканування: захід → схід</button>
+      </div>
+      <div class="topic-box">
+        <label for="topic" data-i18n-html="topic.label"><strong>Що на цій карті?</strong> Тема задає звучання: тембр = тема, ноти = дані.</label>
+        <div class="row topic-row">
+          <input id="topic" type="text" autocomplete="off" spellcheck="false" aria-describedby="topic-hint" data-tip="tip.topic"
+                 data-i18n-attr="placeholder:topic.placeholder" placeholder="напр. «викиди CO₂», «ураган», «морський лід», «sea surface temperature»">
+          <button id="mic" type="button" hidden aria-pressed="false" data-i18n-attr="aria-label:mic.aria" aria-label="Сказати тему голосом" data-icon="mic" data-tip="tip.mic"></button>
+        </div>
+        <p id="topic-hint" class="keys" data-i18n="topic.none">Тему не вибрано.</p>
+        <ul id="topic-list" class="topic-list" hidden data-i18n-attr="aria-label:topic.listAria" aria-label="Теми"></ul>
+        <!-- v7: як читати завантажене відео (для галереї приховано — там усе відомо з картки) -->
+        <div id="read-opts" class="read-opts" hidden>
+          <div class="row">
+            <label for="motionType" data-i18n="motion.label">Що рухається у відео:</label>
+            <select id="motionType" aria-describedby="motion-hint" data-tip="tip.motionType">
+              <option value="temporal" data-i18n="motion.temporal">дані змінюються, карта на місці</option>
+              <option value="rotating-globe" data-i18n="motion.globe">глобус обертається</option>
+              <option value="camera-pan-zoom" data-i18n="motion.pan">камера рухається над картою</option>
+            </select>
+          </div>
+          <p id="motion-hint" class="keys"></p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- екран і пульт -->
+  <section class="chapter chapter-stage" data-i18n-attr="aria-label:stage.aria" aria-label="Екран і керування">
     <div class="viewer" id="viewer">
-      <div class="placeholder" id="placeholder">Оберіть візуалізацію у списку вище.</div>
+      <div class="placeholder" id="placeholder" data-i18n="placeholder">Оберіть візуалізацію у списку вище.</div>
       <canvas id="overlay" aria-hidden="true"></canvas>
       <canvas id="cursor" aria-hidden="true"></canvas>
     </div>
-    <div class="transport" id="transport" tabindex="-1" aria-label="Керування відтворенням" role="region">
+    <div class="transport" id="transport" tabindex="-1" data-i18n-attr="aria-label:transport.aria" aria-label="Керування відтворенням" role="region">
       <div id="progress" aria-hidden="true"><div></div></div>
       <div class="transport-row">
         <div class="row" id="controls">
-          <button id="play" class="primary" disabled aria-keyshortcuts="Space" data-icon="play">Грати</button>
-          <button id="legendBtn" disabled aria-keyshortcuts="L" data-icon="sound">Аудіолегенда</button>
-          <button id="exploreBtn" disabled aria-pressed="false" aria-keyshortcuts="E" data-icon="explore">Дослідити карту</button>
-          <button id="wavBtn" disabled data-icon="download">Трек у WAV</button>
+          <button id="play" class="primary" disabled aria-keyshortcuts="Space" data-icon="play" data-tip="tip.play" data-i18n="btn.play">Грати</button>
+          <button id="legendBtn" disabled aria-keyshortcuts="L" data-icon="sound" data-tip="tip.legend" data-i18n="btn.legend">Аудіолегенда</button>
+          <button id="exploreBtn" disabled aria-pressed="false" aria-keyshortcuts="E" data-icon="explore" data-tip="tip.explore" data-i18n="btn.explore">Дослідити карту</button>
+          <button id="wavBtn" disabled data-icon="download" data-tip="tip.wav" data-i18n="btn.wav">Трек у WAV</button>
         </div>
-        <label class="opt style-pick" for="style">Стиль звучання
-          <select id="style" aria-describedby="style-hint"><option value="">за темою карти</option></select>
+        <label class="opt style-pick" for="style"><span data-i18n="style.label">Стиль звучання</span>
+          <select id="style" aria-describedby="style-hint" data-tip="tip.style"><option value="" data-i18n="style.byTopic">за темою карти</option></select>
         </label>
       </div>
-      <p id="status" role="status">Файл не завантажено.</p>
-      <p id="style-hint" class="keys">Стиль змінює лише інструменти й набір ударних; гармонія, ритм і форма — з даних.</p>
+      <p id="status" role="status" data-i18n="status.none">Файл не завантажено.</p>
+      <p id="style-hint" class="keys" data-i18n="style.hint">Стиль змінює лише інструменти й набір ударних; гармонія, ритм і форма — з даних.</p>
       <p id="explore-readout" class="explore-readout" hidden></p>
     </div>
   </section>
 
-  <!-- 03 — що зрозумів двигун -->
+  <!-- що зрозумів двигун -->
   <div class="chapter chapter-insight">
     <section class="card" id="card" aria-labelledby="card-title" hidden tabindex="-1">
-      <h2 id="card-title">Що двигун зрозумів про відео</h2>
+      <h2 id="card-title" data-i18n="card.title">Що двигун зрозумів про відео</h2>
       <div class="tags" id="card-tags"></div>
       <ul id="card-lines"></ul>
     </section>
 
     <section id="timeline-wrap" hidden aria-labelledby="tl-title">
-      <h2 id="tl-title">Таймлайн ознак і подій</h2>
-      <canvas id="timeline" class="timeline" role="img" aria-label="Графік ознак у часі"></canvas>
+      <h2 id="tl-title" data-i18n="tl.title">Таймлайн ознак і подій</h2>
+      <canvas id="timeline" class="timeline" role="img" data-i18n-attr="aria-label:tl.aria" aria-label="Графік ознак у часі"></canvas>
       <div class="legend-row" id="tl-legend" aria-hidden="true"></div>
     </section>
   </div>
 
-  <!-- 04 — звук зараз -->
+  <!-- звук зараз -->
   <section class="chapter chapter-sound" aria-labelledby="sound-title">
     <div class="chapter-head">
-      <h2 id="sound-title">Звук</h2>
+      <h2 id="sound-title" data-i18n="sound.title">Звук</h2>
     </div>
     <div class="sound-grid">
       <fieldset class="now-playing">
-        <legend>Зараз звучить</legend>
-        <dl class="readout" id="readout"><dt>—</dt><dd>Аналіз ще не виконано</dd></dl>
+        <legend data-i18n="now.legend">Зараз звучить</legend>
+        <dl class="readout" id="readout"><dt>—</dt><dd data-i18n="now.none">Аналіз ще не виконано</dd></dl>
       </fieldset>
 
       <fieldset id="parts-wrap" hidden>
-        <legend>Партії оркестру</legend>
-        <div class="parts" id="parts" role="group" aria-label="Партії: увімкнути, вимкнути, соло"></div>
+        <legend data-i18n="parts.legend">Партії оркестру</legend>
+        <div class="parts" id="parts" role="group" data-i18n-attr="aria-label:parts.aria" aria-label="Партії: увімкнути, вимкнути, соло"></div>
       </fieldset>
 
       <section id="legend-wrap" hidden aria-labelledby="legend-title">
-        <h3 id="legend-title">Аудіолегенда: як звучать дані</h3>
+        <h3 id="legend-title" data-i18n="legend.title">Аудіолегенда: як звучать дані</h3>
         <ul class="legend-list" id="legend-list"></ul>
       </section>
     </div>
   </section>
 
-  <!-- 05 — правила -->
+  <!-- правила -->
   <section class="chapter chapter-rules" aria-labelledby="rules-title">
     <div class="chapter-head">
-      <h2 id="rules-title">Як дані стають музикою</h2>
+      <h2 id="rules-title" data-i18n="rules.title">Як дані стають музикою</h2>
     </div>
     <div class="rules-grid">
       <section id="grammar-wrap" aria-labelledby="grammar-title">
-        <h3 id="grammar-title">Граматика звуку: однакова для всіх карт</h3>
-        <p class="keys">Вивчіть раз — і зрозумієте будь-яку карту. Тема змінює лише тембр, правила — ті самі. Голос даних завжди на першому плані; музика стишується, коли говорить голос.</p>
+        <h3 id="grammar-title" data-i18n="grammar.title">Граматика звуку: однакова для всіх карт</h3>
+        <p class="keys" data-i18n="grammar.intro">Вивчіть раз — і зрозумієте будь-яку карту. Тема змінює лише тембр, правила — ті самі. Голос даних завжди на першому плані; музика стишується, коли говорить голос.</p>
         <table class="mapping">
-          <thead><tr><th scope="col">Що в даних</th><th scope="col">Як звучить завжди</th></tr></thead>
+          <thead><tr><th scope="col" data-i18n="grammar.colData">Що в даних</th><th scope="col" data-i18n="grammar.colSound">Як звучить завжди</th></tr></thead>
           <tbody id="grammar-rows"></tbody>
         </table>
       </section>
 
       <section id="mapping-wrap" hidden aria-labelledby="map-title">
-        <h3 id="map-title">Таблиця мапінгу: дані → музика</h3>
+        <h3 id="map-title" data-i18n="map.title">Таблиця мапінгу: дані → музика</h3>
         <div id="mapping"></div>
       </section>
     </div>
-  </section>
-
-  <!-- 06 — доступність -->
-  <section class="chapter chapter-access" aria-labelledby="access-title">
-    <div class="chapter-head">
-      <h2 id="access-title">Доступність</h2>
-    </div>
-    <div class="access-grid">
-      <fieldset>
-        <legend>Озвучення й орієнтири</legend>
-        <label class="opt"><input type="checkbox" id="announce" checked> Повідомляти події для скрінрідера</label>
-        <label class="opt"><input type="checkbox" id="voice"> Озвучувати голосом</label>
-        <label class="opt"><input type="checkbox" id="drone"> Дрон-орієнтир (тихий референсний тон упродовж треку)</label>
-        <label class="opt"><input type="checkbox" id="ticks"> Тіки шкали часу</label>
-        <label class="opt"><input type="checkbox" id="intro" checked> Голосовий вступ перед треком (тема, роки, що означає «більше»)</label>
-      </fieldset>
-
-      <div class="shortcuts">
-        <h3>Клавіші</h3>
-        <p class="keys">
-          <kbd>Space</kbd> грати/пауза · <kbd>L</kbd> аудіолегенда · <kbd>D</kbd> прочитати картку ·
-          <kbd>M</kbd> що зараз керує музикою · <kbd>E</kbd> дослідити карту (стрілки, <kbd>Shift</kbd> — більший крок, <kbd>Esc</kbd> — вийти) ·
-          <kbd>1</kbd>–<kbd>9</kbd> вимкнути/увімкнути партію · <kbd>Shift</kbd>+<kbd>1</kbd>–<kbd>9</kbd> соло ·
-          <kbd>←</kbd>/<kbd>→</kbd> ±5 с
-        </p>
-      </div>
-    </div>
 
     <details>
-      <summary>Технічні дані аналізу (для розробників)</summary>
+      <summary data-i18n="dev.summary" data-tip="tip.devSummary">Технічні дані аналізу (для розробників)</summary>
       <div class="row" style="margin-top:8px">
-        <label class="opt"><input type="checkbox" id="showMasks"> Показати маски на кадрі (поза областю даних — помаранчевий, суша — зелений, фон — синій, підписи — пурпурний)</label>
-        <button id="exportBtn" disabled data-icon="download">Аналіз у JSON</button>
+        <label class="opt"><input type="checkbox" id="showMasks" data-tip="tip.showMasks"> <span data-i18n="dev.masks">Показати маски на кадрі (поза областю даних — помаранчевий, суша — зелений, фон — синій, підписи — пурпурний)</span></label>
+        <button id="exportBtn" disabled data-icon="download" data-tip="tip.exportJson" data-i18n="btn.exportJson">Аналіз у JSON</button>
       </div>
       <pre class="debug" id="debug"></pre>
     </details>
@@ -192,10 +199,11 @@
 
 <footer class="site-foot">
   <span>EcoSphear</span>
-  <span>Візуалізації: NASA Earth Information Center</span>
+  <span data-i18n="foot.data">Візуалізації: NASA Earth Information Center</span>
 </footer>
 
+<div id="tip" class="tooltip" role="tooltip" hidden></div>
 <div id="live" class="sr-only" aria-live="polite"></div>
-<script type="module" src="src/main.js?v=ecosphear-1"></script>
+<script type="module" src="src/main.js?v=ecosphear-2"></script>
 </body>
 </html>

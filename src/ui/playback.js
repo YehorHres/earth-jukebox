@@ -14,6 +14,7 @@ import { speechHooks } from "../a11y/announcer.js";
 import { announce, setMinGap, stopVoice, prefs } from "../a11y/announcer.js";
 import { fmtTime } from "../a11y/describe.js";
 import { noteName } from "../composer/theory.js";
+import { t, tr, pick } from "../i18n/index.js";
 
 const $ = id => document.getElementById(id);
 
@@ -28,12 +29,12 @@ export function setupPlayback(app, { timeline, mappingTable }) {
   const player = new Player(engine, {
     onBar: (b, seeked) => onBar(b, seeked),
     onTick: t => { timeline.setCursor(Math.min(t, app.analysis.profile.durationSec || t)); drawCursor(t); },
-    onEnd: () => { setPlayUI(false); announce("Кінець треку.", { force: true }); },
+    onEnd: () => { setPlayUI(false); announce(t("end"), { force: true }); },
   });
   app.player = player;
 
   function setPlayUI(on) {
-    $("play").textContent = on ? "Пауза" : "Грати";
+    $("play").textContent = t(on ? "btn.pause" : "btn.play");
     $("play").dataset.icon = on ? "pause" : "play";
     $("play").setAttribute("aria-pressed", on ? "true" : "false");
   }
@@ -45,11 +46,11 @@ export function setupPlayback(app, { timeline, mappingTable }) {
     // голосовий вступ перед першим відтворенням треку (вимикається)
     if (prefs.intro && !introDone && player.time === 0) {
       introDone = true; introRunning = true;
-      $("play").textContent = "Пропустити вступ";
+      $("play").textContent = t("btn.skipIntro");
       $("play").dataset.icon = "skip";
       const c = app.catalogItem?.card;
       const items = legendItems(app.mapping.meta.preset, ctxLegend()).filter(it => it.intro);
-      await playIntro(engine, { title: app.topic && app.topic.id !== "generic" ? app.topic.name.uk : (app.catalogItem?.title || "Ваша карта"), years: c?.years, items });
+      await playIntro(engine, { title: app.topic && app.topic.id !== "generic" ? pick(app.topic, "name") : (app.catalogItem ? pick(app.catalogItem, "title") : t("intro.yourMap")), years: c ? pick(c, "years") : null, items });
       introRunning = false;
     }
     await player.play(); setPlayUI(true);
@@ -93,17 +94,17 @@ export function setupPlayback(app, { timeline, mappingTable }) {
     if (!bar) return;
     mappingTable.update(b);
     const h = app.score.harmony.bars[b];
-    const chord = h ? `${noteName(h.root + h.chords[0].chord.root)} (${h.chords[0].chord.ext}${h.chords[0].chord.sus ? ", затримка" : ""})` : "—";
-    const parts = sb.active.map(id => app.score.parts.find(p => p.id === id)?.label).filter(Boolean).join(", ");
+    const chord = h ? `${noteName(h.root + h.chords[0].chord.root)} (${tr(h.chords[0].chord.ext)}${h.chords[0].chord.sus ? `, ${tr("затримка")}` : ""})` : "—";
+    const parts = sb.active.map(id => tr(app.score.parts.find(p => p.id === id)?.label)).filter(Boolean).join(", ");
     const rows = [
-      ["Час", `${fmtTime(bar.t0)} · такт ${b + 1} з ${m.bars.length}`],
-      ["Розділ", bar.sectionLabel],
-      ["Тональність", `${noteName(h.root)} ${h.mode.label}`],
-      ["Акорд", chord],
-      ["Темп", `${app.score.bpm} BPM`],
-      ["Перший план", sb.lead ? `голос даних${sb.streams > 1 ? ` + солісти зон: ${sb.streams - 1}` : ""} (потоків даних: ${sb.streams} із 3)` : "—"],
-      ["Супровід", parts],
-      ["Події", bar.events.length ? bar.events.map(e => e.text).join("; ") : "—"],
+      [t("now.time"), t("now.timeVal", { t: fmtTime(bar.t0), b: b + 1, n: m.bars.length })],
+      [t("now.section"), tr(bar.sectionLabel)],
+      [t("now.key"), `${noteName(h.root)} ${tr(h.mode.label)}`],
+      [t("now.chord"), chord],
+      [t("now.tempo"), `${app.score.bpm} BPM`],
+      [t("now.lead"), sb.lead ? t("now.leadVal", { solo: sb.streams > 1 ? t("now.soloists", { n: sb.streams - 1 }) : "", s: sb.streams }) : "—"],
+      [t("now.accomp"), parts || "—"],
+      [t("now.events"), bar.events.length ? bar.events.map(e => tr(e.text)).join("; ") : "—"],
     ];
     $("readout").replaceChildren(...rows.flatMap(([k, v]) => [Object.assign(document.createElement("dt"), { textContent: k }), Object.assign(document.createElement("dd"), { textContent: v })]));
     if (seeked) return;
@@ -124,15 +125,19 @@ export function setupPlayback(app, { timeline, mappingTable }) {
     root.replaceChildren();
     app.score.parts.forEach((p, k) => {
       const st = engine.getPart(p.id);
-      const instr = p.id === "drums" ? `набір: ${app.score.kit?.label || "оркестровий"}` : `${INSTRUMENT_LABEL[p.instrument] || p.instrument}${hasSampler(p.instrument) ? " · справжні семпли" : ""}`;
-      const name = Object.assign(document.createElement("span"), { className: st.mute ? "off" : "on", title: p.role });
-      name.append(`${k + 1}. ${p.label} `, Object.assign(document.createElement("small"), { className: "keys", textContent: `(${instr})` }));
-      const mute = Object.assign(document.createElement("button"), { textContent: st.mute ? "Увімк." : "Вимк." });
-      mute.setAttribute("aria-label", `${st.mute ? "Увімкнути" : "Вимкнути"} партію ${p.label}`);
+      const label = tr(p.label);
+      const instr = p.id === "drums" ? t("parts.kit", { kit: tr(app.score.kit?.label || "оркестровий") }) : `${tr(INSTRUMENT_LABEL[p.instrument] || p.instrument)}${hasSampler(p.instrument) ? t("parts.samples") : ""}`;
+      const name = Object.assign(document.createElement("span"), { className: st.mute ? "off" : "on" });
+      name.dataset.role = tr(p.role || "");
+      name.append(`${k + 1}. ${label} `, Object.assign(document.createElement("small"), { className: "keys", textContent: `(${instr})` }));
+      const mute = Object.assign(document.createElement("button"), { textContent: t(st.mute ? "parts.unmute" : "parts.mute") });
+      mute.dataset.tip = "tip.mute";
+      mute.setAttribute("aria-label", t(st.mute ? "parts.ariaUnmute" : "parts.ariaMute", { p: label }));
       mute.setAttribute("aria-pressed", st.mute ? "true" : "false");
       mute.addEventListener("click", () => togglePart(p.id, "mute"));
-      const solo = Object.assign(document.createElement("button"), { textContent: "Соло" });
-      solo.setAttribute("aria-label", `Соло: ${p.label}`);
+      const solo = Object.assign(document.createElement("button"), { textContent: t("parts.solo") });
+      solo.dataset.tip = "tip.solo";
+      solo.setAttribute("aria-label", t("parts.ariaSolo", { p: label }));
       solo.setAttribute("aria-pressed", st.solo ? "true" : "false");
       solo.addEventListener("click", () => togglePart(p.id, "solo"));
       root.append(name, mute, solo);
@@ -143,7 +148,8 @@ export function setupPlayback(app, { timeline, mappingTable }) {
     const st = engine.getPart(id), p = app.score.parts.find(q => q.id === id);
     engine.setPart(id, { [what]: !st[what] });
     renderParts();
-    announce(what === "mute" ? `${p.label}: ${!st.mute ? "вимкнено" : "увімкнено"}` : `${p.label}: соло ${!st.solo ? "увімкнено" : "вимкнено"}`, { force: true });
+    const label = tr(p.label);
+    announce(what === "mute" ? t(!st.mute ? "parts.sayMuted" : "parts.sayUnmuted", { p: label }) : t(!st.solo ? "parts.saySoloOn" : "parts.saySoloOff", { p: label }), { force: true });
   }
 
   /* ---- після мапінгу: пишемо партитуру ---- */
@@ -170,10 +176,11 @@ export function setupPlayback(app, { timeline, mappingTable }) {
     // семпли вантажаться у фоні: якщо за цей час обрали інше відео чи тему, старий трек уже не актуальний
     const score = app.score;
     const current = () => app.score === score;
-    loadFor(decoder, insts, (d, n) => { if (current()) status.textContent = `${base} Семпли інструментів: ${d}/${n}…`; })
+    loadFor(decoder, insts, (d, n) => { if (current()) status.textContent = t("status.samples", { base, d, n }); })
       .then(({ loaded, failed }) => {
         if (!current()) return;
-        status.textContent = `${base} ${loaded.length ? `Справжні інструменти: ${loaded.map(i => INSTRUMENT_LABEL[i]).join(", ")}.` : ""}${failed.length ? ` Синтезатор замість: ${failed.map(i => INSTRUMENT_LABEL[i]).join(", ")}.` : ""}`;
+        const names = list => list.map(i => tr(INSTRUMENT_LABEL[i] || i)).join(", ");
+        status.textContent = `${base} ${loaded.length ? t("status.realInstr", { list: names(loaded) }) : ""}${failed.length ? t("status.synthInstead", { list: names(failed) }) : ""}`;
         renderParts();
       })
       .then(() => applyMaster(score, current));
@@ -202,6 +209,7 @@ export function setupPlayback(app, { timeline, mappingTable }) {
     $("legend-list").replaceChildren(...items.map((it, k) => {
       const li = document.createElement("li");
       const b = Object.assign(document.createElement("button"), { textContent: it.text });
+      b.dataset.tip = "tip.legendItem";
       b.addEventListener("click", async () => {
         if (player.playing) { player.pause(); setPlayUI(false); }
         await engine.init(); engine.fade(0.9, 0.02);
@@ -227,9 +235,8 @@ export function setupPlayback(app, { timeline, mappingTable }) {
   $("wavBtn").addEventListener("click", async () => {
     const btn = $("wavBtn");
     btn.disabled = true;
-    const old = btn.textContent;
-    btn.textContent = "Рендеринг…";
-    announce("Готую трек у форматі WAV, зачекайте.", { force: true });
+    btn.textContent = t("btn.rendering");
+    announce(t("wav.preparing"), { force: true });
     try {
       const muted = app.score.parts.filter(p => engine.getPart(p.id).mute).map(p => p.id);
       const { buffer } = await renderOffline(app.score, app.mapping, { muted });
@@ -237,23 +244,28 @@ export function setupPlayback(app, { timeline, mappingTable }) {
       a.href = URL.createObjectURL(toWav(buffer));
       a.download = `earth-jukebox-${(app.catalogItem?.id || app.source.name).replace(/[^\w.-]+/g, "_")}.wav`;
       a.click();
-      announce("Трек збережено.", { force: true });
-    } catch (e) { announce("Не вдалося зберегти трек: " + e.message, { force: true }); }
-    btn.textContent = old; btn.disabled = false;
+      announce(t("wav.saved"), { force: true });
+    } catch (e) { announce(t("wav.failed", { msg: e.message }), { force: true }); }
+    btn.textContent = t("btn.wav"); btn.disabled = false;
   });
 
   /* ---- таймлайн для скрінрідера: текстовий опис подій і розділів ---- */
   function describeTimeline() {
     const m = app.mapping, a = app.analysis;
-    const secs = m.meta.sections.map(s => `${s.label} ${fmtTime(s.b0 * m.meta.barDur)}–${fmtTime(Math.min(a.profile.durationSec || 1e9, s.b1 * m.meta.barDur))}`).join("; ");
-    const ev = m.bars.flatMap(b => b.events).slice(0, 8).map(e => `${fmtTime(e.time)} ${e.text}`).join("; ");
-    $("timeline").setAttribute("aria-label", `Таймлайн. Розділи: ${secs}. ${ev ? "Головні події: " + ev + "." : "Помітних подій немає."} Клік або стрілки — перехід у часі.`);
+    const secs = m.meta.sections.map(s => `${tr(s.label)} ${fmtTime(s.b0 * m.meta.barDur)}–${fmtTime(Math.min(a.profile.durationSec || 1e9, s.b1 * m.meta.barDur))}`).join("; ");
+    const ev = m.bars.flatMap(b => b.events).slice(0, 8).map(e => `${fmtTime(e.time)} ${tr(e.text)}`).join("; ");
+    $("timeline").setAttribute("aria-label", t("tl.describe", { secs, ev: ev ? t("tl.events", { ev }) : t("tl.noEvents") }));
   }
 
   /* ---- стиль звучання (етап 11): перекриває лише інструменти партій; дані й мапінг ті самі ---- */
+  let styleList = [];
+  const styleOptions = () => {
+    for (const o of $("style").options) { const st = styleList.find(x => x.id === o.value); if (st) o.textContent = pick(st, "name"); }
+  };
   loadStyles().then(styles => {
+    styleList = styles;
     const sel = $("style");
-    for (const st of styles) sel.appendChild(Object.assign(document.createElement("option"), { value: st.id, textContent: st.name.uk }));
+    for (const st of styles) sel.appendChild(Object.assign(document.createElement("option"), { value: st.id, textContent: pick(st, "name") }));
   });
   $("style").addEventListener("change", async e => {
     const st = await loadStyle(e.target.value);
@@ -263,7 +275,7 @@ export function setupPlayback(app, { timeline, mappingTable }) {
     await onMapped();
     if (at) await player.seek(at);
     if (was) { await player.play(); setPlayUI(true); }
-    announce(st ? `Стиль: ${st.name.uk}. ${st.why}. Дані, гармонія й ритм — ті самі.` : "Стиль: за темою карти.", { force: true });
+    announce(st ? t("style.announce", { name: pick(st, "name"), why: pick(st, "why") }) : t("style.announceTopic"), { force: true });
   });
 
   app.seekTo = t => { if (app.score) player.seek(t); };
@@ -275,7 +287,7 @@ export function setupPlayback(app, { timeline, mappingTable }) {
     else if (e.code === "KeyL") { e.preventDefault(); legend(); }
     else if (e.code === "KeyM") {
       const b = Math.min(app.mapping.bars.length - 1, Math.floor(player.time / app.score.barDur));
-      announce(`${fmtTime(player.time)}, ${app.mapping.bars[b].sectionLabel}. ${mappingTable.describe(b)}.`, { force: true });
+      announce(`${fmtTime(player.time)}, ${tr(app.mapping.bars[b].sectionLabel)}. ${mappingTable.describe(b)}.`, { force: true });
     }
     else if (e.key === "ArrowRight") { e.preventDefault(); player.seek(player.time + 5); }
     else if (e.key === "ArrowLeft") { e.preventDefault(); player.seek(player.time - 5); }
@@ -285,5 +297,16 @@ export function setupPlayback(app, { timeline, mappingTable }) {
     }
   });
 
-  return { onMapped, stop: () => { player.stop(); setPlayUI(false); } };
+  /** Мову змінили: підписи пульта, партій, легенди, «Зараз звучить», опис таймлайну. */
+  function refresh() {
+    if (introRunning) $("play").textContent = t("btn.skipIntro"); else setPlayUI(player.playing);
+    styleOptions();
+    if (!app.score) return;
+    renderParts();
+    renderLegend();
+    describeTimeline();
+    onBar(Math.min(app.mapping.bars.length - 1, Math.floor(player.time / app.score.barDur)), true);
+  }
+
+  return { onMapped, refresh, stop: () => { player.stop(); setPlayUI(false); } };
 }

@@ -3,6 +3,11 @@
 import { openVideo, openImage, openSynthetic } from "./media/sources.js";
 import { passA } from "./analysis/pass-a.js";
 import { FINAL_SUITES } from "./tests-final.js";
+import { UI_SUITES } from "./tests-ui.js";
+import { setLang } from "./i18n/index.js";
+
+// Тести перевіряють українські тексти двигуна — сторінка тестів завжди українською (вибір мови сайту не змінюється).
+setLang("uk", { persist: false });
 
 const rows = document.getElementById("rows");
 const results = [];
@@ -410,7 +415,7 @@ SUITES.push(async function stage12() {
   // повний сценарій лише з клавіатури (застосунок в iframe)
   const fr = document.createElement("iframe");
   fr.style.cssText = "width:900px;height:700px;position:absolute;left:-2000px";
-  fr.src = "index.html";
+  fr.src = "index.html?lang=uk";
   document.body.appendChild(fr);
   await new Promise(r => fr.addEventListener("load", r, { once: true }));
   const w = fr.contentWindow, doc = fr.contentDocument;
@@ -848,6 +853,7 @@ SUITES.push(async function stage_v6() {
 });
 
 for (const f of FINAL_SUITES) SUITES.push(Object.defineProperty(() => f(check), "name", { value: f.name }));
+for (const f of UI_SUITES) SUITES.push(Object.defineProperty(() => f(check), "name", { value: f.name }));
 
 // ?only=golden,motion — лише названі набори (для швидких ітерацій; перед комітом — повний прогін)
 const ONLY = new URLSearchParams(location.search).get("only")?.split(",");
