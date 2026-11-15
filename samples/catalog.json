@@ -166,6 +166,7 @@
   },
   {
     "id": "synthetic-dark",
+    "hidden": true,
     "topic": "nightlights",
     "title": "Тест: темна нічна карта з ледь помітними змінами",
     "title_en": "Test: dark night map with barely visible changes",
@@ -176,6 +177,7 @@
   },
   {
     "id": "synthetic-static",
+    "hidden": true,
     "title": "Тест: статичне відео без змін",
     "title_en": "Test: static video with no changes",
     "kind": "synthetic",

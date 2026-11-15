@@ -54,6 +54,7 @@ async function loadCatalog() {
   const items = await res.json();
   const g = $("gallery");
   for (const it of items) {
+    if (it.hidden) continue;   // тестові пункти: лишаються в каталозі для test.html, у галереї не показуємо
     const b = document.createElement("button");
     b.dataset.kind = it.kind;
     b.dataset.tip = "tip.galleryItem";
