@@ -231,6 +231,8 @@ T = [
  ("why.texture.chorale", "Супровід — хоральні акорди: щільно, без ударних.", "Accompaniment — chorale chords: dense, no drums."),
  ("why.texture.arpeggio", "Супровід — арпеджіо хвилями, легато, без ударних.", "Accompaniment — arpeggio in waves, legato, no drums."),
  ("why.texture.nature", "Супровід — текстури природи й довгі акорди: простір і повітря.", "Accompaniment — nature textures and long chords: space and air."),
+ ("where.most", "найбільше — {side}", "the most is {side}"),
+ ("where.track", "За весь трек: {where}.", "Over the whole track: {where}."),
 ]
 keys=[k for k,_,_ in T]; assert len(keys)==len(set(keys)), "дублікати ключів"
 root=pathlib.Path(__file__).resolve().parent.parent/"src"/"i18n"

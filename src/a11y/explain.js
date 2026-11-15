@@ -1,8 +1,9 @@
 // Голос пояснює (PROMPT-v10 §7): короткий вступ (≤ 20 с), «Що зараз?» (клавіша W) і підсумок після треку.
 // Чисті функції від { analysis, mapping, card, topic, title } — їх перевіряють тести без звуку.
-import { getLang, tr } from "../i18n/index.js";
+import { getLang, tr, t } from "../i18n/index.js";
 import { fmtTime } from "./describe.js";
 import { speechSeconds } from "./speech.js";
+import { sideText } from "../mapping/quantity.js";
 
 const L = (uk, en) => (getLang() === "en" ? en : uk);
 const P = (o, k) => (o ? (getLang() === "en" ? (o[k + "_en"] ?? tr(o[k])) : o[k]) : null);
@@ -34,7 +35,10 @@ const lead = a => a.leadFeature || a.keyFeatures?.[0] || Object.keys(a.rel)[0];
 const val = (a, i) => a.rel[lead(a)][i];
 
 /** Де більше: захід / центр / схід — за балансом ознаки ліво/право (ліве вухо — захід). */
-export function whereAt(a, i) {
+export function whereAt(a, i, mapping = null) {
+  // v10 §5: у завантажених відео — найактивніша зона такту (та сама, що звучить солістом «де більше»)
+  const bar = mapping?.meta.where ? mapping.bars[Math.min(mapping.bars.length - 1, Math.floor((a.times[i] || 0) / mapping.meta.barDur))] : null;
+  if (bar?.params.hot) return t("where.most", { side: sideText(bar.params.hot.col, getLang()) });
   const b = a.abs?.balanceLR?.[i];
   if (b == null || !Number.isFinite(b)) return a.hotspots?.[0] ? tr(a.hotspots[0].label) : null;
   if (b < -0.12) return L("більше на заході (ліве вухо)", "more in the west (left ear)");
@@ -54,12 +58,12 @@ const unitsOf = card => { const u = P(card, "units"); return u && u.length < 24 
 const pctText = v => L(`${Math.round(v * 100)} % шкали`, `${Math.round(v * 100)}% of the scale`);
 
 /** Клавіша W: час/дата, де найбільше, росте чи падає, наскільки. */
-export function whatNow({ analysis: a, card }, t) {
+export function whatNow({ analysis: a, card, mapping = null }, t) {
   const dur = a.profile.durationSec || a.times[a.count - 1] || 1, i = frameAt(a, t);
   const k = Math.max(1, Math.round((a.rate || 1) * 3)), j = Math.max(0, i - k);
   const d = val(a, i) - val(a, j), noise = Math.max(0.03, a.norm?.[lead(a)]?.relNoise || 0);
   const dir = d > noise ? L("росте", "rising") : d < -noise ? L("падає", "falling") : L("майже не змінюється", "almost steady");
-  const date = dateAt(card, dur, t), where = whereAt(a, i), u = unitsOf(card);
+  const date = dateAt(card, dur, t), where = whereAt(a, i, mapping), u = unitsOf(card);
   return [
     L(`${fmtTime(t)} з ${fmtTime(dur)}`, `${fmtTime(t)} of ${fmtTime(dur)}`) + (date ? `, ${date}` : "") + ".",
     where ? `${where[0].toUpperCase()}${where.slice(1)}.` : "",
@@ -74,14 +78,15 @@ export function trackSummary({ analysis: a, mapping, card }) {
   const d = mean(n - q, n) - mean(0, q);
   const trend = d > 0.08 ? L("загалом величина зросла", "overall the value rose") : d < -0.08 ? L("загалом величина зменшилася", "overall the value fell") : L("явного тренду немає", "there is no clear trend");
   let im = 0; for (let i = 1; i < n; i++) if (val(a, i) > val(a, im)) im = i;
-  const dur = a.profile.durationSec || a.times[n - 1], date = dateAt(card, dur, a.times[im]), where = whereAt(a, im);
+  const dur = a.profile.durationSec || a.times[n - 1], date = dateAt(card, dur, a.times[im]), where = whereAt(a, im, mapping);
+  const all = mapping?.meta.where ? " " + t("where.track", { where: mapping.meta.where[getLang()] || mapping.meta.where.uk }) : "";
   const events = mapping ? mapping.bars.reduce((s, b) => s + b.events.length, 0) : a.events.length;
-  return L(`Підсумок: ${trend} (${d >= 0 ? "+" : "−"}${pctText(Math.abs(d))} від початку до кінця). Максимум на ${fmtTime(a.times[im])}${date ? ` (${date})` : ""}${where ? `, ${where}` : ""}. Подій: ${events}.`,
-    `Summary: ${trend} (${d >= 0 ? "+" : "−"}${pctText(Math.abs(d))} from start to end). Maximum at ${fmtTime(a.times[im])}${date ? ` (${date})` : ""}${where ? `, ${where}` : ""}. Events: ${events}.`);
+  return L(`Підсумок: ${trend} (${d >= 0 ? "+" : "−"}${pctText(Math.abs(d))} від початку до кінця). Максимум на ${fmtTime(a.times[im])}${date ? ` (${date})` : ""}${where ? `, ${where}` : ""}. Подій: ${events}.${all}`,
+    `Summary: ${trend} (${d >= 0 ? "+" : "−"}${pctText(Math.abs(d))} from start to end). Maximum at ${fmtTime(a.times[im])}${date ? ` (${date})` : ""}${where ? `, ${where}` : ""}. Events: ${events}.${all}`);
 }
 
 /** Вступ ≤ 20 с: що це, звідки дані, роки, як слухати; далі звучить 1 с тон-орієнтир. */
-export function introText({ title, card, topic, colorMore }) {
+export function introText({ title, card, topic, colorMore, where = null }) {
   const tid = topic?.id, years = P(card, "years"), what = P(card, "variable");
   const src = (P(card, "authors") || "").split(/[;,]/).map(s => s.trim()).find(s => /NASA|NOAA|JPL|ESA/.test(s)) || (card ? "NASA" : null);
   const more = (colorMore && tr(colorMore)) || P(topic, "more") || (topic?.more && (getLang() === "en" ? topic.more.en : topic.more.uk)) || L("більше", "more");
@@ -94,6 +99,8 @@ export function introText({ title, card, topic, colorMore }) {
     L(`Вище звук — ${more}. Ліве вухо — захід, праве — схід.`, `Higher sound — ${more}. Left ear — west, right ear — east.`),
     L("Тон-орієнтир — середнє значення.", "The reference tone is the average value."),
   ].filter(Boolean);
+  // v10 §5: «де більше» словами — якщо вміщається у 20 с
+  if (where) { const w = t("where.track", { where: where[getLang()] || where.uk }); if (speechSeconds([...parts, w].join(" "), 1) <= INTRO_MAX_SEC - 1.5) parts.push(w); }
   // ≤ 20 с при 1×: якщо задовго — прибираємо менш важливе (джерело, потім «що»)
   for (const drop of [2, 1]) if (speechSeconds(parts.join(" "), 1) > INTRO_MAX_SEC - 1.5 && parts.length > 4) parts.splice(drop, 1);
   let s = parts.join(" ");

@@ -50,7 +50,7 @@ export function setupPlayback(app, { timeline, mappingTable }) {
       $("play").textContent = t("btn.skipIntro");
       $("play").dataset.icon = "skip";
       const title = app.catalogItem ? pick(app.catalogItem, "title") : app.eicCard ? pick(app.eicCard, "title") : app.topic && app.topic.id !== "generic" ? pick(app.topic, "name") : t("intro.yourMap");
-      await playShortIntro(engine, { text: introText({ title, card: cardOf(), topic: app.topic, colorMore: app.catalogItem?.colorMore }), topicId: app.topic?.id, score: app.score });
+      await playShortIntro(engine, { text: introText({ title, card: cardOf(), topic: app.topic, colorMore: app.catalogItem?.colorMore, where: app.mapping?.meta.where || null }), topicId: app.topic?.id, score: app.score });
       introRunning = false;
     }
     await player.play(); setPlayUI(true);

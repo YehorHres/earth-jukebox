@@ -242,4 +242,6 @@ export default {
   "why.texture.chorale": "Accompaniment — chorale chords: dense, no drums.",
   "why.texture.arpeggio": "Accompaniment — arpeggio in waves, legato, no drums.",
   "why.texture.nature": "Accompaniment — nature textures and long chords: space and air.",
+  "where.most": "the most is {side}",
+  "where.track": "Over the whole track: {where}.",
 };

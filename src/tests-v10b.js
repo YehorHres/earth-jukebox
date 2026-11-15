@@ -67,6 +67,11 @@ V10_SUITES.push(async function v10where(check) {
   const dx = all.find(t => t.id === "dixie");
   check("v10 §5: словами — «найбільше — на заході / у центрі / на сході» для карти; для обертового глобуса — момент, коли максимум перед слухачем", /найбільше — (на заході|у центрі|на сході)/.test(dx.mapping.meta.where.uk) && all.filter(t => t.analysis.motion.type === "rotating-globe").every(t => /проходить перед слухачем/.test(t.mapping.meta.where.uk)),
     all.map(t => `${t.id}: ${t.mapping.meta.where.uk}`).join(" | "));
+  const E = await import("./a11y/explain.js"), { sideText } = await import("./mapping/quantity.js");
+  const tW = dx.mapping.meta.duration * 0.5, barW = dx.mapping.bars[Math.floor(tW / dx.mapping.meta.barDur)], w = E.whatNow({ analysis: dx.analysis, mapping: dx.mapping, card: null }, tW), sum = E.trackSummary({ analysis: dx.analysis, mapping: dx.mapping, card: null });
+  const intro = E.introText({ title: "Dixie", card: null, topic: dx.topic, where: dx.mapping.meta.where });
+  check("v10 §5: «де більше» словами — у вступі (≤ 20 с), на W (зона соліста цього такту) і в підсумку", w.includes(sideText(barW.params.hot.col, "uk")) && sum.includes(dx.mapping.meta.where.uk) && intro.includes(dx.mapping.meta.where.uk) && (await import("./a11y/speech.js")).speechSeconds(intro, 1) <= E.INTRO_MAX_SEC,
+    `W: ${w} | підсумок: ${sum.slice(-110)} | вступ: ${intro.slice(-120)}`);
   const ev = all.map(tr => { const e = tr.mapping.bars.flatMap(x => x.allEvents).sort((p, q) => p.time - q.time); let gap = Infinity; for (let i = 1; i < e.length; i++) gap = Math.min(gap, e[i].time - e[i - 1].time); return { id: tr.id, n: e.length, gap, dur: tr.mapping.meta.duration }; });
   check(`v10 §10 менше хаосу: не більше однієї події на ${EVENT_MIN_GAP} с (AirQuality мав 90 подій за 60 с)`, ev.every(e => e.gap >= EVENT_MIN_GAP - 1e-6 && e.n <= e.dur / EVENT_MIN_GAP + 1),
     ev.map(e => `${e.id}: ${e.n} подій за ${Math.round(e.dur)} с`).join("; "));
