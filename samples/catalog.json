@@ -19,7 +19,7 @@
       "cold": "холодна вода (синій)",
       "cold_en": "cold water (blue)",
       "warm": "тепла вода (червоний)",
-    "warm_en": "warm water (red)"
+      "warm_en": "warm water (red)"
     },
     "credit": "NASA/Goddard Space Flight Center Scientific Visualization Studio, дані ECCO2 (MIT/JPL)",
     "credit_en": "NASA/Goddard Space Flight Center Scientific Visualization Studio, ECCO2 data (MIT/JPL)",
@@ -34,7 +34,7 @@
       "years_en": "part of a model year",
       "source": "https://svs.gsfc.nasa.gov/",
       "authors": "NASA Goddard Scientific Visualization Studio; дані ECCO2 (MIT/JPL)",
-    "authors_en": "NASA Goddard Scientific Visualization Studio; ECCO2 data (MIT/JPL)"
+      "authors_en": "NASA Goddard Scientific Visualization Studio; ECCO2 data (MIT/JPL)"
     }
   },
   {
@@ -65,7 +65,7 @@
       "years": "2012",
       "source": "https://svs.gsfc.nasa.gov/30082/",
       "authors": "NASA Earth Observatory / NASA Goddard SVS; дані Suomi NPP VIIRS",
-    "authors_en": "NASA Earth Observatory / NASA Goddard SVS; Suomi NPP VIIRS data"
+      "authors_en": "NASA Earth Observatory / NASA Goddard SVS; Suomi NPP VIIRS data"
     }
   },
   {
@@ -97,7 +97,7 @@
       "years_en": "July 2024",
       "source": "https://svs.gsfc.nasa.gov/5331/",
       "authors": "NASA Goddard Scientific Visualization Studio; місія TROPICS",
-    "authors_en": "NASA Goddard Scientific Visualization Studio; TROPICS mission"
+      "authors_en": "NASA Goddard Scientific Visualization Studio; TROPICS mission"
     }
   },
   {
@@ -129,7 +129,7 @@
       "years_en": "September 2014 — August 2015",
       "source": "https://svs.gsfc.nasa.gov/4402/",
       "authors": "NASA Goddard Scientific Visualization Studio; місія Orbiting Carbon Observatory 2",
-    "authors_en": "NASA Goddard Scientific Visualization Studio; Orbiting Carbon Observatory 2 mission"
+      "authors_en": "NASA Goddard Scientific Visualization Studio; Orbiting Carbon Observatory 2 mission"
     }
   },
   {
@@ -161,7 +161,135 @@
       "years_en": "February — September 2022",
       "source": "https://svs.gsfc.nasa.gov/5030/",
       "authors": "NASA Goddard Scientific Visualization Studio; дані Aqua, Terra",
-    "authors_en": "NASA Goddard Scientific Visualization Studio; Aqua, Terra data"
+      "authors_en": "NASA Goddard Scientific Visualization Studio; Aqua, Terra data"
+    }
+  },
+  {
+    "id": "gedi_forest_height",
+    "topic": "vegetation",
+    "kind": "video",
+    "src": [
+      "samples/gedi_forest_height.webm",
+      "samples/gedi_forest_height.mp4"
+    ],
+    "projection": "other",
+    "motionType": "rotating-globe",
+    "colorMore": "вищий ліс (світліше)",
+    "colorMore_en": "taller forest (lighter)",
+    "title": "Висота лісу за даними GEDI",
+    "title_en": "GEDI Forest Height",
+    "desc": "Глобус повільно обертається. Колір суходолу показує висоту лісу, виміряну лазером GEDI з Міжнародної космічної станції: коричневе й темно-зелене — низька рослинність, яскраво-зелене й біле — найвищі ліси. Найвищі ліси — у тропіках.",
+    "desc_en": "The globe slowly rotates. The colour of the land shows forest height measured by the GEDI laser on the International Space Station: brown and dark green — low vegetation, bright green and white — the tallest forests. The tallest forests are in the tropics.",
+    "credit": "NASA Goddard Scientific Visualization Studio; місія GEDI (NASA SVS 4950)",
+    "credit_en": "NASA Goddard Scientific Visualization Studio; GEDI mission (NASA SVS 4950)",
+    "card": {
+      "variable": "висота рослинного покриву (лідар GEDI на МКС)",
+      "variable_en": "vegetation canopy height (GEDI lidar on the ISS)",
+      "units": "метри",
+      "units_en": "metres",
+      "region": "уся Земля, глобус",
+      "region_en": "the whole Earth, globe",
+      "years": "не вказано · повний ролик",
+      "years_en": "not stated · full clip",
+      "source": "https://svs.gsfc.nasa.gov/4950/",
+      "authors": "NASA Goddard Scientific Visualization Studio; місія GEDI",
+      "authors_en": "NASA Goddard Scientific Visualization Studio; GEDI mission"
+    }
+  },
+  {
+    "id": "iss_lightning",
+    "topic": "storms",
+    "kind": "video",
+    "src": [
+      "samples/iss_lightning.webm",
+      "samples/iss_lightning.mp4"
+    ],
+    "projection": "other",
+    "motionType": "rotating-globe",
+    "colorMore": "більше блискавок (яскраві спалахи)",
+    "colorMore_en": "more lightning (bright flashes)",
+    "title": "Блискавки, зафіксовані з МКС, 2017–2023",
+    "title_en": "Lightning Events Detected from the International Space Station (ISS) 2017-2023",
+    "desc": "Глобус обертається; кожна яскрава точка — удар блискавки, який зафіксував прилад LIS з Міжнародної космічної станції. Одночасно видно блискавки за десять днів, тож помітно, як грози зміщуються за сезонами. Найбільше блискавок — над суходолом у тропіках.",
+    "desc_en": "The globe rotates; each bright point is a lightning strike recorded by the LIS instrument on the International Space Station. Ten days of lightning are visible at once, so you can see thunderstorms shift with the seasons. Most lightning is over land in the tropics.",
+    "credit": "NASA Goddard Scientific Visualization Studio; прилад LIS на МКС (NASA SVS 5011)",
+    "credit_en": "NASA Goddard Scientific Visualization Studio; LIS instrument on the ISS (NASA SVS 5011)",
+    "card": {
+      "variable": "удари блискавок (прилад LIS на МКС): широта, довгота, час",
+      "variable_en": "lightning strikes (LIS instrument on the ISS): latitude, longitude, time",
+      "units": "кількість подій; показано ковзне вікно 10 днів",
+      "units_en": "number of events; a 10-day moving window is shown",
+      "region": "уся Земля, глобус (у смузі орбіти МКС)",
+      "region_en": "the whole Earth, globe (within the ISS orbit band)",
+      "years": "2017–2023 · уривок 30–120 с",
+      "years_en": "2017–2023 · excerpt 30–120 s",
+      "source": "https://svs.gsfc.nasa.gov/5011/",
+      "authors": "NASA Goddard Scientific Visualization Studio; прилад LIS на МКС",
+      "authors_en": "NASA Goddard Scientific Visualization Studio; LIS instrument on the ISS"
+    }
+  },
+  {
+    "id": "co2_dyamond",
+    "topic": "co2",
+    "kind": "video",
+    "src": [
+      "samples/co2_dyamond.webm",
+      "samples/co2_dyamond.mp4"
+    ],
+    "projection": "other",
+    "motionType": "rotating-globe",
+    "colorMore": "більше CO₂ (яскравіше; не підтверджено NASA)",
+    "colorMore_en": "more CO₂ (brighter; not confirmed by NASA)",
+    "title": "Вуглекислий газ у моделі DYAMOND",
+    "title_en": "DYAMOND Global Carbon Dioxide",
+    "desc": "Хмара точок показує вуглекислий газ в атмосфері за розрахунками моделі DYAMOND; камера облітає Землю здалеку. Що означають кольори, на сторінці NASA не описано, тому напрямок «більше» тут не підтверджений.",
+    "desc_en": "A cloud of points shows carbon dioxide in the atmosphere as computed by the DYAMOND model; the camera flies around the Earth from afar. The NASA page does not describe what the colours mean, so the “more” direction is not confirmed here.",
+    "credit": "NASA Goddard Scientific Visualization Studio (NASA SVS 5196)",
+    "credit_en": "NASA Goddard Scientific Visualization Studio (NASA SVS 5196)",
+    "card": {
+      "variable": "концентрація CO₂ в атмосфері (модель DYAMOND)",
+      "variable_en": "atmospheric CO₂ concentration (DYAMOND model)",
+      "units": "ppm",
+      "units_en": "ppm",
+      "region": "уся Земля; у цій версії камера облітає глобус здалеку",
+      "region_en": "the whole Earth; in this version the camera flies around the globe from afar",
+      "years": "не вказано · повний ролик",
+      "years_en": "not stated · full clip",
+      "source": "https://svs.gsfc.nasa.gov/5196/",
+      "authors": "NASA Goddard Scientific Visualization Studio",
+      "authors_en": "NASA Goddard Scientific Visualization Studio"
+    }
+  },
+  {
+    "id": "dixie_fire_2021",
+    "topic": "fires",
+    "kind": "video",
+    "src": [
+      "samples/dixie_fire_2021.webm",
+      "samples/dixie_fire_2021.mp4"
+    ],
+    "projection": "other",
+    "motionType": "temporal",
+    "colorMore": "свіжіший фронт вогню (яскравіше)",
+    "colorMore_en": "newer fire front (brighter)",
+    "title": "Поширення пожежі Діксі, 2021",
+    "title_en": "Spread of the Dixie Fire - 2021",
+    "desc": "Карта показує, як пожежа Діксі поширювалась у 2021 році: яскраво-жовта лінія — найсвіжіший фронт вогню, червоні точки — активні осередки, сіра пляма — уже згоріла територія, яка постійно росте. Поруч графік накопиченої згорілої площі в квадратних кілометрах.",
+    "desc_en": "The map shows how the Dixie Fire spread in 2021: the bright yellow line is the newest fire front, red points are active hotspots, and the grey patch is the already burned area, which keeps growing. Next to it is a chart of the cumulative burned area in square kilometres.",
+    "credit": "NASA Goddard Scientific Visualization Studio (NASA SVS 4993)",
+    "credit_en": "NASA Goddard Scientific Visualization Studio (NASA SVS 4993)",
+    "card": {
+      "variable": "лінія вогню, активні осередки й згоріла площа",
+      "variable_en": "fire line, active hotspots and burned area",
+      "units": "графік — накопичена згоріла площа, км²",
+      "units_en": "chart — cumulative burned area, km²",
+      "region": "Північна Каліфорнія, США",
+      "region_en": "Northern California, USA",
+      "years": "2021 · уривок 6–96 с",
+      "years_en": "2021 · excerpt 6–96 s",
+      "source": "https://svs.gsfc.nasa.gov/4993/",
+      "authors": "NASA Goddard Scientific Visualization Studio",
+      "authors_en": "NASA Goddard Scientific Visualization Studio"
     }
   },
   {
@@ -173,7 +301,7 @@
     "kind": "synthetic",
     "synth": "dark-lights",
     "desc": "Синтетичне тестове відео: темний фон, тьмяні вогні; праворуч кластер-«місто» повільно й ледь помітно яскравішає. Перевіряє, що двигун підсилює малі зміни чесно й пояснює це.",
-  "desc_en": "A synthetic test video: dark background, dim lights; on the right a “city” cluster slowly and barely visibly brightens. It checks that the engine amplifies small changes honestly and explains it."
+    "desc_en": "A synthetic test video: dark background, dim lights; on the right a “city” cluster slowly and barely visibly brightens. It checks that the engine amplifies small changes honestly and explains it."
   },
   {
     "id": "synthetic-static",
@@ -183,6 +311,6 @@
     "kind": "synthetic",
     "synth": "static-dark",
     "desc": "Синтетичне тестове відео без жодних змін, лише шум стиснення. Двигун має сказати, що змін немає, і не вигадувати подій.",
-  "desc_en": "A synthetic test video with no changes at all, only compression noise. The engine must say there are no changes and not invent events."
+    "desc_en": "A synthetic test video with no changes at all, only compression noise. The engine must say there are no changes and not invent events."
   }
 ]

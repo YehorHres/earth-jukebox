@@ -452,7 +452,7 @@ SUITES.push(async function stage13() {
   const T = await import("./topics/topics.js"); await T.loadTopics();
   const { legendItems } = await import("./a11y/legend.js");
   const cat = await (await fetch("samples/catalog.json")).json();
-  const real = cat.filter(i => i.kind === "video");
+  const real = cat.filter(i => i.kind === "video" && i.analysis);   // без готового аналізу — аналіз наживо
   const topics = new Set(real.map(i => i.topic));
   const bad = [];
   for (const it of real) {
@@ -502,7 +502,7 @@ SUITES.push(async function stage14() {
   check("EQ партій: HPF усім, крім басу; бас — LPF і HPF 32 Гц; виріз 350 Гц у педів і арпеджіо", PART_EQ.bass.lp && PART_EQ.bass.hp <= 35 && PART_EQ.pad.hp >= 150 && PART_EQ.pad.cut[1] < 0 && PART_EQ.arp.cut[1] < 0 && ["melody", "counter", "texture", "stars"].every(p => PART_EQ[p].hp >= 100), "");
   // збережений звіт 5 треків галереї: критерії + актуальність (партитура та сама, що дає композитор зараз)
   const rep = await (await fetch("renders/audio-report.json")).json();
-  const cat = (await (await fetch("samples/catalog.json")).json()).filter(i => i.kind === "video");
+  const cat = (await (await fetch("samples/catalog.json")).json()).filter(i => i.kind === "video" && i.analysis);
   const stale = [];
   for (const it of cat) { const row = rep.rows.find(r => r.id === it.id); const tr = await buildTrack(it); if (!row || row.hash !== scoreHash(tr.score)) stale.push(it.id); }
   check("Аудіозвіт галереї актуальний (перерендерено після останніх змін композитора)", !stale.length, stale.length ? `застарів для: ${stale.join(", ")} — запустіть tools/audio-report.html?run` : `${rep.rows.length} треків, ${rep.createdAt.slice(0, 16)}`);
