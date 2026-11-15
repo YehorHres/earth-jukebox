@@ -3,7 +3,9 @@
 import { playNote } from "./instruments.js";
 import { levelFor, dipFor, widthFor } from "./engine.js";
 
-const LOOKAHEAD = 0.25, TICK_MS = 30, DRIFT = 0.08;
+const LOOKAHEAD = 0.25, TICK_MS = 30, DRIFT = 0.08, NUDGE = 0.02;
+/** v10 §8: швидкості відтворення (висота нот не змінюється — змінюються лише моменти й тривалості нот). */
+export const RATES = [0.5, 0.75, 1, 1.25, 1.5];
 // посил на реверб для кожної партії
 export const SEND = { dataVoice: 0.22, soloists: 0.3, reference: 0.1, ticks: 0.05, earcons: 0.25, texture: 0.5, pad: 0.45, drums: 0.15, melody: 0.35, counter: 0.4, accents: 0.55, stars: 0.6, arp: 0.3, bass: 0.15 };
 
@@ -13,7 +15,16 @@ export class Player {
     this.cb = { onBar, onTick, onEnd };
     this.score = null; this.source = null; this.mapping = null;
     this.playing = false; this.pos = 0; this.startCtx = 0; this.idx = 0; this.lastBar = -1;
-    this.timer = null; this.raf = 0;
+    this.timer = null; this.raf = 0; this.rate = 1;
+  }
+
+  /** Швидкість відтворення: музика й відео разом; позиція не стрибає. */
+  setRate(r) {
+    r = RATES.includes(r) ? r : 1;
+    if (this.playing) { this.pos = this.time; this.startCtx = this.eng.ctx.currentTime; }
+    this.rate = r;
+    if (this.source?.kind === "video") this.source.el.playbackRate = r;
+    return r;
   }
 
   load(score, mapping, source) {
@@ -22,7 +33,7 @@ export class Player {
     this.pos = 0; this.idx = 0; this.lastBar = -1;
   }
 
-  get time() { return this.playing ? this.pos + (this.eng.ctx.currentTime - this.startCtx) : this.pos; }
+  get time() { return this.playing ? this.pos + Math.max(0, this.eng.ctx.currentTime - this.startCtx) * this.rate : this.pos; }
   get duration() { return this.score ? this.score.duration : 0; }
 
   async play() {
@@ -37,7 +48,7 @@ export class Player {
     this.playing = true;
     this.lastBar = -1;
     this.syncVideo(true);
-    if (this.source?.kind === "video") this.source.el.play().catch(() => {});
+    if (this.source?.kind === "video") { this.source.el.playbackRate = this.rate; this.source.el.play().catch(() => {}); }
     this.timer = setInterval(() => this.tick(), TICK_MS);
     this.tick();
     const loop = () => { if (!this.playing) return; this.frame(); this.raf = requestAnimationFrame(loop); };
@@ -75,20 +86,20 @@ export class Player {
 
   /** Планування нот у вікні [зараз, зараз + LOOKAHEAD]. */
   tick() {
-    const ctx = this.eng.ctx, now = this.time, horizon = now + LOOKAHEAD;
+    const ctx = this.eng.ctx, now = this.time, horizon = now + LOOKAHEAD * this.rate, k = this.rate;
     const notes = this.score.notes;
     while (this.idx < notes.length && notes[this.idx].t < horizon) {
       const n = notes[this.idx++];
       if (n.t < now - 0.05) continue;     // пропущені (після перемотки) — не граємо
-      const at = this.startCtx + (n.t - this.pos);
+      const at = this.startCtx + (n.t - this.pos) / k;
       const bus = this.eng.bus(n.part);
-      try { playNote(this.eng, bus, n.inst, n, Math.max(ctx.currentTime, at)); } catch (e) { console.warn("нота не зіграна:", e.message); }
+      try { playNote(this.eng, bus, n.inst, k === 1 ? n : { ...n, dur: n.dur / k }, Math.max(ctx.currentTime, at)); } catch (e) { console.warn("нота не зіграна:", e.message); }
     }
     // автоматизація простору за тактами
     const bar = Math.floor(now / this.score.barDur);
     if (bar !== this.lastBar && bar < this.mapping.bars.length) {
       this.lastBar = bar;
-      const at = Math.max(this.eng.ctx.currentTime, this.startCtx + (bar * this.score.barDur - this.pos));
+      const at = Math.max(this.eng.ctx.currentTime, this.startCtx + (bar * this.score.barDur - this.pos) / k);
       this.eng.setSpace(this.mapping.bars[bar].params.space, at);
       this.eng.setLevel(levelFor(this.mapping, bar), at);
       this.eng.setDip(dipFor(this.mapping, bar), at);
@@ -107,7 +118,10 @@ export class Player {
     if (s.kind === "video") {
       const v = s.el, target = Math.min(t, s.duration - 0.05);
       if (t >= s.duration - 0.05) { if (!v.paused) v.pause(); return; }
-      if (force || Math.abs(v.currentTime - target) > DRIFT) v.currentTime = target;
+      const d = v.currentTime - target;
+      if (force || Math.abs(d) > DRIFT) { v.currentTime = target; v.playbackRate = this.rate; }
+      // м'яке підтягування (< 50 мс без перемотки): трохи швидше/повільніше, поки розбіжність > 20 мс
+      else v.playbackRate = this.rate * (Math.abs(d) > NUDGE ? (d > 0 ? 0.96 : 1.04) : 1);
       if (this.playing && v.paused && t < s.duration - 0.1) v.play().catch(() => {});
     } else if (s.kind === "synthetic" && force) s.frameAt(Math.min(t, s.duration));
   }

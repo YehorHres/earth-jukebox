@@ -398,3 +398,11 @@ pre.debug { font-size: .875rem; max-height: 22rem; overflow: auto; background: v
 .speech-rate { display: flex; align-items: center; gap: .5rem; flex-wrap: wrap; }
 .speech-rate input[type="range"] { flex: 1 1 8rem; min-width: 8rem; }
 .track-summary { margin: .4rem 0 0; font-size: .95rem; }
+
+/* v10 §8: таймлайн-повзунок, швидкість, мікшер */
+.tl-box { position: relative; }
+canvas.timeline { touch-action: none; }
+canvas.timeline:focus-visible { outline: 3px solid var(--focus, #f2c94c); outline-offset: 2px; }
+.tl-tip { position: absolute; top: -1.9rem; transform: translateX(-50%); padding: .2rem .5rem; background: var(--field); border: 1px solid var(--rule); font-size: .8125rem; white-space: nowrap; pointer-events: none; z-index: 2; }
+.parts input.vol, .mix-master input { width: 100%; max-width: 14rem; margin-top: .25rem; }
+.mix-master { display: flex; align-items: center; gap: .75rem; flex-wrap: wrap; padding-bottom: .5rem; }
