@@ -31,9 +31,10 @@ const STORY = {
   mixed: { feature: "brightness", text: "найяскравіший момент" },
 };
 
-export async function analyzeSource(source, { sceneOverride = null, projection = "equirect", onProgress = () => {}, useCache = true, precomputedUrl = null, scaleHint = null, motion = null } = {}) {
+export async function analyzeSource(source, { sceneOverride = null, projection = "equirect", onProgress = () => {}, useCache = true, precomputedUrl = null, scaleHint = null, motion = null, palette = null } = {}) {
   // motion: null — тип руху визначається автоматично (завантажені відео); "temporal" — галерея (поведінка як раніше)
-  const key = `v${ANALYSIS_VERSION}|${source.key}|${sceneOverride || ""}|${projection}${motion ? "" : "|m1"}`;
+  const key = `v${ANALYSIS_VERSION}|${source.key}|${sceneOverride || ""}|${projection}${motion ? "" : "|m2"}`;
+  const autoPalette = palette ?? !motion;          // палітра без легенди — лише для завантажених файлів
   if (useCache) {
     const hit = await cacheGet(key);
     if (hit) { onProgress("cache", 1, "Аналіз узято з кешу"); return { ...hit, fromCache: true }; }
@@ -43,7 +44,7 @@ export async function analyzeSource(source, { sceneOverride = null, projection =
     if (pre) { onProgress("cache", 1, "Готовий аналіз завантажено"); return pre; }
   }
   const t0 = performance.now();
-  const profile = await passA(source, { sceneOverride, scaleHint, onProgress: (p, msg) => onProgress("A", p, msg) });
+  const profile = await passA(source, { sceneOverride, scaleHint, autoPalette, onProgress: (p, msg) => onProgress("A", p, msg) });
   // проєкція: «equirect» — плоска карта світу (колонки = довгота, рядки = широта); «globe» / «other» — ні
   profile.projection = projection;
   onProgress("A-done", 1, "Огляд завершено", profile);
@@ -123,6 +124,8 @@ export function buildAnalysis(profile, pb, { motion = null } = {}) {
   const zones = frames.map(f => f.zones);
   const hotspots = noChange ? [] : findHotspots(zones, profile, times);
   const labels = Object.fromEntries(feats.map(f => [f.id, f.label]));
+  // палітра без легенди: «тепло» тут — просто вище значення за палітрою кадру
+  if (profile.scale?.palette) Object.assign(labels, { warmth: "Значення за палітрою кадру", hotShare: "Частка високих значень", coldShare: "Частка низьких значень" });
   const series = feats.map(f => ({ id: f.id, range: f.range, noise: f.id === "frameDiff" ? profile.noiseFloor * 5 : profile.featureNoise[f.id] || 0 }));
   hotspots.forEach((hs, k) => {
     const id = `hotspot${k + 1}`;
@@ -203,7 +206,7 @@ export function buildAnalysis(profile, pb, { motion = null } = {}) {
     if (iMax < 0) iMax = Math.max(0, valid.indexOf(1));
     const hs = hotspots.find(h => h.id === leadFeature);
     climax = { frame: iMax, time: times[iMax], feature: leadFeature, value: abs[leadFeature][iMax],
-      text: leadFeature === story.feature ? story.text
+      text: leadFeature === story.feature ? (profile.scale?.palette ? "найбільша площа високих значень" : story.text)
         : hs ? `${sceneType === "nightlights" ? "найбільше світла" : "найвище значення"} у зоні «${hs.label}»`
         : `найвище значення «${labels[leadFeature]}»` };
   }

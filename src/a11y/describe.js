@@ -29,7 +29,7 @@ const pct = x => `${Math.round(x * 100)} %`;
 export function describeProfile(p, source, analysis = null) {
   const lines = [];
   const conf = p.confidence >= 0.7 ? "" : p.confidence >= 0.4 ? " (впевненість середня)" : " (впевненість низька)";
-  lines.push(`${SCENE_LABEL[p.sceneType]}${conf}.`);
+  lines.push(`${p.scale?.palette ? "Карта з власною шкалою кольорів (легенди в кадрі немає)" : SCENE_LABEL[p.sceneType]}${conf}.`);
   if (p.scan) lines.push(`Зображення: лінія сканування йде ${p.scan.dir === "we" ? "із заходу на схід (зліва направо)" : "з півночі на південь (згори вниз)"} за ${Math.round(p.durationSec)} с; зміни вздовж карти звучать як зміни в часі.`);
   else if (p.isStill) lines.push("Одне зображення: музика сканує кадр зліва направо, часових змін немає.");
   else {
@@ -73,7 +73,8 @@ export function describeProfile(p, source, analysis = null) {
     const what = rg.shape === "disk" ? "диск (глобус)" : rg.shape === "rect" ? "прямокутна карта" : "область неправильної форми";
     lines.push(`Область даних: ${what}, ${pct(rg.area)} кадру. Усе навколо (рамки, космос, чорні смуги, підписи) з аналізу виключено.`);
   }
-  if (p.scale?.found) lines.push(`Знайдено шкалу кольорів (${p.scale.orientation === "vertical" ? "вертикальну" : "горизонтальну"}) — значення читаються за нею, сама шкала з аналізу вирізана.`);
+  if (p.scale?.palette) lines.push(`Шкали кольорів у кадрі немає — ${p.palette?.why || "палітру визначено з кольорів кадру"}. Автоматичний режим: значення відносні; напрямок можна змінити перемикачем «Більше значення — це».`);
+  else if (p.scale?.found) lines.push(`Знайдено шкалу кольорів (${p.scale.orientation === "vertical" ? "вертикальну" : "горизонтальну"}) — значення читаються за нею, сама шкала з аналізу вирізана.`);
   else if (p.sceneType === "heatmap") lines.push("Шкали кольорів у кадрі немає — значення оцінюємо за відтінком: синій — менше, червоний — більше.");
   const excl = [];
   if (p.shares.land > 0.01) excl.push(`суша (${pct(p.shares.land)} кадру)`);

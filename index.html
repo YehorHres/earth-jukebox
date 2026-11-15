@@ -53,7 +53,7 @@
           <ul id="topic-list" class="topic-list" hidden aria-label="Теми"></ul>
           <!-- v7: як читати завантажене відео (для галереї приховано — там усе відомо з картки) -->
           <div id="read-opts" class="read-opts" hidden>
-            <div class="row">
+            <div class="row" id="motion-row">
               <label for="motionType">Що рухається у відео:</label>
               <select id="motionType" aria-describedby="motion-hint">
                 <option value="temporal">дані змінюються, карта на місці</option>
@@ -62,6 +62,16 @@
               </select>
             </div>
             <p id="motion-hint" class="keys"></p>
+            <div class="row" id="polarity-row">
+              <label for="polarity">Більше значення — це:</label>
+              <select id="polarity" aria-describedby="polarity-hint">
+                <option value="auto">автоматично</option>
+                <option value="lighter">світліше</option>
+                <option value="darker">темніше</option>
+                <option value="warmer">тепліше (червоніше)</option>
+              </select>
+            </div>
+            <p id="polarity-hint" class="keys"></p>
           </div>
         </div>
     </div>

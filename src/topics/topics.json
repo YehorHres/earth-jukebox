@@ -609,7 +609,11 @@
         "посіви",
         "фотосинтез",
         "біосфера",
-        "вирубка лісів"
+        "вирубка лісів",
+        "висота лісу",
+        "висота дерев",
+        "ліси",
+        "крони"
       ],
       "en": [
         "vegetation",
@@ -621,7 +625,12 @@
         "crops",
         "photosynthesis",
         "biosphere",
-        "deforestation"
+        "deforestation",
+        "canopy height",
+        "forest height",
+        "tree height",
+        "canopy",
+        "gedi"
       ]
     },
     "units": {

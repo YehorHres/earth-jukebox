@@ -113,7 +113,7 @@ function aggregate(arr, idx, how = "mean") {
  * @param {object} a аналіз (analyze.js)
  * @param {object} preset JSON-пресет
  */
-export function mapAnalysis(a, preset, { topic = null, timeUnit = null } = {}) {
+export function mapAnalysis(a, preset, { topic = null, timeUnit = null, polarity: polChoice = null } = {}) {
   const p = a.profile, dur = p.durationSec, still = p.isStill || a.count === 1;
   const noChange = p.changeScale === "none";
   const sp = topic?.soundProfile || {};
@@ -177,7 +177,7 @@ export function mapAnalysis(a, preset, { topic = null, timeUnit = null } = {}) {
   let lastAccentBar = -9;
 
   // ---- граматика звуку: головна величина (відносна в межах відео) з полярністю теми (moreMeans)
-  const pol = polarity(topic);
+  const pol = polChoice ?? polarity(topic);         // v7 §3: вибір користувача («більше — це світліше / темніше / тепліше») або тема
   const valueFeature = a.leadFeature || a.mainFeature;
   const valueSeries = !still && !noChange && valueFeature ? a.rel[valueFeature] : null;
   const valueLabel = a.labels?.[valueFeature] || getFeature(valueFeature)?.label || valueFeature || "—";
