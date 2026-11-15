@@ -736,6 +736,40 @@ SUITES.push(async function stage16() {
     stat.map(x => `${x.id}: ${x.s.bpm} BPM, лади ${[...new Set(x.s.harmony.bars.map(h => h.mode.label))].join("/")}, у кінці ${x.sust[x.sust.length - 1]}`).join(" · "));
 });
 
+SUITES.push(async function heat_loudness() {
+  // safe-8: у темах тепла (ocean-currents, temperature) гучність — від частки тепла й площі, не від швидкості змін
+  const R = await import("./audio/report.js");
+  const { presetFor } = await import("./mapping/mapper.js");
+  const T = await import("./topics/topics.js");
+  await T.loadTopics();
+  const temporal = new Set(["d1", "speed10", "accel20", "trend40"]);
+  const bad = [];
+  for (const id of R.HEAT_TOPICS) {
+    const p = await presetFor("heatmap", T.getTopic(id));
+    if (p.params.energy.sources.some(s => temporal.has(s.channel)) || p.params.level.sources.some(s => temporal.has(s.channel))) bad.push(`${id}: швидкість у гучності`);
+    if (!p.params.density.sources.some(s => s.channel === "speed10")) bad.push(`${id}: швидкість не в густоті`);
+    if (p.climax?.feature !== "hotShare") bad.push(`${id}: кульмінація не за часткою тепла`);
+  }
+  check("Теми тепла: гучність/енергія без швидкості змін (speed10 — лише густота ритму); кульмінація за часткою тепла", !bad.length, bad.join("; ") || R.HEAT_TOPICS.join(", "));
+  const cat = (await (await fetch("samples/catalog.json")).json()).filter(i => i.kind === "video" && i.analysis);
+  const ecco = await R.buildTrack(cat.find(i => i.id === "ecco2_sst_flow"));
+  const heat = ecco.mapping.bars.map(b => b.frames.reduce((s, i) => s + ecco.analysis.rel.hotShare[i], 0) / b.frames.length);
+  const cl = ecco.mapping.meta.sections.find(s => s.id === "climax");
+  const mean = (b0, b1) => heat.slice(b0, b1).reduce((p, q) => p + q, 0) / (b1 - b0), len = cl.b1 - cl.b0;
+  let best = -1;
+  const intro = ecco.mapping.meta.sections.find(s => s.id === "intro").b1, res = ecco.mapping.meta.sections.find(s => s.id === "resolution").b0;
+  for (let s = intro; s + len <= res; s++) best = Math.max(best, mean(s, s + len));
+  check("ECCO2: кульмінація — у вікні з найбільшою часткою тепла (з точністю до фрази)", mean(cl.b0, cl.b1) >= best - 0.05, `кульмінація ${cl.b0}–${cl.b1}: тепло ${mean(cl.b0, cl.b1).toFixed(2)}, максимум вікна ${best.toFixed(2)}`);
+  const rep = await (await fetch("renders/audio-report.json")).json(), row = rep.rows.find(r => r.id === "ecco2_sst_flow");
+  check("ECCO2: гучність (3 с) ↔ частка тепла ρ ≥ 0.6; на охолодженні гучність не зростає", row?.heatRho >= R.CRITERIA.heatRho && row?.coolRiseDb !== null && row.coolRiseDb <= R.CRITERIA.coolRiseDb,
+    row ? `ρ = ${row.heatRho?.toFixed(2)}, охолодження: ${row.coolRiseDb?.toFixed(1)} дБ` : "немає рядка в audio-report.json");
+  // інші треки галереї не змінилися (хеші партитур — як у safe-7)
+  const SAFE7 = { night_lights_rotating: "uocih4mas8", hurricane_beryl: "2fek06b0l51", co2_oco2_year: "8wccjvbzuf", sea_ice_2022: "zjcci3vwx9" };
+  const changed = [];
+  for (const [id, h] of Object.entries(SAFE7)) { const t = await R.buildTrack(cat.find(i => i.id === id)); if (R.scoreHash(t.score) !== h) changed.push(id); }
+  check("Інші 4 треки галереї не змінилися (партитури = safe-7)", !changed.length, changed.join(", ") || Object.keys(SAFE7).join(", "));
+});
+
 SUITES.push(async function stage_v6() {
   // v6 «музика й контраст»: справжній інструмент і мотив теми, різні треки, контраст розділів, варіації мотиву
   const G = await import("./grammar.js");

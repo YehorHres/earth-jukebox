@@ -10,7 +10,7 @@ export const SECTION_LABEL = {
  * @param {object} o { climaxBar|null, energy: number[], noChange: bool }
  * @returns {{ sections: [{id,label,b0,b1}], formCurve: number[] }}
  */
-export function computeForm(nBars, { climaxBar = null, energy = [], noChange = false }) {
+export function computeForm(nBars, { climaxBar = null, energy = [], noChange = false, byFeature = false }) {
   const phrase = nBars >= 12 ? 4 : 2;
   const snap = b => Math.round(b / phrase) * phrase;
   const introLen = Math.min(nBars >= 40 ? 2 * phrase : phrase, Math.max(1, Math.floor(nBars / 4)));
@@ -38,9 +38,11 @@ export function computeForm(nBars, { climaxBar = null, energy = [], noChange = f
     if (energy.length === nBars) {
       const win = s => { let q = 0, n = 0; for (let b = s; b < Math.min(nBars - resLen, s + climaxLen); b++) { q += energy[b]; n++; } return n ? q / n : 0; };
       let best = c0;
-      for (let s = introLen; s <= nBars - resLen - climaxLen; s += phrase) if (win(s) > win(best)) best = s;
+      // byFeature (тема задала ознаку кульмінації) — вікно шукаємо з кроком в 1 такт, щоб влучити саме в максимум
+      for (let s = introLen; s <= nBars - resLen - climaxLen; s += byFeature ? 1 : phrase) if (win(s) > win(best)) best = s;
       const lo = Math.min(...energy), span = Math.max(...energy) - lo;
-      if (span > 0.05 && win(c0) - lo < 0.8 * (win(best) - lo)) c0 = best;
+      // byFeature: ряд — ознака кульмінації теми (напр. частка тепла) → беремо саме вікно з її максимумом
+      if (byFeature ? win(best) > win(c0) : span > 0.05 && win(c0) - lo < 0.8 * (win(best) - lo)) c0 = best;
     }
     const c1 = Math.min(nBars - resLen, c0 + climaxLen);
     sections.push({ id: "intro", b0: 0, b1: introLen });
