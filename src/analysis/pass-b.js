@@ -6,6 +6,7 @@
 import { grab, analysisSize } from "../media/frames.js";
 import { buildContext } from "./frame-context.js";
 import { smallLuma, estimateCamera } from "./region-dynamic.js";
+import { estimateFlow } from "./motion.js";
 
 /** Вирізати bbox маски (сітка mw×mh) і розтягнути до w×h (найближчий сусід). */
 function cropResample(mask, mw, mh, bb, w, h) {
@@ -86,8 +87,9 @@ function inlineProcessor(init) {
       const r = computeFrame(ctx, true);
       const small = smallLuma(ctx.luma, init.w, init.h);
       const cam = prevSmall && continuous ? estimateCamera(prevSmall, small) : { scale: 1, dx: 0, dy: 0, gain: 0, motion: 0 };
+      const flow = prevLuma && continuous ? estimateFlow(prevLuma, ctx.luma, init.w, init.h) : null;
       prevSmall = small; prevLuma = ctx.luma;
-      return { index, time, ...r, cam, inside: ctx.insideCount / ctx.n };
+      return { index, time, ...r, cam, flow, inside: ctx.insideCount / ctx.n };
     },
     close() {},
   };
@@ -136,7 +138,7 @@ export async function passB(source, profile, { onProgress = () => {}, signal, pa
         const img = grab(await reader.seek(timeOf(i)), w, h, crop);
         // поки Worker рахує цей кадр, відрізок уже перемотує на наступний
         inflight.push(proc.process(i, timeOf(i), img, true).then(r => {
-          frames[r.index] = { time: r.time, features: r.features, zones: r.zones, cam: r.cam, inside: r.inside };
+          frames[r.index] = { time: r.time, features: r.features, zones: r.zones, cam: r.cam, flow: r.flow, inside: r.inside };
           done++;
           if (done % 8 === 0 || done === count) onProgress(done / count, done, count);
         }));

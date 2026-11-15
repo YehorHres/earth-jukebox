@@ -12,6 +12,7 @@ import { cacheGet, cachePut } from "./cache.js";
 import { listFeatures, getFeature, MAIN_FEATURE } from "../features/index.js";
 import { BANDS } from "../features/zones.js";
 import { median, percentile, smooth, autocorr, std, mean } from "../util/stats.js";
+import { classifyMotion, applyMotion } from "./motion.js";
 
 export const ANALYSIS_VERSION = 9;
 
@@ -30,8 +31,9 @@ const STORY = {
   mixed: { feature: "brightness", text: "найяскравіший момент" },
 };
 
-export async function analyzeSource(source, { sceneOverride = null, projection = "equirect", onProgress = () => {}, useCache = true, precomputedUrl = null, scaleHint = null } = {}) {
-  const key = `v${ANALYSIS_VERSION}|${source.key}|${sceneOverride || ""}|${projection}`;
+export async function analyzeSource(source, { sceneOverride = null, projection = "equirect", onProgress = () => {}, useCache = true, precomputedUrl = null, scaleHint = null, motion = null } = {}) {
+  // motion: null — тип руху визначається автоматично (завантажені відео); "temporal" — галерея (поведінка як раніше)
+  const key = `v${ANALYSIS_VERSION}|${source.key}|${sceneOverride || ""}|${projection}${motion ? "" : "|m1"}`;
   if (useCache) {
     const hit = await cacheGet(key);
     if (hit) { onProgress("cache", 1, "Аналіз узято з кешу"); return { ...hit, fromCache: true }; }
@@ -46,7 +48,7 @@ export async function analyzeSource(source, { sceneOverride = null, projection =
   profile.projection = projection;
   onProgress("A-done", 1, "Огляд завершено", profile);
   const pb = await passB(source, profile, { onProgress: (p, i, n) => onProgress("B", p, `Аналізую кадр ${i} з ${n}`) });
-  const analysis = buildAnalysis(profile, pb);
+  const analysis = buildAnalysis(profile, pb, { motion });
   analysis.key = key;
   analysis.seconds = (performance.now() - t0) / 1000;
   analysis.passBSeconds = pb.seconds;
@@ -67,7 +69,7 @@ export async function prepareImageScan(still, dir = "we") {
 }
 
 /** Чиста функція: сирі кадри проходу B + профіль → повний аналіз. */
-export function buildAnalysis(profile, pb) {
+export function buildAnalysis(profile, pb, { motion = null } = {}) {
   const frames = pb.frames, n = frames.length, rate = pb.rate;
   const feats = listFeatures();
   const times = Float32Array.from(frames, f => f.time);
@@ -206,10 +208,15 @@ export function buildAnalysis(profile, pb) {
         : `найвище значення «${labels[leadFeature]}»` };
   }
 
-  return {
+  const analysis = {
     version: ANALYSIS_VERSION, profile, rate, count: n, times, valid, abs, rel, temporal, rank, zones, norm, labels,
     events, cuts, period, climax, hotspots, keyFeatures, mainFeature: main, leadFeature, camera,
   };
+  // v7 §1: тип руху. Заданий (галерея: "temporal") — аналіз без змін; інакше визначаємо за зсувами кадрів
+  if (motion === "temporal") return analysis;
+  const detected = motion ? { type: motion, auto: false, confidence: 1, why: "задано вручну", stats: {} } : classifyMotion(frames, profile, valid);
+  analysis.motion = detected;
+  return applyMotion(analysis, detected.type, { auto: detected.auto });
 }
 
 /** «Гарячі точки»: top-3 клітинки сітки з найбільшою зміною за відео — «солісти» оркестру. */

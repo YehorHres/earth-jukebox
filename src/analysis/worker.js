@@ -3,6 +3,7 @@
 import { buildContext } from "./frame-context.js";
 import { computeFrame } from "../features/index.js";
 import { smallLuma, estimateCamera } from "./region-dynamic.js";
+import { estimateFlow } from "./motion.js";
 
 let cfg = null, prevLuma = null, prevSmall = null;
 
@@ -21,9 +22,10 @@ self.onmessage = e => {
       // рух камери: глобальний масштаб/зсув відносно попереднього кадру
       const small = smallLuma(ctx.luma, cfg.w, cfg.h);
       const cam = prevSmall && m.continuous ? estimateCamera(prevSmall, small) : { scale: 1, dx: 0, dy: 0, gain: 0, motion: 0 };
+      const flow = prevLuma && m.continuous ? estimateFlow(prevLuma, ctx.luma, cfg.w, cfg.h) : null;
       prevSmall = small;
       prevLuma = ctx.luma;
-      self.postMessage({ type: "result", index: m.index, time: m.time, features, zones, cam, inside: ctx.insideCount / ctx.n });
+      self.postMessage({ type: "result", index: m.index, time: m.time, features, zones, cam, flow, inside: ctx.insideCount / ctx.n });
     } catch (err) {
       self.postMessage({ type: "error", index: m.index, message: err.message });
     }

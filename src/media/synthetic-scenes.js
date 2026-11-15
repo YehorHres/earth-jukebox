@@ -173,3 +173,61 @@ export const SCENES = {
     truth: () => true,
   },
 };
+
+/* ---------- v7: типи руху (обертовий глобус, панорама над статичною картою) ---------- */
+const hsl2rgb = (hDeg, sat, li) => {
+  const a = sat * Math.min(li, 1 - li), f = n => { const k = (n + hDeg / 30) % 12; return li - a * Math.max(-1, Math.min(k - 3, 9 - k, 1)); };
+  return [Math.round(255 * f(0)), Math.round(255 * f(8)), Math.round(255 * f(4))];
+};
+/** «Дані» глобуса: значення 0..1 за довготою й широтою (радіани) — велика хвиля за довготою + дрібна текстура. */
+export const globeValue = (lon, lat) => Math.max(0, Math.min(1, 0.5 + 0.35 * Math.sin(lon) + 0.1 * Math.sin(5 * lon + 3 * lat) + 0.07 * Math.cos(9 * lat - 4 * lon)));
+
+Object.assign(SCENES, {
+  // глобус обертається (один оберт за відео), дані на ньому НЕ змінюються
+  "rotating-globe": {
+    w: 480, h: 270, duration: 24, fps: 10, shape: "disk", turns: 1,
+    disk: () => ({ cx: 240, cy: 135, r: 110 }),
+    /** довгота меридіана в центрі диска в момент t */
+    lon0(t) { return -2 * Math.PI * this.turns * t / this.duration; },
+    draw(g, t, W, H) {
+      const { cx, cy, r } = this.disk();
+      if (!this._geo) {
+        const px = [];
+        for (let y = Math.ceil(cy - r); y <= cy + r; y++) for (let x = Math.ceil(cx - r); x <= cx + r; x++) {
+          const u = (x - cx) / r, v = (cy - y) / r, q = 1 - u * u - v * v;
+          if (q >= 0) px.push([y * W + x, Math.atan2(u, Math.sqrt(q)), Math.asin(v)]);
+        }
+        this._geo = px;
+      }
+      g.fillStyle = "#000"; g.fillRect(0, 0, W, H);
+      g.fillStyle = "#ccc"; for (let k = 0; k < 30; k++) g.fillRect((k * 97) % W, (k * 53) % H, 1, 1);
+      const img = g.getImageData(0, 0, W, H), d = img.data, l0 = this.lon0(t);
+      for (const [i, dl, lat] of this._geo) {
+        const [R, G, B] = hsl2rgb(240 * (1 - globeValue(l0 + dl, lat)), 0.9, 0.5);
+        d[4 * i] = R; d[4 * i + 1] = G; d[4 * i + 2] = B; d[4 * i + 3] = 255;
+      }
+      g.putImageData(img, 0, 0);
+    },
+    truth(x, y) { const { cx, cy, r } = this.disk(); return (x - cx) ** 2 + (y - cy) ** 2 <= r * r; },
+  },
+  // камера їде над статичною картою (3 px за кадр на схід, 0.5 px на південь); дані НЕ змінюються
+  "pan-map": {
+    w: 480, h: 240, duration: 12, fps: 10, shape: "full",
+    draw(g, t, W, H) {
+      if (!this._map) {
+        const m = document.createElement("canvas"); m.width = 1200; m.height = 480;
+        const q = m.getContext("2d");
+        for (let k = 0; k < 480; k += 2) { q.fillStyle = heat(0.2 + 0.6 * (1 - Math.abs((k + 1) / 480 - 0.5) * 2)); q.fillRect(0, k, 1200, 2); }
+        for (let k = 0; k < 90; k++) {
+          q.fillStyle = heat(((k * 0.61803) % 1));
+          q.beginPath(); q.arc((k * 173) % 1200, (k * 97) % 480, 14 + (k * 7) % 30, 0, 7); q.fill();
+        }
+        q.fillStyle = "rgb(95,95,95)"; q.fillRect(260, 120, 150, 190); q.fillRect(760, 60, 220, 150);
+        this._map = m;
+      }
+      const f = Math.round(t * this.fps);
+      g.drawImage(this._map, 3 * f, Math.round(0.5 * f), W, H, 0, 0, W, H);
+    },
+    truth: () => true,
+  },
+});

@@ -118,12 +118,16 @@ export function mapAnalysis(a, preset, { topic = null, timeUnit = null } = {}) {
   const noChange = p.changeScale === "none";
   const sp = topic?.soundProfile || {};
   const why = {};
+  // v7 §1: глобус обертається / камера рухається — рух у кадрі не є зміною даних (галерея: motion немає → як раніше)
+  const mOff = !!a.motion && a.motion.type !== "temporal";
+  const isMotionSrc = src => src.feature === "frameDiff" || TEMPORAL.has(src.channel);
 
   // ---- темп усього треку: діапазон — від теми, позиція в діапазоні — рух у даних
   const tp = preset.tempo;
   const ts = sourceSeries(a, tp);
   let tempoX = 0;
-  if (ts && !noChange) {
+  if (mOff && isMotionSrc(tp)) tempoX = 0.35;       // рух камери — не «рух у даних»: темп спокійний, із діапазону теми
+  else if (ts && !noChange) {
     const all = [];
     for (let i = 0; i < a.count; i++) if (a.valid[i]) all.push(a.abs[tp.feature][i]);
     tempoX = clamp((mean(all) - tp.in[0]) / (tp.in[1] - tp.in[0]));
@@ -194,6 +198,13 @@ export function mapAnalysis(a, preset, { topic = null, timeUnit = null } = {}) {
       let v = def.base || 0;
       const parts = [{ source: "база", contrib: def.base || 0 }];
       for (const src of def.sources) {
+        if (mOff && isMotionSrc(src)) {
+          // джерело руху вимкнено; його вагу отримує значення даних, що зараз звучить (центр диска / кадр)
+          const x = valueSeries ? clamp(aggregate(valueSeries, idx)) : 0.5, y = (src.weight || 0) * applyCurve(src.curve, x, false);
+          v += y;
+          parts.push({ source: `${valueLabel} (відн.) — замість руху в кадрі (${a.motion.label || a.motion.type})`, x, contrib: y });
+          continue;
+        }
         const s = sourceSeries(a, src);
         if (!s) { parts.push({ source: sourceLabel(a, src), contrib: 0, missing: true }); continue; }
         let x = s.norm(aggregate(s.arr, idx, src.agg));
@@ -233,7 +244,7 @@ export function mapAnalysis(a, preset, { topic = null, timeUnit = null } = {}) {
     // тутті ↔ соло ← частка зон (колонок), що змінилися проти попереднього такту
     let moved = 0, seen = 0;
     if (prevContour) contour.forEach((v, c) => { const q = prevContour[c]; if (v !== null && q !== null) { seen++; if (Math.abs(v - q) > 0.06) moved++; } });
-    params.tutti = seen ? moved / seen : 0.5;
+    params.tutti = mOff ? 0.5 : seen ? moved / seen : 0.5;
     explain.tutti = [{ source: "частка зон кадру, що змінюються", contrib: params.tutti }];
     prevContour = contour;
     // нічні вогні (v6): кількість вогнів і кластерів — густота «вогників»; темрява (майже немає світла) — тиша
@@ -330,6 +341,7 @@ export function mapAnalysis(a, preset, { topic = null, timeUnit = null } = {}) {
   const tick = timeUnit?.seconds > 0 ? { seconds: timeUnit.seconds, strong: timeUnit.strong || 12, label: timeUnit.label || "одиниця часу" } : DEFAULT_TICK;
   why.value = `Голос даних: «${valueLabel}»${topic?.more?.uk ? ` (${topic.more.uk} → вище)` : " (більше → вище)"}`;
   why.reference = reference.why;
+  if (mOff) why.motion = a.motion.note || `Тип руху: ${a.motion.label}`;
   why.sound = topic ? `${topic.name.uk}: ${sp.why}` : "Тему не вказано — нейтральний оркестр";
 
   return {
