@@ -2,7 +2,8 @@
 // Вихід: { meta, bars: [{ bar, t0, dur, params: {...}, explain: {...}, events, section, ... }] }
 // Кожен параметр = base + Σ weight · curve(ознака), обрізаний до діапазону; explain — внески джерел.
 import { applyCurve, CURVE_LABEL } from "./curves.js";
-import { computeForm, SECTION_LABEL } from "./form.js";
+import { computeForm, computeFormByQuantity, SECTION_LABEL } from "./form.js";
+import { quantityModel, applyQuantity, KIND_LABEL } from "./quantity.js";
 import { getFeature } from "../features/index.js";
 import { clamp, percentile, mean, slope } from "../util/stats.js";
 import { meterOf } from "../composer/meter.js";
@@ -113,7 +114,7 @@ function aggregate(arr, idx, how = "mean") {
  * @param {object} a аналіз (analyze.js)
  * @param {object} preset JSON-пресет
  */
-export function mapAnalysis(a, preset, { topic = null, timeUnit = null, polarity: polChoice = null } = {}) {
+export function mapAnalysis(a, preset, { topic = null, timeUnit = null, polarity: polChoice = null, name = null } = {}) {
   const p = a.profile, dur = p.durationSec, still = p.isStill || a.count === 1;
   const noChange = p.changeScale === "none";
   const sp = topic?.soundProfile || {};
@@ -131,6 +132,8 @@ export function mapAnalysis(a, preset, { topic = null, timeUnit = null, polarity
     const all = [];
     for (let i = 0; i < a.count; i++) if (a.valid[i]) all.push(a.abs[tp.feature][i]);
     tempoX = clamp((mean(all) - tp.in[0]) / (tp.in[1] - tp.in[0]));
+    // v10: завантажене відео — рух у кадрі часто є рухом камери, тому темп не виходить у верхню частину діапазону теми
+    if (a.motion && isMotionSrc(tp)) tempoX = Math.min(tempoX, 0.6);
   }
   const bpmRange = sp.bpm || tp.bpm;
   // темп один на весь трек (не змінюється посеред фраз); стеля — BPM_CAP (або bpmCap теми)
@@ -279,12 +282,17 @@ export function mapAnalysis(a, preset, { topic = null, timeUnit = null, polarity
     bars.push({ bar: b, t0, dur: barDur, frames: idx, params, explain, events: evs, allEvents: all });
   }
 
+  // ---- v10 §1: завантажене відео — гучність, густота, напруга, регістр і форма йдуть за «кількістю» даних на видимій поверхні
+  const qm = a.motion && !still ? quantityModel(a, bars, { topic, pol, valueSeries, valueFeature, valueLabel }) : null;
+  if (qm) applyQuantity(bars, qm, { keepRhythm: !mOff });
+
   // ---- відносна енергія (v6): енергія, розтягнута в межах відео (5–95 перцентиль) — контраст гучності, складу й ударних.
   // Якщо енергія майже не змінюється (розмах < 0.2), розтяг пропорційно слабший — рівний трек лишається рівним.
   {
     const es = bars.map(x => x.params.energy), e5 = percentile(es, 5), e95 = percentile(es, 95), span = e95 - e5, kk = Math.min(1, span / 0.2);
     for (const bar of bars) {
       const u = clamp((bar.params.energy - e5) / Math.max(span, 1e-6));
+      if (qm) continue;                               // «кількість» уже розтягнута в межах відео
       bar.params.drive = still || noChange ? clamp(bar.params.energy) : kk * u + (1 - kk) * clamp(bar.params.energy);
       bar.explain.drive = [{ source: "енергія даних, розтягнута в межах відео", contrib: bar.params.drive }];
     }
@@ -300,7 +308,8 @@ export function mapAnalysis(a, preset, { topic = null, timeUnit = null, polarity
     climaxBar = formEnergy.reduce((m, v, i) => (v > formEnergy[m] ? i : m), 0);
     why.climax = preset.climax.why || `Кульмінація — у вікні з максимумом «${a.labels?.[cf] || cf}»`;
   }
-  const { sections, formCurve, phrase } = computeForm(nBars, { climaxBar, energy: formEnergy, noChange, byFeature: !!cs });
+  if (qm) why.climax = `Форма треку — лише з ряду «${qm.label}»: кульмінація там, де даних найбільше; рух камери, площа диска й позиція в треку на гучність не впливають`;
+  const { sections, formCurve, phrase } = qm ? computeFormByQuantity(nBars, qm.q) : computeForm(nBars, { climaxBar, energy: formEnergy, noChange, byFeature: !!cs });
   const cutBars = new Set((a.cuts || []).filter(c => !c.edge).map(c => Math.floor(c.time / barDur)));
   for (const s of sections) for (let b = s.b0; b < s.b1; b++) {
     const bar = bars[b];
@@ -338,6 +347,7 @@ export function mapAnalysis(a, preset, { topic = null, timeUnit = null, polarity
       : s < -0.25 ? `«${a.labels[lf]}» загалом спадає — кульмінація раніше, далі довга розв'язка`
       : `«${a.labels[lf]}» коливається без загального тренду — форма йде за піками даних`;
   } else why.form = noChange ? "Змін немає — спокійна форма без кульмінації" : "Форма — за піками даних";
+  if (qm) { why.form = `Гучність, густота, напруга, регістр і яскравість тембру — від одного ряду: ${qm.label} (${KIND_LABEL[qm.kind]})`; why.quantity = why.form; }
   // точка відліку: медіана головної величини за все відео; тіки — одиниця часу з картки або кожні 10 с
   const reference = { value: percentile(bars.map(x => x.params.value), 50), feature: valueFeature || null,
     why: `Референсний тон — медіана «${valueLabel}» за все відео: вище за нього — більше, нижче — менше` };
@@ -353,6 +363,7 @@ export function mapAnalysis(a, preset, { topic = null, timeUnit = null, polarity
       preset: preset.id, presetTitle: preset.title, bpm, barDur, nBars, phrase, sections, still, noChange, scaleNote,
       tempoWhy: tp.why, tempoX, sceneType: p.sceneType, duration: still ? nBars * barDur : dur,
       meter, key, topic: topic?.id || "generic", soundProfile: sp, why,
+      quantity: qm ? { kind: qm.kind, feature: qm.feature, label: qm.label, span: qm.span } : null,
       polarity: pol, valueFeature: valueFeature || null, reference, tick, lightsFeature: a.rel.lightPoints ? lightsFeature : null,
     },
     bars,

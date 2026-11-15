@@ -1,6 +1,7 @@
 // Точка входу шару 1: реєструє всі ознаки й рахує «Аудіо-ДНК» кадру.
 import "./basic.js";
 import "./scene.js";
+import "./quantity.js";
 import { computeFeatures, listFeatures, getFeature } from "./registry.js";
 import { computeZones } from "./zones.js";
 

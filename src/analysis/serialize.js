@@ -15,10 +15,12 @@ export function serializeAnalysis(a) {
     profile: { ...profile, masks: { staticMask: b64(staticMask), landMask: b64(landMask), bgMask: b64(bgMask), overlayMask: b64(overlayMask), ...(regionMask && { regionMask: b64(regionMask) }) } },
     rate: a.rate, count: a.count, times: arr(a.times), valid: Array.from(a.valid),
     abs: mapObj(a.abs, arr), rel: mapObj(a.rel, arr), temporal: mapObj(a.temporal, arr), rank: mapObj(a.rank, arr),
-    zones: a.zones.map(z => ({ cols: z.cols.map(v => (v === null ? null : r5(v))), colsCover: z.colsCover.map(r5), bands: mapObj(z.bands, v => (v === null ? null : r5(v))), hemi: z.hemi })),
+    zones: a.zones.map(z => ({ cols: z.cols.map(v => (v === null ? null : r5(v))), colsCover: z.colsCover.map(r5), bands: mapObj(z.bands, v => (v === null ? null : r5(v))), hemi: z.hemi,
+      ...(a.motion && z.qp ? { qp: z.qp, qf: z.qf, qg: z.qg, ql: z.ql } : {}) })),
     norm: a.norm, labels: a.labels, events: a.events, cuts: a.cuts, period: a.period, climax: a.climax,
     hotspots: a.hotspots.map(({ series, ...h }) => h),
     keyFeatures: a.keyFeatures, mainFeature: a.mainFeature, leadFeature: a.leadFeature, camera: a.camera,
+    ...(a.motion ? { motion: a.motion, layout: a.layout || null } : {}),
     seconds: a.seconds, processor: a.processor, createdAt: new Date().toISOString(),
   };
 }
