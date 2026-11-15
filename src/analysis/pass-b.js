@@ -32,7 +32,8 @@ export function planSampling(source) {
   const all = Math.floor(dur * fps);
   if (all <= 400) return { rate: fps, count: Math.max(1, all) };       // коротке відео — кожен кадр
   // ≥ 4 кадри/с, але не більше 800 кадрів: довге відео (10 хв) проріджуємо
-  const rate = Math.min(fps, Math.max(Math.min(4, 800 / dur), 400 / dur));
+  // «важке» відео (великий файл, 4K–6K): не більше 400 кадрів — кожна перемотка дорога, пам'ять обмежена
+  const rate = source.heavy ? 400 / dur : Math.min(fps, Math.max(Math.min(4, 800 / dur), 400 / dur));
   return { rate, count: Math.max(1, Math.floor(dur * rate)) };
 }
 
@@ -117,7 +118,8 @@ export async function passB(source, profile, { onProgress = () => {}, signal, pa
 
   // скільки паралельних відрізків
   const cores = navigator.hardwareConcurrency || 4;
-  const K = source.fork && count >= 64 ? Math.max(1, Math.min(parallel ?? 4, Math.floor(cores / 2) || 1, Math.floor(count / 32))) : 1;
+  // «важке» відео — один декодер: кілька копій 4K-декодера можуть не вміститись у пам'ять
+  const K = source.fork && count >= 64 && !source.heavy ? Math.max(1, Math.min(parallel ?? 4, Math.floor(cores / 2) || 1, Math.floor(count / 32))) : 1;
   const frames = new Array(count);
   let done = 0;
   const t0 = performance.now();

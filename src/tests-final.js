@@ -135,3 +135,33 @@ FINAL_SUITES.push(async function palette(check) {
   const qs = ["висота лісу", "canopy height", "forest", "ліс"], got = qs.map(q => T.matchTopic(q).topic?.id);
   check("Тема: «висота лісу», «canopy height», «forest», «ліс» → vegetation", got.every(x => x === "vegetation"), qs.map((q, i) => `${q} → ${got[i]}`).join("; "));
 });
+
+// D. Формати: відео, яке браузер не декодує, — зрозуміле повідомлення; великі файли — ≤ 400 кадрів
+FINAL_SUITES.push(async function formats(check) {
+  const S = await import("./media/sources.js");
+  const { planSampling } = await import("./analysis/pass-b.js");
+  const junk = new File([new Uint8Array(4096).map((_, i) => (i * 37) % 251)], "broken_h265.mp4", { type: "video/mp4" });
+  let err = null;
+  try { await S.openVideo(junk); } catch (e) { err = e; }
+  check("Формати: відео, що не декодується, → зрозуміле повідомлення (H.265/HEVC, роздільність, порада MP4 H.264 1080p)", err?.code === "format" && err.message === S.FORMAT_MESSAGE && /H\.265\/HEVC/.test(err.message) && /MP4 H\.264 1080p/.test(err.message) && /NASA SVS/.test(err.message), err ? err.message : "помилки немає");
+
+  const heavy = planSampling({ duration: 300, fps: 30, heavy: true }), normal = planSampling({ duration: 300, fps: 30 }), huge = planSampling({ duration: 3600, fps: 60, heavy: true });
+  check("Великі файли (> 150 МБ або ширші за 2560 px): аналіз ≤ 400 кадрів, один декодер; звичайні відео — як раніше", heavy.count <= 400 && huge.count <= 400 && normal.count === 800 && S.HEAVY_BYTES === 150e6,
+    `важке 5 хв: ${heavy.count} кадрів; важке 1 год: ${huge.count}; звичайне 5 хв: ${normal.count}`);
+
+  // застосунок: повідомлення видно в рядку стану й у aria-live
+  const fr = document.createElement("iframe");
+  fr.style.cssText = "width:900px;height:700px;position:absolute;left:-2000px";
+  fr.src = "index.html";
+  document.body.appendChild(fr);
+  await new Promise(r => fr.addEventListener("load", r, { once: true }));
+  const w = fr.contentWindow, doc = fr.contentDocument;
+  for (let i = 0; i < 40 && !w.jukebox?.loadFile; i++) await new Promise(r => setTimeout(r, 250));
+  const origErr = w.console.error; w.console.error = () => {};      // очікувана помилка — не засмічує консоль
+  await w.jukebox.loadFile(new w.File([new Uint8Array(4096)], "broken_h265.mp4", { type: "video/mp4" }));
+  w.console.error = origErr;
+  for (let i = 0; i < 30 && !/H\.265/.test(doc.getElementById("live").textContent); i++) await new Promise(r => setTimeout(r, 100));
+  const status = doc.getElementById("status").textContent, live = doc.getElementById("live").textContent;
+  check("Формати: у застосунку повідомлення видно текстом (рядок стану) і чутно (aria-live); застосунок лишається робочим", status === S.FORMAT_MESSAGE && live === S.FORMAT_MESSAGE && w.jukebox.busy === false, `стан: «${status.slice(0, 60)}…»`);
+  fr.remove();
+});
